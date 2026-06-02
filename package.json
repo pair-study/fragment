@@ -1,0 +1,22 @@
+{
+  "name": "final-project",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@nestjs/core", "@prisma/client", "@prisma/engines", "prisma"]
+  },
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter @repo/database build && pnpm --filter api dev",
+    "dev:all": "pnpm --filter @repo/database build && pnpm --parallel --filter web --filter api dev",
+    "build": "pnpm --filter web build",
+    "build:api": "pnpm --filter api build",
+    "db:generate": "pnpm --filter @repo/database db:generate",
+    "db:migrate": "pnpm --filter @repo/database db:migrate",
+    "db:push": "pnpm --filter @repo/database db:push",
+    "db:studio": "pnpm --filter @repo/database db:studio",
+    "db:reset": "pnpm --filter @repo/database db:reset"
+  }
+}
