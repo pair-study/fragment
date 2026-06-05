@@ -24,6 +24,17 @@ Closes #이슈번호
 
 ---
 
+## 영향 범위
+<!-- 변경이 발생한 레이어에 체크하세요 -->
+- [ ] `web` — `apps/web`
+- [ ] `api` — `apps/api`
+- [ ] `db` — `packages/database`
+- [ ] `shared` — `packages/shared`
+- [ ] `app` — `apps/app`
+- [ ] `repo` — 루트 설정·CI/CD·문서
+
+---
+
 ## 테스트 방법
 <!-- 리뷰어가 직접 확인할 수 있도록 재현 / 테스트 방법을 적어주세요 -->
 1. 
@@ -37,7 +48,7 @@ Closes #이슈번호
 - [ ] 상태 분류 규칙(서버/전역/로컬/폼 상태) 준수
 - [ ] 에러 처리 및 Fallback UI 확인 (해당 시)
 - [ ] Swagger 문서 업데이트 (API 변경 시)
-- [ ] 공유 타입(`packages/types`) 업데이트 (타입 변경 시)
+- [ ] 공유 타입·스키마(`packages/shared`) 업데이트 (타입 변경 시)
 
 ---
 
