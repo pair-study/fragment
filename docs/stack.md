@@ -13,7 +13,7 @@
   - **Server State:** TanStack Query (React Query) `5.74.x` (API 데이터 캐싱, 동기화 및 상태 관리)
 
 - **Navigation (앱 전용):**
-  - Expo Router `4.x` (파일 기반 라우팅, React Navigation 7.x 기반)
+  - Expo Router `5.x` (파일 기반 라우팅, React Navigation 7.x 기반)
 
 - **Form & Validation:** (웹·앱 공통)
   - React Hook Form `7.54.x`
@@ -92,6 +92,7 @@
 
 - **API Docs:** Swagger UI (@nestjs/swagger `11.x` 내장 기능 활용) 또는 Notion (명확한 책임 경계와 응답 포맷 사전 조율)
 - **Version Control:** Git `2.x`, GitHub (체계적인 브랜치 전략 및 코드 리뷰)
+- **Git Hooks:** Husky `9.x` + commitlint `21.x` (커밋 메시지 컨벤션 강제, main·develop 직접 push 차단)
 
 ---
 
@@ -103,7 +104,7 @@
 | Next.js 15.3.x | React 19 정식 지원, App Router 안정화, Turbopack 기본 활성화 |
 | React 19.1.x | Next.js 15 및 React Native 0.79와 호환 |
 | React Native 0.79.x | New Architecture(Fabric) 기본 활성화, Expo SDK 53과 호환 |
-| Expo SDK 53.x | React Native 0.79 기반, Expo Router 4 포함 |
+| Expo SDK 53.x | React Native 0.79 기반, Expo Router 5 포함 |
 | TanStack Query 5.74.x | React 19 concurrent 기능 완전 지원 |
 | Prisma 6.8.x | PostgreSQL 17 지원, TypeScript 5.x 최적화 |
 | Tailwind CSS 4.1.x | Oxide 엔진, CSS-first 설정 방식 (tailwind.config.ts 유지 가능) |
