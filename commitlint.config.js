@@ -9,7 +9,7 @@ module.exports = {
     'scope-enum': [
       2,
       'always',
-      ['web', 'api', 'db', 'shared', 'app', 'repo'],
+      ['web', 'api', 'db', 'shared', 'mobile', 'repo'],
     ],
     'header-max-length': [2, 'always', 72],
     'subject-full-stop': [2, 'never', '.'],
