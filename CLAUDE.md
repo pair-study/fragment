@@ -51,9 +51,12 @@ final-project/
 ## 개발 명령어
 
 ```bash
-pnpm dev          # Next.js 웹만 실행
-pnpm dev:api      # DB 빌드 후 NestJS API 실행
-pnpm dev:all      # 웹 + API 병렬 실행
+pnpm dev                # Next.js 웹만 실행
+pnpm dev:api            # DB 빌드 후 NestJS API 실행
+pnpm dev:all            # 웹 + API 병렬 실행
+pnpm dev:mobile         # Expo Metro 번들러 시작
+pnpm dev:mobile:ios     # iOS 시뮬레이터
+pnpm dev:mobile:android # Android 에뮬레이터
 
 pnpm db:generate  # Prisma 클라이언트 재생성 (스키마 변경 후 필수)
 pnpm db:migrate   # 마이그레이션 실행
