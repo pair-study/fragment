@@ -164,8 +164,23 @@ main
 - `main`, `develop`에 직접 push 금지
 - 모든 작업은 이슈를 먼저 생성하고 브랜치명에 이슈 번호 포함 권장 (`feature/12-login-api`)
 - `feature → develop`: **Squash and merge**
-- `develop → main`: **Merge commit**
+- `develop → main`: **Merge commit** + 버전 태그 (`v0.1.0`)
 - PR은 가능하면 **500줄 이내**로 분리
+
+### develop → main 머지 기준
+
+`develop → main` 머지는 **일정이 아닌 배포 이벤트**에 맞춘다. **마일스톤(FR) 단위**로 관련 기능이 모두 완료되고 `develop`에서 검증이 끝났을 때 머지한다.
+
+```
+예시
+feat(db): 회원·조직 테이블 설계  ─┐
+feat(api): 조직 생성 API        ─┤→ develop 검증 → main 머지 → v0.1.0 태그
+feat(web): 조직 생성 UI         ─┘
+```
+
+- `develop`은 항상 실행 가능한 상태를 유지한다. CI가 깨진 채로 두지 않는다.
+- 기능이 절반만 구현된 상태로 `develop`에 머지하지 않는다.
+- `main` 머지 후 반드시 버전 태그를 달아 롤백 기준점을 남긴다.
 
 ### 브랜치 생성 의무 조건
 
