@@ -1,4 +1,4 @@
-# apps/app — CLAUDE.md (근로자 모바일 앱)
+# apps/mobile — CLAUDE.md (근로자 모바일 앱)
 
 ## 역할 및 범위
 
@@ -26,7 +26,7 @@
 ## 디렉터리 구조
 
 ```
-apps/app/
+apps/mobile/
 ├── app/                  # Expo Router 파일 기반 라우팅
 │   ├── (auth)/           # 소셜 로그인 화면
 │   ├── (tabs)/           # 인증 후 탭 네비게이션
@@ -98,19 +98,19 @@ apps/app/
 ## 테스트
 
 ```bash
-pnpm --filter @ilgam/app test    # 단위 테스트 (Vitest)
+pnpm --filter @ilgam/mobile test    # 단위 테스트 (Vitest)
 ```
 
 - **Vitest + React Testing Library** (React Native용)을 사용합니다.
 - 테스트 파일은 별도 `test/` 디렉터리 없이 대상 파일 옆에 코로케이션합니다. (`useAttendance.ts` → `useAttendance.test.ts`)
-- 네이티브 API(Expo Location, Notifications) 모킹 설정은 `apps/app/__mocks__/`에 둡니다.
+- 네이티브 API(Expo Location, Notifications) 모킹 설정은 `apps/mobile/__mocks__/`에 둡니다.
 - GPS 권한, 위치 계산, 출근 판정 로직은 반드시 단위 테스트를 작성합니다.
 
 ## 개발 실행
 
 ```bash
-pnpm --filter @ilgam/app start       # Expo Metro 번들러 시작
-pnpm --filter @ilgam/app ios         # iOS 시뮬레이터
-pnpm --filter @ilgam/app android     # Android 에뮬레이터
-pnpm --filter @ilgam/app lint
+pnpm --filter @ilgam/mobile start       # Expo Metro 번들러 시작
+pnpm --filter @ilgam/mobile ios         # iOS 시뮬레이터
+pnpm --filter @ilgam/mobile android     # Android 에뮬레이터
+pnpm --filter @ilgam/mobile lint
 ```
