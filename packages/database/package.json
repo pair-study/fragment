@@ -1,5 +1,5 @@
 {
-  "name": "@repo/database",
+  "name": "@ilgam/database",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
@@ -16,13 +16,19 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "db:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0"
+    "@prisma/client": "~6.8.0"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.0"
   },
   "devDependencies": {
-    "prisma": "^6.0.0",
+    "@nestjs/common": "^11.0.0",
+    "prisma": "~6.8.0",
+    "ts-node": "^10.9.1",
     "typescript": "^5"
   }
 }

@@ -1,22 +1,38 @@
 {
   "name": "final-project",
   "private": true,
+  "packageManager": "pnpm@10.34.1",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0 <23.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@nestjs/core", "@prisma/client", "@prisma/engines", "prisma"]
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
+    ]
   },
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "dev:api": "pnpm --filter @repo/database build && pnpm --filter api dev",
-    "dev:all": "pnpm --filter @repo/database build && pnpm --parallel --filter web --filter api dev",
-    "build": "pnpm --filter web build",
-    "build:api": "pnpm --filter api build",
-    "db:generate": "pnpm --filter @repo/database db:generate",
-    "db:migrate": "pnpm --filter @repo/database db:migrate",
-    "db:push": "pnpm --filter @repo/database db:push",
-    "db:studio": "pnpm --filter @repo/database db:studio",
-    "db:reset": "pnpm --filter @repo/database db:reset"
+    "dev": "pnpm --filter @ilgam/web dev",
+    "dev:api": "pnpm --filter @ilgam/database build && pnpm --filter @ilgam/api dev",
+    "dev:mobile": "pnpm --filter @ilgam/mobile start",
+    "dev:mobile:ios": "pnpm --filter @ilgam/mobile ios",
+    "dev:mobile:android": "pnpm --filter @ilgam/mobile android",
+    "dev:all": "pnpm --filter @ilgam/database build && pnpm --parallel --filter @ilgam/web --filter @ilgam/api dev",
+    "build": "pnpm --filter @ilgam/web build",
+    "build:api": "pnpm --filter @ilgam/api build",
+    "db:generate": "pnpm --filter @ilgam/database db:generate",
+    "db:migrate": "pnpm --filter @ilgam/database db:migrate",
+    "db:push": "pnpm --filter @ilgam/database db:push",
+    "db:studio": "pnpm --filter @ilgam/database db:studio",
+    "db:reset": "pnpm --filter @ilgam/database db:reset",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "husky": "^9.1.7"
   }
 }

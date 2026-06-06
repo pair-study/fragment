@@ -30,7 +30,7 @@ Closes #이슈번호
 - [ ] `api` — `apps/api`
 - [ ] `db` — `packages/database`
 - [ ] `shared` — `packages/shared`
-- [ ] `app` — `apps/app`
+- [ ] `mobile` — `apps/mobile`
 - [ ] `repo` — 루트 설정·CI/CD·문서
 
 ---

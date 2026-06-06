@@ -18,7 +18,7 @@
 | 영역 | 핵심 기술 |
 | ---- | --------- |
 | 관리자 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui |
-| 근무자 앱 (`apps/app`) | Expo (React Native), TypeScript, Expo Router, NativeWind, Gluestack UI |
+| 근무자 앱 (`apps/mobile`) | Expo (React Native), TypeScript, Expo Router, NativeWind, Gluestack UI |
 | 백엔드 (`apps/api`) | NestJS, TypeScript, PostgreSQL, Prisma |
 | 공통 (웹·앱) | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼) |
 | 테스트 | Vitest + React Testing Library + MSW (Frontend), Jest + Supertest (Backend) |
@@ -34,7 +34,7 @@
 final-project/
 ├── apps/
 │   ├── web/          # Next.js — 관리자 웹 (데스크탑 전용)
-│   ├── app/          # Expo — 근무자 네이티브 앱 (iOS·Android)
+│   ├── mobile/       # Expo — 근무자 네이티브 앱 (iOS·Android)
 │   └── api/          # NestJS — 백엔드 API 서버
 ├── packages/
 │   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
@@ -51,9 +51,12 @@ final-project/
 ## 개발 명령어
 
 ```bash
-pnpm dev          # Next.js 웹만 실행
-pnpm dev:api      # DB 빌드 후 NestJS API 실행
-pnpm dev:all      # 웹 + API 병렬 실행
+pnpm dev                # Next.js 웹만 실행
+pnpm dev:api            # DB 빌드 후 NestJS API 실행
+pnpm dev:all            # 웹 + API 병렬 실행
+pnpm dev:mobile         # Expo Metro 번들러 시작
+pnpm dev:mobile:ios     # iOS 시뮬레이터
+pnpm dev:mobile:android # Android 에뮬레이터
 
 pnpm db:generate  # Prisma 클라이언트 재생성 (스키마 변경 후 필수)
 pnpm db:migrate   # 마이그레이션 실행
@@ -110,7 +113,7 @@ type(scope): 한 줄 설명 (50자 이내)
 | `api`    | `apps/api`                                       |
 | `db`     | `packages/database` (스키마·마이그레이션)        |
 | `shared` | `packages/shared` (공유 타입·Zod 스키마·유틸)    |
-| `app`    | `apps/app`                                       |
+| `mobile` | `apps/mobile`                                    |
 | `repo`   | 루트 설정, CI/CD, 문서 전체                      |
 
 **예시**
@@ -207,8 +210,9 @@ git push origin feature/fr-1-org-management
 - 제품 요구사항 → `docs/PRD.md`
 - 기능 명세 → `docs/SPEC.md`
 - 기술 스택 정의 (버전·호환성) → `docs/stack.md`
+- 검증 계획 및 기술 리스크 → `docs/TEST_PLAN.md`
 - API 서버 개발 규칙 → `apps/api/CLAUDE.md`
 - 관리자 웹 개발 규칙 → `apps/web/CLAUDE.md`
-- 근무자 앱 개발 규칙 → `apps/app/CLAUDE.md`
+- 근무자 앱 개발 규칙 → `apps/mobile/CLAUDE.md`
 - PR 작성 형식 → `.github/pull_request_template.md`
 - 이슈 작성 형식 → `.github/ISSUE_TEMPLATE/feature_request.md`

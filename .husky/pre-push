@@ -1,0 +1,13 @@
+PROTECTED="main develop"
+CURRENT=$(git symbolic-ref HEAD 2>/dev/null | sed 's,refs/heads/,,')
+
+for BRANCH in $PROTECTED; do
+  if [ "$CURRENT" = "$BRANCH" ]; then
+    echo ""
+    echo "❌ '$BRANCH' 브랜치에 직접 push는 금지되어 있습니다."
+    echo "   feature/* 브랜치를 생성하고 PR을 통해 병합해주세요."
+    echo "   브랜치 전략은 CLAUDE.md를 참조하세요."
+    echo ""
+    exit 1
+  fi
+done
