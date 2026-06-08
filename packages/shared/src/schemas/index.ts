@@ -3,4 +3,4 @@
 // 예: export * from './auth'
 //     export * from './schedule'
 
-export {}
+export {};
