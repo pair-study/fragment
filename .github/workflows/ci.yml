@@ -25,6 +25,9 @@ jobs:
       - name: Type check — shared
         run: pnpm --filter @ilgam/shared build
 
+      - name: Generate Prisma client
+        run: pnpm --filter @ilgam/database db:generate
+
       - name: Type check — database
         run: pnpm --filter @ilgam/database build
 
