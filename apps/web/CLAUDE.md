@@ -3,7 +3,7 @@
 ## 역할 및 범위
 
 **관리자 전용 웹 애플리케이션**입니다.
-근로자 초대·등록, 스케줄 확정, 근태 조회·수정, 급여 명세서 발급을 담당합니다.
+근무자 초대·등록, 스케줄 확정, 근태 조회·수정, 급여 명세서 발급을 담당합니다.
 대응 FR: FR-1(계정·조직), FR-2(스케줄 관리), FR-3(근태 관리), FR-4(급여), FR-5(인력 관리)
 
 ## 기술 스택
@@ -24,22 +24,26 @@
 
 ```
 apps/web/
-├── app/                  # Next.js App Router 페이지
-│   ├── (auth)/           # 로그인·회원가입 (비인증 레이아웃)
-│   ├── (dashboard)/      # 인증 후 레이아웃
-│   │   ├── schedule/     # FR-2 스케줄 관리
-│   │   ├── attendance/   # FR-3 근태 관리
-│   │   ├── payroll/      # FR-4 급여
-│   │   └── members/      # FR-5 인력 관리
-│   └── layout.tsx
-├── components/
-│   ├── ui/               # 재사용 가능한 범용 컴포넌트
-│   └── features/         # 도메인별 컴포넌트 (schedule/, attendance/ 등)
-├── hooks/                # 커스텀 훅
-├── lib/
-│   ├── api/              # API 클라이언트 함수
-│   └── utils/            # 순수 유틸 함수
-└── stores/               # Zustand 스토어
+└── src/
+    ├── app/                  # Next.js App Router 페이지
+    │   ├── (auth)/           # 로그인·회원가입 (비인증 레이아웃)
+    │   ├── (dashboard)/      # 인증 후 레이아웃
+    │   │   ├── schedule/     # FR-2 스케줄 관리
+    │   │   ├── attendance/   # FR-3 근태 관리
+    │   │   ├── payroll/      # FR-4 급여
+    │   │   └── members/      # FR-5 인력 관리
+    │   ├── globals.css
+    │   └── layout.tsx
+    ├── components/
+    │   ├── ui/               # shadcn/ui 소스 복사 컴포넌트
+    │   ├── layout/           # AdminShell, SidebarNav, Topbar 등
+    │   └── common/           # 폼 필드, 상태 배지 등 공통 조합 컴포넌트
+    ├── features/             # 도메인별 컴포넌트 (stores/, schedule/, payroll/ 등)
+    ├── hooks/                # 커스텀 훅
+    ├── lib/
+    │   ├── api/              # API 클라이언트 함수
+    │   └── utils/            # 순수 유틸 함수
+    └── stores/               # Zustand 스토어
 ```
 
 ## 주요 규칙
@@ -60,7 +64,8 @@ apps/web/
 
 ### 스타일링
 - **Tailwind CSS** 유틸리티 클래스만 사용합니다. 인라인 `style` 속성 사용을 지양합니다.
-- 디자인 토큰(색상, 간격, 폰트)은 `tailwind.config.ts`에서 중앙 관리합니다.
+- 디자인 토큰(색상, 간격, 폰트)은 Tailwind CSS 4의 CSS-first 방식에 맞춰 `src/app/globals.css`의 `@theme`와 CSS 변수에서 중앙 관리합니다.
+- `max-w-[440px]`, `h-[52px]`, `px-[18px]`처럼 픽셀 값을 arbitrary value로 직접 넣지 않습니다. Tailwind 기본 scale을 먼저 사용하고, 반복되는 값은 `globals.css`의 token으로 승격합니다.
 - 컴포넌트 로직과 스타일이 복잡해지면 `variants`(cva) 패턴으로 분리합니다.
 
 ### UI 컴포넌트
