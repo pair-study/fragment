@@ -12,10 +12,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 import { GpsRadiusField } from "./gps-radius-field";
-import {
-  type ClosureRule,
-  OrganizationClosureSection,
-} from "./organization-closure-section";
+import { type ClosureRule, OrganizationClosureSection } from "./organization-closure-section";
 import { OrganizationDeleteSection } from "./organization-delete-section";
 import { type WorkType, WorkTypeField } from "./work-type-field";
 
@@ -44,23 +41,13 @@ const editInitialClosures: ClosureRule[] = [
 
 export function OrganizationForm({ mode }: OrganizationFormProps) {
   const isEdit = mode === "edit";
-  const [businessNumber, setBusinessNumber] = useState(
-    isEdit ? "123-45-67890" : "",
-  );
-  const [organizationName, setOrganizationName] = useState(
-    isEdit ? "강남 운영 조직" : "",
-  );
+  const [businessNumber, setBusinessNumber] = useState(isEdit ? "123-45-67890" : "");
+  const [organizationName, setOrganizationName] = useState(isEdit ? "강남 운영 조직" : "");
   const [businessVerified, setBusinessVerified] = useState(isEdit);
-  const [roadAddress, setRoadAddress] = useState(
-    isEdit ? "서울 강남구 테헤란로 142" : "",
-  );
-  const [addressDetail, setAddressDetail] = useState(
-    isEdit ? "아크플레이스 1층" : "",
-  );
+  const [roadAddress, setRoadAddress] = useState(isEdit ? "서울 강남구 테헤란로 142" : "");
+  const [addressDetail, setAddressDetail] = useState(isEdit ? "아크플레이스 1층" : "");
   const [radius, setRadius] = useState(isEdit ? 120 : 100);
-  const [workType, setWorkType] = useState<WorkType | null>(
-    isEdit ? "flexible" : null,
-  );
+  const [workType, setWorkType] = useState<WorkType | null>(isEdit ? "flexible" : null);
   const [closures, setClosures] = useState<ClosureRule[]>(
     isEdit ? editInitialClosures : createInitialClosures,
   );
@@ -82,9 +69,7 @@ export function OrganizationForm({ mode }: OrganizationFormProps) {
         <div>
           <h2 className="text-lg font-semibold text-foreground">기본 정보</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {isEdit
-              ? "사업자등록번호는 생성 후 변경할 수 없어요."
-              : "모든 항목은 필수예요."}
+            {isEdit ? "사업자등록번호는 생성 후 변경할 수 없어요." : "모든 항목은 필수예요."}
           </p>
         </div>
 
@@ -198,11 +183,7 @@ export function OrganizationForm({ mode }: OrganizationFormProps) {
                 이 반경 안에서만 출퇴근 체크가 인정돼요. 50m~300m 범위에서 설정할 수 있어요.
               </p>
             </div>
-            <GpsRadiusField
-              value={radius}
-              hasAddress={Boolean(roadAddress)}
-              onChange={setRadius}
-            />
+            <GpsRadiusField value={radius} hasAddress={Boolean(roadAddress)} onChange={setRadius} />
           </div>
 
           <div className="space-y-3">
@@ -226,9 +207,7 @@ export function OrganizationForm({ mode }: OrganizationFormProps) {
       <Card>
         <CardContent className="flex flex-col-reverse gap-3 p-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" asChild>
-            <Link href="/onboarding/organization-empty">
-              {isEdit ? "변경 취소" : "취소"}
-            </Link>
+            <Link href="/onboarding/organization-empty">{isEdit ? "변경 취소" : "취소"}</Link>
           </Button>
           <Button type="button" className="min-w-48" disabled={!canSubmit}>
             <Check className="size-4" aria-hidden="true" />

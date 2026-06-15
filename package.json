@@ -28,11 +28,14 @@
     "db:push": "pnpm --filter @ilgam/database db:push",
     "db:studio": "pnpm --filter @ilgam/database db:studio",
     "db:reset": "pnpm --filter @ilgam/database db:reset",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "prepare": "husky"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "prettier": "^3.8.4"
   }
 }

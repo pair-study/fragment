@@ -15,14 +15,9 @@ export function ResetPasswordForm() {
   return (
     <form className="space-y-6">
       <div>
-        <h1 className="text-balance text-2xl font-bold text-foreground">
-          새 비밀번호 설정
-        </h1>
+        <h1 className="text-balance text-2xl font-bold text-foreground">새 비밀번호 설정</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          <strong className="font-semibold text-text-body">
-            seongmin@cafe.kr
-          </strong>{" "}
-          계정의
+          <strong className="font-semibold text-text-body">seongmin@cafe.kr</strong> 계정의
           <br />새 비밀번호를 입력해 주세요.
         </p>
       </div>

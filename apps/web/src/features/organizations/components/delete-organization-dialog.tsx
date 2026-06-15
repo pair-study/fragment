@@ -19,9 +19,7 @@ type DeleteOrganizationDialogProps = {
   activeWorkerCount: number;
 };
 
-export function DeleteOrganizationDialog({
-  activeWorkerCount,
-}: DeleteOrganizationDialogProps) {
+export function DeleteOrganizationDialog({ activeWorkerCount }: DeleteOrganizationDialogProps) {
   const blocked = activeWorkerCount > 0;
 
   if (blocked) {
@@ -46,8 +44,8 @@ export function DeleteOrganizationDialog({
           </div>
           <AlertDialogTitle>조직을 삭제할까요?</AlertDialogTitle>
           <AlertDialogDescription>
-            조직을 삭제하면 복구할 수 없습니다. 삭제하시겠습니까? 삭제된
-            조직의 근태·급여 데이터는 3년 동안 보존됩니다.
+            조직을 삭제하면 복구할 수 없습니다. 삭제하시겠습니까? 삭제된 조직의 근태·급여 데이터는
+            3년 동안 보존됩니다.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
