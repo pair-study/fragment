@@ -6,8 +6,11 @@ export const colors = {
   focusRing: "#BFDBFE",
 
   confirmed: "#16A34A",
+  confirmedSubtle: "#F0FDF4",
   pending: "#F59E0B",
+  pendingSubtle: "#FFFBEB",
   cancelled: "#DC2626",
+  cancelledSubtle: "#FEF2F2",
   draft: "#7C3AED",
   unprocessed: "#6B7280",
 

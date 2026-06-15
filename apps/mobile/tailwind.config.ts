@@ -44,6 +44,7 @@ export default {
         authLogoGap: "96px",
         joinBottom: "88px",
         logo: "256px",
+        controlXl: "58px",
       },
       fontSize: typography,
     },
