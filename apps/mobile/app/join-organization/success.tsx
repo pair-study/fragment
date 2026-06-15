@@ -1,17 +1,17 @@
-import { router } from 'expo-router'
-import { SafeAreaView, StatusBar, Text, View } from 'react-native'
-import { Ionicons as IoniconsBase } from '@expo/vector-icons'
+import { router } from "expo-router";
+import { SafeAreaView, StatusBar, Text, View } from "react-native";
+import { Ionicons as IoniconsBase } from "@expo/vector-icons";
 
-import { MOCK_LINKED_ORGANIZATION } from '@/components/features/mock-organization-link'
-import { AppButton, AppCard } from '@/components/ui/ui'
-import { colors } from '@/theme/colors'
-import { shadows } from '@/theme/shadows'
+import { MOCK_LINKED_ORGANIZATION } from "@/components/features/mock-organization-link";
+import { AppButton, AppCard } from "@/components/ui/ui";
+import { colors } from "@/theme/colors";
+import { shadows } from "@/theme/shadows";
 
 const Ionicons = IoniconsBase as unknown as React.ComponentType<{
-  name: string
-  size: number
-  color: string
-}>
+  name: string;
+  size: number;
+  color: string;
+}>;
 
 export default function JoinOrganizationSuccessScreen() {
   return (
@@ -39,9 +39,9 @@ export default function JoinOrganizationSuccessScreen() {
 
             <View className="mt-md flex-row rounded-lg bg-surfaceSecondary p-md">
               <View className="flex-1">
-                <Text className="text-xs text-textMuted">역할</Text>
+                <Text className="text-xs text-textMuted">이름</Text>
                 <Text className="mt-xs text-sm text-textPrimary">
-                  {MOCK_LINKED_ORGANIZATION.role}
+                  {MOCK_LINKED_ORGANIZATION.workerName}
                 </Text>
               </View>
               <View className="flex-1">
@@ -55,12 +55,12 @@ export default function JoinOrganizationSuccessScreen() {
         </View>
 
         <AppButton
-          onPress={() => router.replace('/organizations/empty')}
+          onPress={() => router.replace("/organizations/empty")}
           accessibilityLabel="시작하기"
         >
           시작하기
         </AppButton>
       </View>
     </SafeAreaView>
-  )
+  );
 }
