@@ -1,4 +1,4 @@
-import type { Config } from "tailwindcss";
+import type { Config } from "tailwindcss/types/config";
 import nativewindPreset from "nativewind/preset";
 
 import { colors } from "./theme/colors";
