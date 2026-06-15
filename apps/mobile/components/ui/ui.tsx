@@ -6,6 +6,7 @@ import {
   type PressableProps,
   type StyleProp,
   type TextStyle,
+  type ViewProps,
   type ViewStyle,
 } from 'react-native'
 import { Ionicons as IoniconsBase } from '@expo/vector-icons'
@@ -61,15 +62,19 @@ export function AppButton({
   )
 }
 
-type AppCardProps = {
+type AppCardProps = ViewProps & {
   children: ReactNode
   className?: string
-  shadowStyle?: ViewStyle
+  shadowStyle?: StyleProp<ViewStyle>
 }
 
-export function AppCard({ children, className = '', shadowStyle }: AppCardProps) {
+export function AppCard({ children, className = '', shadowStyle, style, ...props }: AppCardProps) {
   return (
-    <View className={`rounded-xl bg-surfaceCanvas${className ? ` ${className}` : ''}`} style={shadowStyle}>
+    <View
+      className={`rounded-xl bg-surfaceCanvas${className ? ` ${className}` : ''}`}
+      style={[shadowStyle, style]}
+      {...props}
+    >
       {children}
     </View>
   )
