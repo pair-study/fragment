@@ -1,1 +1,13 @@
-*.yaml
+node_modules
+dist
+.next
+.expo
+.expo-export
+build
+coverage
+pnpm-lock.yaml
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.ico
