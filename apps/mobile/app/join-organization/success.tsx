@@ -1,17 +1,11 @@
 import { router } from "expo-router";
 import { SafeAreaView, StatusBar, Text, View } from "react-native";
-import { Ionicons as IoniconsBase } from "@expo/vector-icons";
 
 import { MOCK_LINKED_ORGANIZATION } from "@/components/features/mock-organization-link";
+import { Ionicons } from "@/components/ui/icons";
 import { AppButton, AppCard } from "@/components/ui/ui";
 import { colors } from "@/theme/colors";
 import { shadows } from "@/theme/shadows";
-
-const Ionicons = IoniconsBase as unknown as React.ComponentType<{
-  name: string;
-  size: number;
-  color: string;
-}>;
 
 export default function JoinOrganizationSuccessScreen() {
   return (

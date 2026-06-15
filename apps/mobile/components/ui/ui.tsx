@@ -9,16 +9,9 @@ import {
   type ViewProps,
   type ViewStyle,
 } from "react-native";
-import { Ionicons as IoniconsBase } from "@expo/vector-icons";
 
+import { Ionicons } from "@/components/ui/icons";
 import { colors } from "@/theme/colors";
-
-// @expo/vector-icons가 React 19 타입을 아직 지원하지 않아 cast로 우회
-const Ionicons = IoniconsBase as unknown as React.ComponentType<{
-  name: string;
-  size: number;
-  color: string;
-}>;
 
 type AppButtonProps = {
   children: ReactNode;
