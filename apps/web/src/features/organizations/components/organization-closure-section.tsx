@@ -28,10 +28,7 @@ type OrganizationClosureSectionProps = {
   onChange: (rules: ClosureRule[]) => void;
 };
 
-export function OrganizationClosureSection({
-  rules,
-  onChange,
-}: OrganizationClosureSectionProps) {
+export function OrganizationClosureSection({ rules, onChange }: OrganizationClosureSectionProps) {
   const addRule = () => {
     onChange([
       ...rules,
@@ -66,8 +63,7 @@ export function OrganizationClosureSection({
     <section className="rounded-xl border border-border bg-card p-6 shadow-card">
       <div>
         <h2 className="text-lg font-semibold text-foreground">
-          조직 휴무일{" "}
-          <span className="text-sm font-medium text-muted-foreground">선택</span>
+          조직 휴무일 <span className="text-sm font-medium text-muted-foreground">선택</span>
         </h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           조직이 쉬는 날이에요. 이 날에는 근무가 배정되지 않아요. 여러 개 설정할 수 있어요.
@@ -82,16 +78,11 @@ export function OrganizationClosureSection({
           </div>
         ) : (
           rules.map((rule) => (
-            <div
-              key={rule.id}
-              className="rounded-lg border border-border bg-surface-secondary p-4"
-            >
+            <div key={rule.id} className="rounded-lg border border-border bg-surface-secondary p-4">
               <div className="grid gap-3 md:grid-cols-[10rem_1fr_auto]">
                 <Select
                   value={rule.type}
-                  onValueChange={(value) =>
-                    updateRule(rule.id, { type: value as ClosureType })
-                  }
+                  onValueChange={(value) => updateRule(rule.id, { type: value as ClosureType })}
                 >
                   <SelectTrigger aria-label="휴무일 유형">
                     <SelectValue />
@@ -107,9 +98,7 @@ export function OrganizationClosureSection({
                   <Input
                     type="date"
                     value={rule.value}
-                    onChange={(event) =>
-                      updateRule(rule.id, { value: event.target.value })
-                    }
+                    onChange={(event) => updateRule(rule.id, { value: event.target.value })}
                     aria-label="휴무 날짜"
                   />
                 ) : (
@@ -150,9 +139,7 @@ export function OrganizationClosureSection({
                   value={rule.label}
                   placeholder="라벨 입력"
                   className="pl-9"
-                  onChange={(event) =>
-                    updateRule(rule.id, { label: event.target.value })
-                  }
+                  onChange={(event) => updateRule(rule.id, { label: event.target.value })}
                 />
               </div>
             </div>

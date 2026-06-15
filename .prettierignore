@@ -6,6 +6,13 @@ dist
 build
 coverage
 pnpm-lock.yaml
+
+# shadcn/ui auto-generated components
+apps/web/src/components/ui/
+
+# Technical documentation (complex tables)
+docs/
+
 *.png
 *.jpg
 *.jpeg
