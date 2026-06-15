@@ -15,9 +15,7 @@ export function LoginForm() {
   return (
     <form className="space-y-6">
       <div>
-        <h1 className="text-balance text-2xl font-bold text-foreground">
-          다시 오신 걸 환영해요
-        </h1>
+        <h1 className="text-balance text-2xl font-bold text-foreground">다시 오신 걸 환영해요</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
           이메일과 비밀번호로 로그인하세요.
         </p>
@@ -69,11 +67,7 @@ export function LoginForm() {
       </Button>
 
       <div className="border-t border-border pt-6">
-        <AuthFooterLink
-          label="아직 계정이 없으신가요?"
-          href="/signup"
-          linkText="회원가입"
-        />
+        <AuthFooterLink label="아직 계정이 없으신가요?" href="/signup" linkText="회원가입" />
       </div>
     </form>
   );

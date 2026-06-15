@@ -11,11 +11,7 @@ type GpsRadiusFieldProps = {
   onChange: (value: number) => void;
 };
 
-export function GpsRadiusField({
-  value,
-  hasAddress,
-  onChange,
-}: GpsRadiusFieldProps) {
+export function GpsRadiusField({ value, hasAddress, onChange }: GpsRadiusFieldProps) {
   const radiusSize = `${5 + ((value - 50) / 250) * 10}rem`;
 
   return (

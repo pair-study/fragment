@@ -17,9 +17,7 @@ export function ForgotPasswordForm() {
           <ArrowLeft className="size-4" aria-hidden="true" />
           로그인으로 돌아가기
         </Link>
-        <h1 className="text-balance text-2xl font-bold text-foreground">
-          비밀번호 재설정
-        </h1>
+        <h1 className="text-balance text-2xl font-bold text-foreground">비밀번호 재설정</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
           가입한 이메일을 입력하면 재설정 링크를 보내드려요.
         </p>

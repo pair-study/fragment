@@ -19,9 +19,7 @@ export function SignupForm() {
   return (
     <form className="space-y-6">
       <div>
-        <h1 className="text-balance text-2xl font-bold text-foreground">
-          관리자 계정 만들기
-        </h1>
+        <h1 className="text-balance text-2xl font-bold text-foreground">관리자 계정 만들기</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
           조직의 스케줄과 급여를 관리할 계정을 만들어요.
         </p>
@@ -29,12 +27,7 @@ export function SignupForm() {
 
       <div className="space-y-5">
         <AuthField id="name" label="이름">
-          <Input
-            id="name"
-            name="name"
-            placeholder="홍길동"
-            autoComplete="name"
-          />
+          <Input id="name" name="name" placeholder="홍길동" autoComplete="name" />
         </AuthField>
 
         <AuthField id="email" label="이메일">
@@ -99,11 +92,7 @@ export function SignupForm() {
       </p>
 
       <div className="border-t border-border pt-6">
-        <AuthFooterLink
-          label="이미 계정이 있으신가요?"
-          href="/login"
-          linkText="로그인"
-        />
+        <AuthFooterLink label="이미 계정이 있으신가요?" href="/login" linkText="로그인" />
       </div>
     </form>
   );

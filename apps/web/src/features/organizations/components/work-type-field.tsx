@@ -54,16 +54,11 @@ export function WorkTypeField({ value, onChange }: WorkTypeFieldProps) {
               )}
             >
               <span
-                className={cn(
-                  "size-2 rounded-full bg-transparent",
-                  selected && "bg-primary",
-                )}
+                className={cn("size-2 rounded-full bg-transparent", selected && "bg-primary")}
               />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">
-                {option.title}
-              </span>
+              <span className="block text-sm font-semibold text-foreground">{option.title}</span>
               <span className="mt-1 block text-xs leading-5 text-muted-foreground">
                 {option.description}
               </span>
