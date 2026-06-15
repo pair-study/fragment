@@ -52,6 +52,7 @@ apps/mobile/
 - 웹(`apps/web`)과 동일한 Tailwind 클래스 문법을 사용하지만, NativeWind는 지원 클래스 범위가 다릅니다. 레이아웃(`flex`, `gap`, `p-`, `m-`)·타이포그래피·색상 클래스를 우선 사용하고, 웹 전용 클래스(`hover:`, `group-`, CSS Grid 등)는 사용하지 않습니다.
 - 디자인 토큰(색상, 폰트 크기 등)은 루트 `tailwind.config.ts`의 `theme.extend`에서 앱·웹이 공유합니다.
 - Gluestack UI 컴포넌트는 내부적으로 NativeWind 클래스를 사용합니다. 커스터마이징은 `className` prop으로 처리합니다.
+- 클래스 조건부 결합은 `clsx` + `tailwind-merge`로 만든 `cn()` 유틸(`lib/utils.ts`)을 사용합니다. 문자열 직접 연결로 클래스를 조합하지 않습니다.
 
 ### UI 컴포넌트
 

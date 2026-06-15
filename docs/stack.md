@@ -22,6 +22,7 @@
 
 - **Styling:**
   - Tailwind CSS `4.1.x` (웹 전용, 유틸리티 클래스 기반)
+  - Tailwind CSS `3.4.x` (앱 전용, NativeWind 4.x 호환 설정)
   - NativeWind `4.x` (앱 전용, React Native에서 Tailwind 클래스 문법 사용)
 
 - **UI Components:**
@@ -110,8 +111,9 @@
 | Expo SDK 53.x | React Native 0.79 기반, Expo Router 5 포함 |
 | TanStack Query 5.74.x | React 19 concurrent 기능 완전 지원 |
 | Prisma 6.8.x | PostgreSQL 17 지원, TypeScript 5.x 최적화 |
-| Tailwind CSS 4.1.x | Oxide 엔진, CSS-first 설정 방식 (tailwind.config.ts 유지 가능) |
+| Tailwind CSS 4.1.x | 웹 전용. Oxide 엔진, CSS-first 설정 방식 (tailwind.config.ts 유지 가능) |
+| Tailwind CSS 3.4.x | 앱 전용. NativeWind 4.x와 함께 사용하는 Tailwind 설정 기준 |
 | shadcn/ui | 소스 복사 방식으로 버전 고정 불필요. Tailwind 4.x + Next.js 15 공식 지원 |
-| NativeWind 4.x | Tailwind CSS 4 기반, RN 0.79 New Architecture 정식 지원 |
+| NativeWind 4.x | 앱에서 Tailwind 클래스 문법을 사용하기 위한 RN 스타일링 레이어. 현재 모바일 설정은 Tailwind CSS 3.4.x 기준 |
 | Gluestack UI v2 | NativeWind 4 기반으로 설계되어 NativeWind와 공식 호환. Expo SDK 53 지원 |
 | Zustand 5.0.x | React 19 호환, 내장 TypeScript 타입 개선 |
