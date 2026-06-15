@@ -12,6 +12,7 @@ module.exports = defineConfig([
       "import/resolver": {
         typescript: {
           alwaysTryTypes: true,
+          extensions: [".ts", ".tsx", ".js", ".jsx", ".json", ".png"],
         },
       },
     },
