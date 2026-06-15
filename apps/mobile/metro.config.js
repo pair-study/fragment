@@ -6,10 +6,19 @@ const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
-const appReactRoot = path.resolve(projectRoot, "node_modules/react");
-const appReactDomRoot = path.resolve(projectRoot, "node_modules/react-dom");
+
+function resolvePackageRoot(packageName) {
+  return path.dirname(require.resolve(`${packageName}/package.json`, { paths: [projectRoot] }));
+}
+
+const appReactRoot = resolvePackageRoot("react");
+const appReactDomRoot = resolvePackageRoot("react-dom");
 
 config.watchFolders = [workspaceRoot];
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, "node_modules"),
+  path.resolve(workspaceRoot, "node_modules"),
+];
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "react" || moduleName.startsWith("react/")) {
