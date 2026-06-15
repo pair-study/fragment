@@ -39,6 +39,6 @@ config.resolver.extraNodeModules = {
 };
 
 module.exports = withNativeWind(config, {
-  input: "./global.css",
+  input: "./src/global.css",
   configPath: "./tailwind.config.ts",
 });
