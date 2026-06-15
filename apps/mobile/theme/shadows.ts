@@ -13,4 +13,4 @@ export const shadows = {
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
   },
-} as const
+} as const;

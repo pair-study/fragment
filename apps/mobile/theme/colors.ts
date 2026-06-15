@@ -34,4 +34,4 @@ export const colors = {
   kakaoText: "#181600",
   naver: "#03C75A",
   naverPressed: "#02B851",
-} as const
+} as const;

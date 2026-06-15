@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { Text, View } from "react-native";
 import { EmptyOrganizationIllustration } from "./empty-organization-illustration";
-import { AppButton } from '@/components/ui/ui'
+import { AppButton } from "@/components/ui/ui";
 
 type EmptyOrganizationsContentProps = {
   dimmed?: boolean;

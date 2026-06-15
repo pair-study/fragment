@@ -1,5 +1,5 @@
 import { SafeAreaView, StatusBar } from "react-native";
-import { EmptyOrganizationsContent } from '@/components/features/empty-organizations-content'
+import { EmptyOrganizationsContent } from "@/components/features/empty-organizations-content";
 
 export default function EmptyOrganizationsScreen() {
   return (

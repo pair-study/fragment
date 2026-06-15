@@ -1,6 +1,6 @@
-import { Stack } from 'expo-router'
-import { colors } from '@/theme/colors'
-import '../global.css'
+import { Stack } from "expo-router";
+import { colors } from "@/theme/colors";
+import "../global.css";
 
 export default function RootLayout() {
   return (
@@ -12,5 +12,5 @@ export default function RootLayout() {
         },
       }}
     />
-  )
+  );
 }

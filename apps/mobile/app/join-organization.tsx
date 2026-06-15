@@ -1,13 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StatusBar,
-  Text,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, Text, View } from "react-native";
 import { EmployeeNumberInput } from "@/components/features/employee-number-input";
 import { AppCard, SubmitIconButton } from "@/components/ui/ui";
 import { EmptyOrganizationsContent } from "@/components/features/empty-organizations-content";
@@ -31,8 +24,7 @@ export default function JoinOrganizationScreen() {
     if (!canSubmit) return;
 
     const isMockMatch =
-      normalizedEmployeeNumber.toUpperCase() ===
-      MOCK_LINKED_ORGANIZATION.employeeNumber;
+      normalizedEmployeeNumber.toUpperCase() === MOCK_LINKED_ORGANIZATION.employeeNumber;
 
     if (isMockMatch) {
       router.push("/join-organization/success");
@@ -53,20 +45,14 @@ export default function JoinOrganizationScreen() {
       >
         <View className="flex-1 justify-center px-screenX pb-joinBottom">
           <View>
-            <AppCard
-              className="bg-surfaceDark px-screenX py-xxl"
-              shadowStyle={shadows.modal}
-            >
+            <AppCard className="bg-surfaceDark px-screenX py-xxl" shadowStyle={shadows.modal}>
               <Text className="text-h2 text-textInverse">조직 참여하기</Text>
               <Text className="mt-xs text-base text-textInverse">
                 관리자에게 받은 사번을 입력하면 조직에 연결돼요
               </Text>
             </AppCard>
 
-            <AppCard
-              className="mt-xxl flex-row gap-sm p-xl"
-              shadowStyle={shadows.card}
-            >
+            <AppCard className="mt-xxl flex-row gap-sm p-xl" shadowStyle={shadows.card}>
               <EmployeeNumberInput
                 value={employeeNumber}
                 onChangeText={changeEmployeeNumber}
@@ -83,13 +69,8 @@ export default function JoinOrganizationScreen() {
             </AppCard>
 
             {isNotFound ? (
-              <AppCard
-                className="mt-sm border border-cancelled p-xl"
-                accessibilityRole="alert"
-              >
-                <Text className="text-h4 text-cancelled">
-                  일치하는 조직을 찾을 수 없어요
-                </Text>
+              <AppCard className="mt-sm border border-cancelled p-xl" accessibilityRole="alert">
+                <Text className="text-h4 text-cancelled">일치하는 조직을 찾을 수 없어요</Text>
                 <Text className="mt-xs text-sm text-textMuted">
                   사번을 다시 확인하거나 조직 관리자에게 문의해주세요
                 </Text>

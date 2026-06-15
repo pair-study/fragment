@@ -33,9 +33,7 @@ export default function JoinOrganizationSuccessScreen() {
 
           <AppCard className="mt-xxl p-xl" shadowStyle={shadows.card}>
             <Text className="text-sm text-textMuted">연결된 조직</Text>
-            <Text className="mt-xs text-h3 text-textPrimary">
-              {MOCK_LINKED_ORGANIZATION.name}
-            </Text>
+            <Text className="mt-xs text-h3 text-textPrimary">{MOCK_LINKED_ORGANIZATION.name}</Text>
 
             <View className="mt-md flex-row rounded-lg bg-surfaceSecondary p-md">
               <View className="flex-1">
