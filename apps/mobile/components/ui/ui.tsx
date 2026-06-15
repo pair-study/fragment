@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
 import { colors } from "@/theme/colors";
 
 type AppButtonProps = {
@@ -64,7 +65,7 @@ type AppCardProps = ViewProps & {
 export function AppCard({ children, className = "", shadowStyle, style, ...props }: AppCardProps) {
   return (
     <View
-      className={`rounded-xl bg-surfaceCanvas${className ? ` ${className}` : ""}`}
+      className={cn("rounded-xl bg-surfaceCanvas", className)}
       style={[shadowStyle, style]}
       {...props}
     >
