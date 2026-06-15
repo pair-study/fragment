@@ -44,7 +44,8 @@ apps/mobile/
 │   │   └── utils/
 │   ├── stores/           # Zustand 스토어 (선택된 조직 등)
 │   ├── theme/            # 모바일 디자인 토큰
-│   └── assets/           # 이미지 등 정적 에셋
+│   ├── assets/           # 이미지 등 정적 에셋
+│   └── global.css        # NativeWind 전역 스타일 엔트리
 ├── tailwind.config.ts    # NativeWind/Tailwind 토큰 및 content 설정
 ├── metro.config.js       # NativeWind input 및 Metro 설정
 └── tsconfig.json         # @/* → ./src/* 경로 별칭
