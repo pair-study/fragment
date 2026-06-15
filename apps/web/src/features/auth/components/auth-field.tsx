@@ -11,13 +11,7 @@ type AuthFieldProps = {
   className?: string;
 };
 
-export function AuthField({
-  id,
-  label,
-  children,
-  description,
-  className,
-}: AuthFieldProps) {
+export function AuthField({ id, label, children, description, className }: AuthFieldProps) {
   return (
     <div className={cn("space-y-2", className)}>
       <Label htmlFor={id}>{label}</Label>

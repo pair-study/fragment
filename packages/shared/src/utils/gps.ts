@@ -18,10 +18,7 @@ export function getDistanceInMeters(a: Coordinates, b: Coordinates): number {
   const sinDLon = Math.sin(dLon / 2);
   const x =
     sinDLat * sinDLat +
-    Math.cos(toRad(a.latitude)) *
-      Math.cos(toRad(b.latitude)) *
-      sinDLon *
-      sinDLon;
+    Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * sinDLon * sinDLon;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 

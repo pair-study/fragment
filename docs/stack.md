@@ -94,6 +94,7 @@
 - **API Docs:** Swagger UI (@nestjs/swagger `11.x` 내장 기능 활용) 또는 Notion (명확한 책임 경계와 응답 포맷 사전 조율)
 - **Version Control:** Git `2.x`, GitHub (체계적인 브랜치 전략 및 코드 리뷰)
 - **Git Hooks:** Husky `9.x` + commitlint `21.x` (커밋 메시지 컨벤션 강제, main·develop 직접 push 차단)
+- **Code Formatter:** Prettier `3.8.x` (코드 스타일 일관성 유지)
 
 ---
 

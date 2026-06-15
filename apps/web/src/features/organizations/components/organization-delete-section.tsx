@@ -6,9 +6,7 @@ type OrganizationDeleteSectionProps = {
   activeWorkerCount: number;
 };
 
-export function OrganizationDeleteSection({
-  activeWorkerCount,
-}: OrganizationDeleteSectionProps) {
+export function OrganizationDeleteSection({ activeWorkerCount }: OrganizationDeleteSectionProps) {
   const blocked = activeWorkerCount > 0;
 
   return (
@@ -20,13 +18,12 @@ export function OrganizationDeleteSection({
             <h2 className="text-lg font-semibold">위험 구역</h2>
           </div>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            조직은 소속 근무자 전원 퇴사 처리 완료 후에만 삭제할 수 있어요.
-            삭제 후 조직 목록으로 이동합니다.
+            조직은 소속 근무자 전원 퇴사 처리 완료 후에만 삭제할 수 있어요. 삭제 후 조직 목록으로
+            이동합니다.
           </p>
           {blocked ? (
             <p className="mt-3 text-sm font-semibold text-status-cancelled">
-              재직 중인 근무자 {activeWorkerCount}명이 있습니다. 먼저 퇴사
-              처리 후 삭제해 주세요.
+              재직 중인 근무자 {activeWorkerCount}명이 있습니다. 먼저 퇴사 처리 후 삭제해 주세요.
             </p>
           ) : null}
         </div>

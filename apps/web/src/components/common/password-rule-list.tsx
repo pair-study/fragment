@@ -7,10 +7,7 @@ type PasswordRuleListProps = {
   className?: string;
 };
 
-export function PasswordRuleList({
-  password,
-  className,
-}: PasswordRuleListProps) {
+export function PasswordRuleList({ password, className }: PasswordRuleListProps) {
   const rules = [
     {
       label: "8자 이상",

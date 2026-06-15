@@ -39,8 +39,7 @@
 :root {
   color-scheme: light;
 
-  --font-pretendard: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --font-pretendard: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   --background: #f9fafb;
   --foreground: #111827;
@@ -97,10 +96,8 @@
   --ilgam-radius-2xl: 1.25rem;
 
   --elev-card: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.06);
-  --elev-dropdown: 0 4px 6px -1px rgb(0 0 0 / 0.1),
-    0 2px 4px -1px rgb(0 0 0 / 0.06);
-  --elev-modal: 0 20px 25px -5px rgb(0 0 0 / 0.1),
-    0 10px 10px -5px rgb(0 0 0 / 0.04);
+  --elev-dropdown: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+  --elev-modal: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
   --elev-sticky: 0 1px 0 rgb(0 0 0 / 0.08);
 
   --layout-sidebar-width: 15rem;
