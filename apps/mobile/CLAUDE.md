@@ -27,21 +27,27 @@
 
 ```
 apps/mobile/
-├── app/                  # Expo Router 파일 기반 라우팅
-│   ├── (auth)/           # 소셜 로그인 화면
-│   ├── (tabs)/           # 인증 후 탭 네비게이션
-│   │   ├── schedule/     # 스케줄 조회·신청 (FR-2)
-│   │   ├── attendance/   # 출퇴근 체크·근태 서명 (FR-3)
-│   │   └── payroll/      # 급여 명세서 (FR-4)
-│   └── _layout.tsx
-├── components/
-│   ├── ui/               # 재사용 범용 컴포넌트
-│   └── features/         # 도메인별 컴포넌트
-├── hooks/                # 커스텀 훅 (useGPS, useAttendance 등)
-├── lib/
-│   ├── api/              # API 클라이언트
-│   └── utils/
-└── stores/               # Zustand 스토어 (선택된 조직 등)
+├── src/
+│   ├── app/              # Expo Router 파일 기반 라우팅
+│   │   ├── (auth)/       # 소셜 로그인 화면
+│   │   ├── (tabs)/       # 인증 후 탭 네비게이션
+│   │   │   ├── schedule/ # 스케줄 조회·신청 (FR-2)
+│   │   │   ├── attendance/ # 출퇴근 체크·근태 서명 (FR-3)
+│   │   │   └── payroll/  # 급여 명세서 (FR-4)
+│   │   └── _layout.tsx
+│   ├── components/
+│   │   ├── ui/           # 재사용 범용 컴포넌트
+│   │   └── features/     # 도메인별 컴포넌트
+│   ├── hooks/            # 커스텀 훅 (useGPS, useAttendance 등)
+│   ├── lib/
+│   │   ├── api/          # API 클라이언트
+│   │   └── utils/
+│   ├── stores/           # Zustand 스토어 (선택된 조직 등)
+│   ├── theme/            # 모바일 디자인 토큰
+│   └── assets/           # 이미지 등 정적 에셋
+├── tailwind.config.ts    # NativeWind/Tailwind 토큰 및 content 설정
+├── metro.config.js       # NativeWind input 및 Metro 설정
+└── tsconfig.json         # @/* → ./src/* 경로 별칭
 ```
 
 ## 주요 규칙
@@ -52,14 +58,14 @@ apps/mobile/
 - 웹(`apps/web`)과 동일한 Tailwind 클래스 문법을 사용하지만, NativeWind는 지원 클래스 범위가 다릅니다. 레이아웃(`flex`, `gap`, `p-`, `m-`)·타이포그래피·색상 클래스를 우선 사용하고, 웹 전용 클래스(`hover:`, `group-`, CSS Grid 등)는 사용하지 않습니다.
 - 디자인 토큰(색상, 폰트 크기 등)은 루트 `tailwind.config.ts`의 `theme.extend`에서 앱·웹이 공유합니다.
 - Gluestack UI 컴포넌트는 내부적으로 NativeWind 클래스를 사용합니다. 커스터마이징은 `className` prop으로 처리합니다.
-- 클래스 조건부 결합은 `clsx` + `tailwind-merge`로 만든 `cn()` 유틸(`lib/utils.ts`)을 사용합니다. 문자열 직접 연결로 클래스를 조합하지 않습니다.
+- 클래스 조건부 결합은 `clsx` + `tailwind-merge`로 만든 `cn()` 유틸(`src/lib/utils.ts`)을 사용합니다. 문자열 직접 연결로 클래스를 조합하지 않습니다.
 
 ### UI 컴포넌트
 
 - **Gluestack UI v2**를 기본 컴포넌트 라이브러리로 사용합니다.
-- Button, Input, Modal, Toast 등 기본 UI는 Gluestack 컴포넌트를 사용하고, `components/ui/`에서 re-export하여 import 경로를 통일합니다.
-- Gluestack 컴포넌트를 직접 수정하지 않습니다. 커스터마이징이 필요하면 `components/ui/`에 래핑 컴포넌트를 만듭니다.
-- Gluestack에 없는 도메인 특화 컴포넌트(출퇴근 버튼, GPS 상태 인디케이터 등)는 `components/features/`에 직접 구현합니다.
+- Button, Input, Modal, Toast 등 기본 UI는 Gluestack 컴포넌트를 사용하고, `src/components/ui/`에서 re-export하여 import 경로를 통일합니다.
+- Gluestack 컴포넌트를 직접 수정하지 않습니다. 커스터마이징이 필요하면 `src/components/ui/`에 래핑 컴포넌트를 만듭니다.
+- Gluestack에 없는 도메인 특화 컴포넌트(출퇴근 버튼, GPS 상태 인디케이터 등)는 `src/components/features/`에 직접 구현합니다.
 
 ### 공유 패키지
 
@@ -70,7 +76,7 @@ apps/mobile/
 ### 네비게이션
 
 - **Expo Router(파일 기반 라우팅)**를 사용합니다. `react-navigation` API를 직접 사용하지 않습니다.
-- 인증 흐름은 `app/(auth)/` 그룹, 메인 앱은 `app/(tabs)/` 그룹으로 분리합니다.
+- 인증 흐름은 `src/app/(auth)/` 그룹, 메인 앱은 `src/app/(tabs)/` 그룹으로 분리합니다.
 - 딥링크·초대 링크 처리는 Expo Router의 `Linking` 설정으로 구현합니다.
 
 ### GPS 및 권한
