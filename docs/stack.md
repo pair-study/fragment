@@ -3,7 +3,8 @@
 ### 1. Frontend (사용자 인터페이스 및 클라이언트 로직)
 
 - **Core:**
-  - React `19.1.x` (웹·앱 공통)
+  - React `19.1.x` (웹 전용)
+  - React `19.0.x` (앱 전용, Expo SDK 53 검증 조합)
   - Next.js `15.3.x` (웹 전용, TypeScript, App Router 기반)
   - React Native `0.79.x` (앱 전용)
   - Expo SDK `53.x` (앱 전용)
@@ -102,7 +103,8 @@
 |------|------|
 | Node.js 22.x LTS | 2026년 현재 Active LTS. NestJS 11, Prisma 6 공식 지원 버전 |
 | Next.js 15.3.x | React 19 정식 지원, App Router 안정화, Turbopack 기본 활성화 |
-| React 19.1.x | Next.js 15 및 React Native 0.79와 호환 |
+| React 19.1.x | Next.js 15와 호환. 웹에서 사용 |
+| React 19.0.x | Expo SDK 53의 검증 조합. 앱에서 사용하며, Expo 호환성 확인 없이 19.1.x로 올리지 않음 |
 | React Native 0.79.x | New Architecture(Fabric) 기본 활성화, Expo SDK 53과 호환 |
 | Expo SDK 53.x | React Native 0.79 기반, Expo Router 5 포함 |
 | TanStack Query 5.74.x | React 19 concurrent 기능 완전 지원 |
