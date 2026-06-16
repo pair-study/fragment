@@ -8,6 +8,8 @@
 --   - fixed_schedule_patterns: ends_next_day 컬럼 추가 (schedules 표현 방식과 통일)
 --   - minimum_staffing_rules: 자정 넘김 구간은 두 행 분리 방식 유지 (CHECK 그대로)
 --   - day_of_weeks 배열 컬럼에 GIN 인덱스 추가 (organization_closures, minimum_staffing_rules)
+--   - organizations.org_code 추가, workers.employee_number를 "{org_code}-{관리자 지정값}"
+--     형식의 전역 유니크 값으로 변경 (소셜 로그인 시 조직 선택 없이 사번만으로 연결)
 -- ============================================================
 
 
@@ -30,12 +32,15 @@ CREATE TABLE admins (
 -- 2. 조직 (매장) (FR-1.3)
 --    사업자번호는 생성 후 변경 불가 (애플리케이션 레벨 처리)
 --    work_type: FIXED(고정 근무) / FLEXIBLE(신청 근무) / BOTH(둘 다)
+--    org_code: 가입 시 시스템이 자동 발급. 생성 후 변경 불가
+--              (workers.employee_number 접두사로 쓰여 변경 시 기존 사번과 불일치 발생)
 -- ============================================================
 CREATE TABLE organizations (
   id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id          UUID          NOT NULL,
   name              VARCHAR(50)   NOT NULL,
   business_number   CHAR(10)      NOT NULL UNIQUE,
+  org_code          VARCHAR(10)   NOT NULL UNIQUE,
   address           TEXT          NOT NULL,
   latitude          DECIMAL(10,8) NOT NULL,
   longitude         DECIMAL(11,8) NOT NULL,
@@ -160,6 +165,10 @@ CREATE TABLE pay_policies (
 -- 6. 근무자 (FR-1.2, FR-5.1)
 --    MVP: 근무자 1명 = 조직 1개 (Decision F)
 --    관리자가 먼저 등록(oauth 필드 NULL) → 소셜 로그인 후 사번으로 연결
+--    employee_number: "{organizations.org_code}-{관리자 지정값}" 형식으로 저장.
+--      org_code는 조직마다 달라 전역 유일성이 자동 보장됨 — 소셜 로그인 후
+--      조직 선택 없이 사번 하나만으로 worker row를 조회할 수 있다.
+--      접두사 결합은 애플리케이션 레벨에서 처리 (다른 테이블 컬럼이라 DB CHECK로 검증 불가).
 --    resigned_at: 퇴사 처리 시 기록
 --    deleted_at: 계정 탈퇴 시 소프트 딜리트
 -- ============================================================
@@ -168,7 +177,7 @@ CREATE TABLE workers (
   organization_id   UUID         NOT NULL,
   pay_policy_id     UUID,
   name              VARCHAR(50)  NOT NULL,
-  employee_number   VARCHAR(20)  NOT NULL,
+  employee_number   VARCHAR(30)  NOT NULL UNIQUE,
   schedule_type     TEXT         NOT NULL
                       CHECK (schedule_type IN ('FIXED', 'FLEXIBLE')),
   phone             VARCHAR(20),
@@ -180,7 +189,6 @@ CREATE TABLE workers (
   deleted_at        TIMESTAMPTZ,
   created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  UNIQUE (organization_id, employee_number),
   UNIQUE (oauth_provider, oauth_provider_id),
   CHECK (
     (oauth_provider IS NULL AND oauth_provider_id IS NULL)

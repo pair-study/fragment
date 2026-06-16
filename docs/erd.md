@@ -20,6 +20,7 @@ erDiagram
         uuid admin_id FK
         varchar name
         char business_number UK
+        varchar org_code UK "사번 접두사, 생성 후 변경 불가"
         text address
         decimal latitude
         decimal longitude
@@ -78,7 +79,7 @@ erDiagram
         uuid organization_id FK
         uuid pay_policy_id FK
         varchar name
-        varchar employee_number
+        varchar employee_number UK "{org_code}-{관리자 지정값}"
         text schedule_type
         varchar phone
         date joined_at
