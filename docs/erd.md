@@ -8,7 +8,7 @@ erDiagram
     admins {
         uuid id PK
         varchar name
-        varchar email UK
+        varchar email UK "활성 행(deleted_at IS NULL)에서만 유니크"
         text password_hash
         timestamptz deleted_at
         timestamptz created_at
@@ -37,6 +37,7 @@ erDiagram
         text closure_type
         smallint_array day_of_weeks
         date closure_date
+        date anchor_date "biweekly 기준 날짜"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -96,6 +97,7 @@ erDiagram
         smallint day_of_week
         time start_time
         time end_time
+        boolean ends_next_day
         time break_start
         time break_end
         date apply_from
@@ -118,7 +120,7 @@ erDiagram
         uuid worker_id FK
         uuid organization_id FK
         uuid schedule_cycle_id FK
-        date schedule_date
+        date date
         time start_time
         time end_time
         boolean ends_next_day
@@ -135,7 +137,7 @@ erDiagram
         uuid id PK
         uuid worker_id FK
         uuid schedule_cycle_id FK
-        date request_date
+        date date
         text status
         timestamptz created_at
         timestamptz updated_at

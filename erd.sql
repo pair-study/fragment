@@ -2,6 +2,13 @@
 -- 일감 (근무 플랫폼) ERD — PostgreSQL DDL
 -- 기준: docs/SPEC.md / drawdb > Import SQL (PostgreSQL) 로 임포트
 -- ============================================================
+-- [수정 이력]
+--   - admins.email 인라인 UNIQUE 제거 → 부분 유니크 인덱스로 교체 (소프트 딜리트 재가입 대응)
+--   - organization_closures: anchor_date 컬럼 추가 + CHECK 재구성 (biweekly 기준점 명시)
+--   - fixed_schedule_patterns: ends_next_day 컬럼 추가 (schedules 표현 방식과 통일)
+--   - minimum_staffing_rules: 자정 넘김 구간은 두 행 분리 방식 유지 (CHECK 그대로)
+--   - day_of_weeks 배열 컬럼에 GIN 인덱스 추가 (organization_closures, minimum_staffing_rules)
+-- ============================================================
 
 
 -- ============================================================
@@ -10,7 +17,9 @@
 CREATE TABLE admins (
   id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   name          VARCHAR(50)  NOT NULL,
-  email         VARCHAR(255) NOT NULL UNIQUE,
+  -- [수정] 인라인 UNIQUE 제거 → 소프트 딜리트된 이메일로 재가입 허용
+  --        활성 행에만 유니크 보장: uq_admins_email_active (하단 인덱스 참조)
+  email         VARCHAR(255) NOT NULL,
   password_hash TEXT         NOT NULL,
   deleted_at    TIMESTAMPTZ,
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
@@ -25,7 +34,7 @@ CREATE TABLE admins (
 CREATE TABLE organizations (
   id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id          UUID          NOT NULL,
-  name              VARCHAR(50)  NOT NULL,
+  name              VARCHAR(50)   NOT NULL,
   business_number   CHAR(10)      NOT NULL UNIQUE,
   address           TEXT          NOT NULL,
   latitude          DECIMAL(10,8) NOT NULL,
@@ -41,8 +50,12 @@ CREATE TABLE organizations (
 
 -- ============================================================
 -- 3. 조직 휴무일 (FR-1.3)
---    매주(weekly) / 격주(biweekly): day_of_weeks 사용 (0=일 ~ 6=토)
---    특정일(specific): closure_date 사용
+--    매주(weekly)   : day_of_weeks 사용 (0=일 ~ 6=토), anchor_date NULL
+--    격주(biweekly) : day_of_weeks + anchor_date 사용
+--                     anchor_date = "이 날짜가 속한 주가 휴무 주"인 기준 날짜
+--                     UI에서 "이번 주 / 다음 주" 선택 → 앱 레이어에서 해당 요일 날짜 계산 후 저장
+--                     조회: FLOOR((target_date - anchor_date) / 7)::INT % 2 = 0 이면 휴무
+--    특정일(specific): closure_date 사용, day_of_weeks/anchor_date NULL
 -- ============================================================
 CREATE TABLE organization_closures (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,20 +65,35 @@ CREATE TABLE organization_closures (
                     CHECK (closure_type IN ('weekly', 'biweekly', 'specific')),
   day_of_weeks    SMALLINT[],
   closure_date    DATE,
+  -- [추가] biweekly 격주 기준점 날짜. weekly/specific은 NULL
+  anchor_date     DATE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- [수정] biweekly에 anchor_date 필수 조건 추가
   CHECK (
-    (closure_type IN ('weekly', 'biweekly')
-      AND day_of_weeks IS NOT NULL AND closure_date IS NULL)
+    (closure_type = 'weekly'
+      AND day_of_weeks IS NOT NULL
+      AND closure_date IS NULL
+      AND anchor_date IS NULL)
+    OR
+    (closure_type = 'biweekly'
+      AND day_of_weeks IS NOT NULL
+      AND closure_date IS NULL
+      AND anchor_date IS NOT NULL)
     OR
     (closure_type = 'specific'
-      AND closure_date IS NOT NULL AND day_of_weeks IS NULL)
+      AND closure_date IS NOT NULL
+      AND day_of_weeks IS NULL
+      AND anchor_date IS NULL)
   )
 );
 
 -- ============================================================
 -- 4. 시간대별 최소 인원 조건 (FR-2 조직 스케줄 설정)
 --    day_of_weeks: 배열로 복수 요일 저장 (0=일 ~ 6=토)
+--    자정을 넘기는 구간(예: 22:00~02:00)은 두 행으로 분리 입력
+--      예) 22:00~24:00 / 00:00~02:00
+--    UI에서 자동 분할 처리 권장
 -- ============================================================
 CREATE TABLE minimum_staffing_rules (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -165,17 +193,21 @@ CREATE TABLE workers (
 -- 7. FIXED 근무자 고정 스케줄 패턴 (FR-2.3, FR-5.1)
 --    apply_from: 변경 반영 시점 (즉시/다음 주/다음 달/직접 입력)
 --    동일 근무자·요일·apply_from 조합으로 변경 이력 관리
+--    ends_next_day: schedules 테이블과 표현 방식 통일
+--                   야간 고정조 패턴(예: 22:00~02:00)을 명확히 표현하기 위해 추가
 -- ============================================================
 CREATE TABLE fixed_schedule_patterns (
-  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  worker_id    UUID        NOT NULL,
-  day_of_week  SMALLINT    NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-  start_time   TIME        NOT NULL,
-  end_time     TIME        NOT NULL,
-  break_start  TIME,
-  break_end    TIME,
-  apply_from   DATE        NOT NULL,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  worker_id     UUID        NOT NULL,
+  day_of_week   SMALLINT    NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  start_time    TIME        NOT NULL,
+  end_time      TIME        NOT NULL,
+  -- [추가] 자정을 넘기는 야간 고정 패턴 표현. schedules.ends_next_day와 동일한 의미
+  ends_next_day BOOLEAN     NOT NULL DEFAULT FALSE,
+  break_start   TIME,
+  break_end     TIME,
+  apply_from    DATE        NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (worker_id, day_of_week, apply_from),
   CHECK (
     (break_start IS NULL AND break_end IS NULL)
@@ -512,3 +544,20 @@ ALTER TABLE payroll_extra_items
 ALTER TABLE audit_logs
   ADD CONSTRAINT fk_audit_actor
     FOREIGN KEY (actor_id) REFERENCES admins(id);
+
+
+-- ============================================================
+-- 인덱스
+-- ============================================================
+
+-- [수정] admins.email: 소프트 딜리트된 행 제외하고 유니크 보장
+CREATE UNIQUE INDEX uq_admins_email_active
+  ON admins (email) WHERE deleted_at IS NULL;
+
+-- [추가] day_of_weeks 배열 조회를 위한 GIN 인덱스
+--        "특정 요일이 포함된 규칙"을 = ANY(day_of_weeks) 로 효율적으로 조회 가능
+CREATE INDEX idx_org_closures_dow
+  ON organization_closures USING GIN (day_of_weeks);
+
+CREATE INDEX idx_staffing_dow
+  ON minimum_staffing_rules USING GIN (day_of_weeks);
