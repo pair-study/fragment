@@ -12,7 +12,7 @@ export function OrganizationFormPageShell({
   children,
 }: OrganizationFormPageShellProps) {
   return (
-    <main className="min-h-dvh bg-background px-6 py-10">
+    <main className="min-h-full bg-background px-6 py-10">
       <div className="mx-auto w-full max-w-5xl">
         <header className="mb-8">
           <h1 className="text-balance text-3xl font-bold text-foreground">{title}</h1>
