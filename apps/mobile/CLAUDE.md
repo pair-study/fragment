@@ -19,7 +19,7 @@
 | Form            | React Hook Form    | 7.54.x      |
 | Validation      | Zod                | 3.24.x      |
 | Styling         | NativeWind         | 4.x         |
-| UI Components   | Gluestack UI       | v2.x        |
+| UI Components   | Gluestack UI       | v3.x        |
 | Push 알림       | Expo Notifications | SDK 53 내장 |
 | 위치 정보       | Expo Location      | SDK 53 내장 |
 
@@ -63,9 +63,10 @@ apps/mobile/
 
 ### UI 컴포넌트
 
-- **Gluestack UI v2**를 기본 컴포넌트 라이브러리로 사용합니다.
-- Button, Input, Modal, Toast 등 기본 UI는 Gluestack 컴포넌트를 사용하고, `src/components/ui/`에서 re-export하여 import 경로를 통일합니다.
-- Gluestack 컴포넌트를 직접 수정하지 않습니다. 커스터마이징이 필요하면 `src/components/ui/`에 래핑 컴포넌트를 만듭니다.
+- **Gluestack UI v3**를 기본 컴포넌트 라이브러리로 사용합니다. shadcn/ui 스타일의 소스 복사 방식으로, `@gluestack-ui/core`의 팩토리 함수(`createButton`, `createInput` 등)를 사용해 컴포넌트를 구성합니다.
+- Button, Input, Alert, Card 등 기본 UI는 `src/components/ui/`에 정의된 v3 컴포넌트를 사용합니다. import 경로는 `@/components/ui`로 통일합니다.
+- 색상 시스템은 CSS 변수(`--primary`, `--background`, `--foreground` 등)로 동작합니다. `GluestackUIProvider`가 `vars()`로 색상 토큰을 주입하고, `tailwind.config.ts`의 `rgb(var(--*))` 매핑을 통해 Tailwind 클래스와 연결됩니다.
+- 컴포넌트 커스터마이징이 필요하면 `src/components/ui/`에 래핑 컴포넌트를 만듭니다.
 - Gluestack에 없는 도메인 특화 컴포넌트(출퇴근 버튼, GPS 상태 인디케이터 등)는 `src/components/features/`에 직접 구현합니다.
 
 ### 공유 패키지

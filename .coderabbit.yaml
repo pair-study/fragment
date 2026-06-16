@@ -163,7 +163,8 @@ reviews:
         - 허용 클래스: flex, gap, p-, m-, 타이포그래피, 색상
 
         [UI 컴포넌트]
-        - 기본 UI (Button, Input, Modal, Toast)는 Gluestack UI v2 컴포넌트 사용
+        - 기본 UI (Button, Input, Alert, Card, Toast)는 Gluestack UI v3 래퍼(`src/components/ui`) 사용
+        - `@gluestack-ui/core` creator import는 `src/components/ui` 내부에서만 허용
         - Gluestack 컴포넌트 직접 수정 금지; 커스터마이징은 components/ui/에 래핑 컴포넌트 생성
         - Gluestack에 없는 도메인 컴포넌트(출퇴근 버튼, GPS 인디케이터)는 components/features/ 구현
 
@@ -324,7 +325,7 @@ reviews:
 
   finishing_touches:
     docstrings:
-      enabled: true
+      enabled: false
     unit_tests:
       enabled: true
 

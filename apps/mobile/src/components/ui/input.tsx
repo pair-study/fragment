@@ -1,98 +1,105 @@
-import { createContext, useContext, type ReactNode } from "react";
-import { TextInput, View, type TextInputProps, type ViewProps } from "react-native";
+import React from "react";
+import { createInput } from "@gluestack-ui/core/input/creator";
+import { View, Pressable, TextInput } from "react-native";
+import {
+  tva,
+  withStyleContext,
+  type VariantProps,
+} from "@gluestack-ui/utils/nativewind-utils";
+import { cssInterop } from "nativewind";
+import { UIIcon } from "@gluestack-ui/core/icon/creator";
 
-import { cn } from "@/lib/utils";
-import { colors } from "@/theme/colors";
+const SCOPE = "INPUT";
 
-type InputSize = "sm" | "md" | "lg" | "xl";
-type InputVariant = "outline" | "rounded" | "underlined";
+// @gluestack-ui/utils는 @types/react@18 기준이라 React 19와 타입 경계에서 불일치 발생
+// 팩토리 반환값을 any로 캐스트하여 억제한다 (외부 export 타입은 forwardRef에서 별도 보장)
+const UIInput = createInput({
+  Root: withStyleContext(View as any, SCOPE) as any,
+  Icon: UIIcon as any,
+  Slot: Pressable as any,
+  Input: TextInput as any,
+}) as any;
 
-type InputState = {
-  isDisabled: boolean;
-  isInvalid: boolean;
-  isReadOnly: boolean;
-};
-
-const InputContext = createContext<InputState>({
-  isDisabled: false,
-  isInvalid: false,
-  isReadOnly: false,
+cssInterop(UIIcon as any, {
+  className: {
+    target: "style",
+    nativeStyleToProp: {
+      height: true,
+      width: true,
+      fill: true,
+      color: "classNameColor",
+      stroke: true,
+    } as any,
+  },
 });
 
-type InputProps = ViewProps & {
-  children: ReactNode;
-  size?: InputSize;
-  variant?: InputVariant;
-  isDisabled?: boolean;
-  isInvalid?: boolean;
-  isReadOnly?: boolean;
-  className?: string;
-};
+const inputStyle = tva({
+  base: "h-9 w-full flex-row items-center rounded-md border border-border dark:bg-input/30 bg-transparent shadow-xs transition-[color,box-shadow] overflow-hidden data-[focus=true]:outline-none data-[focus=true]:border-ring dark:data-[focus=true]:border-ring data-[focus=true]:web:ring-[3px] data-[focus=true]:web:ring-ring/50 data-[invalid=true]:border-destructive/40 dark:data-[invalid=true]:border-destructive/40 data-[invalid=true]:web:ring-destructive/20 dark:data-[invalid=true]:web:ring-destructive/40 data-[disabled=true]:pointer-events-none data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-50 px-3 gap-2",
+});
 
-export function Input({
-  children,
-  size = "md",
-  variant = "outline",
-  isDisabled = false,
-  isInvalid = false,
-  isReadOnly = false,
-  className,
-  ...props
-}: InputProps) {
-  return (
-    <InputContext.Provider value={{ isDisabled, isInvalid, isReadOnly }}>
-      <View
-        accessibilityState={{ disabled: isDisabled }}
-        className={cn(
-          "w-full flex-row items-center bg-surfaceCanvas",
-          inputSizeStyles[size],
-          inputVariantStyles[variant],
-          isInvalid && "border-cancelled",
-          isDisabled && "bg-surfaceTertiary opacity-60",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </View>
-    </InputContext.Provider>
-  );
-}
+const inputIconStyle = tva({
+  base: "justify-center items-center text-muted-foreground fill-none h-4 w-4",
+});
 
-type InputFieldProps = TextInputProps & {
-  className?: string;
-};
+const inputSlotStyle = tva({
+  base: "justify-center items-center web:disabled:cursor-not-allowed",
+});
 
-export function InputField({ className, editable, ...props }: InputFieldProps) {
-  const { isDisabled, isReadOnly } = useContext(InputContext);
+const inputFieldStyle = tva({
+  base: "flex-1 text-foreground text-sm md:text-sm py-1 h-full placeholder:text-muted-foreground web:outline-none ios:leading-[0px] web:cursor-text web:data-[disabled=true]:cursor-not-allowed",
+});
 
-  return (
-    <TextInput
-      editable={editable ?? (!isDisabled && !isReadOnly)}
-      placeholderTextColor={colors.placeholder}
-      className={cn("min-w-0 flex-1 text-base text-textPrimary", className)}
-      {...props}
-    />
-  );
-}
+type IInputProps = React.ComponentProps<typeof UIInput> &
+  VariantProps<typeof inputStyle> & { className?: string };
 
-export function InputSlot({ className, ...props }: ViewProps & { className?: string }) {
-  return <View className={cn("items-center justify-center", className)} {...props} />;
-}
+const Input = React.forwardRef<React.ComponentRef<typeof UIInput>, IInputProps>(
+  function Input({ className, ...props }, ref) {
+    return (
+      <UIInput ref={ref} {...props} className={inputStyle({ class: className })} context={{}} />
+    );
+  },
+);
 
-export function InputIcon({ className, ...props }: ViewProps & { className?: string }) {
-  return <View className={cn("items-center justify-center", className)} {...props} />;
-}
+type IInputIconProps = React.ComponentProps<typeof UIInput.Icon> &
+  VariantProps<typeof inputIconStyle> & {
+    className?: string;
+    height?: number;
+    width?: number;
+  };
 
-const inputSizeStyles = {
-  sm: "min-h-10 px-sm",
-  md: "min-h-12 px-md",
-  lg: "min-h-14 px-md",
-  xl: "min-h-controlXl px-xl",
-} satisfies Record<InputSize, string>;
+const InputIcon = React.forwardRef<React.ComponentRef<typeof UIInput.Icon>, IInputIconProps>(
+  function InputIcon({ className, ...props }, ref) {
+    return (
+      <UIInput.Icon ref={ref} {...props} className={inputIconStyle({ class: className })} />
+    );
+  },
+);
 
-const inputVariantStyles = {
-  outline: "rounded-md border border-border",
-  rounded: "rounded-pill border border-border",
-  underlined: "border-b border-border",
-} satisfies Record<InputVariant, string>;
+type IInputSlotProps = React.ComponentProps<typeof UIInput.Slot> &
+  VariantProps<typeof inputSlotStyle> & { className?: string };
+
+const InputSlot = React.forwardRef<React.ComponentRef<typeof UIInput.Slot>, IInputSlotProps>(
+  function InputSlot({ className, ...props }, ref) {
+    return (
+      <UIInput.Slot ref={ref} {...props} className={inputSlotStyle({ class: className })} />
+    );
+  },
+);
+
+type IInputFieldProps = React.ComponentProps<typeof UIInput.Input> &
+  VariantProps<typeof inputFieldStyle> & { className?: string };
+
+const InputField = React.forwardRef<React.ComponentRef<typeof UIInput.Input>, IInputFieldProps>(
+  function InputField({ className, ...props }, ref) {
+    return (
+      <UIInput.Input ref={ref} {...props} className={inputFieldStyle({ class: className })} />
+    );
+  },
+);
+
+Input.displayName = "Input";
+InputIcon.displayName = "InputIcon";
+InputSlot.displayName = "InputSlot";
+InputField.displayName = "InputField";
+
+export { Input, InputField, InputIcon, InputSlot };

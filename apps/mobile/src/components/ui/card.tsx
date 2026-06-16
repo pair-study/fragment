@@ -1,47 +1,34 @@
-import { type ReactNode } from "react";
-import { View, type ViewProps } from "react-native";
+import React from "react";
+import { View } from "react-native";
+import { tva, isWeb, type VariantProps } from "@gluestack-ui/utils/nativewind-utils";
 
-import { cn } from "@/lib/utils";
-import { shadows } from "@/theme/shadows";
+const baseStyle = isWeb ? "flex flex-col relative z-0" : "";
 
-type CardSize = "sm" | "md" | "lg";
-type CardVariant = "elevated" | "outline" | "ghost" | "filled";
+const cardStyle = tva({
+  base: `${baseStyle} flex-col bg-card border border-border rounded-xl shadow-sm`,
+  variants: {
+    size: {
+      default: "p-4 gap-6",
+      sm: "p-3 gap-3",
+    },
+  },
+  defaultVariants: {
+    size: "default",
+  },
+});
 
-type CardProps = ViewProps & {
-  children?: ReactNode;
-  size?: CardSize;
-  variant?: CardVariant;
-  className?: string;
-};
+type ICardProps = React.ComponentPropsWithoutRef<typeof View> &
+  VariantProps<typeof cardStyle> & {
+    className?: string;
+    size?: "default" | "sm";
+  };
 
-export function Card({
-  children,
-  size = "md",
-  variant = "elevated",
-  className,
-  style,
-  ...props
-}: CardProps) {
-  return (
-    <View
-      className={cn("rounded-lg", cardSizeStyles[size], cardVariantStyles[variant], className)}
-      style={[variant === "elevated" ? shadows.card : undefined, style]}
-      {...props}
-    >
-      {children}
-    </View>
-  );
-}
+const Card = React.forwardRef<React.ComponentRef<typeof View>, ICardProps>(
+  function Card({ className, size = "default", ...props }, ref) {
+    return <View className={cardStyle({ size, class: className })} {...props} ref={ref} />;
+  },
+);
 
-const cardSizeStyles = {
-  sm: "p-md",
-  md: "p-xl",
-  lg: "p-xxl",
-} satisfies Record<CardSize, string>;
+Card.displayName = "Card";
 
-const cardVariantStyles = {
-  elevated: "bg-surfaceCanvas",
-  outline: "border border-border bg-surfaceCanvas",
-  ghost: "bg-transparent",
-  filled: "bg-surfaceSecondary",
-} satisfies Record<CardVariant, string>;
+export { Card };

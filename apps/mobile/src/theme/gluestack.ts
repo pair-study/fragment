@@ -1,57 +1,49 @@
-import { colors } from "@/theme/colors";
-
-function hexToRgbValue(hex: string) {
-  const value = hex.replace("#", "");
-  const red = Number.parseInt(value.slice(0, 2), 16);
-  const green = Number.parseInt(value.slice(2, 4), 16);
-  const blue = Number.parseInt(value.slice(4, 6), 16);
-
-  return `${red} ${green} ${blue}`;
-}
+import { vars } from "nativewind";
 
 export const gluestackColorTokens = {
   light: {
-    "--color-primary-500": hexToRgbValue(colors.primary),
-    "--color-primary-600": hexToRgbValue(colors.primaryHover),
-    "--color-primary-100": hexToRgbValue(colors.primarySubtle),
-    "--color-background-0": hexToRgbValue(colors.surfaceCanvas),
-    "--color-background-50": hexToRgbValue(colors.surfaceSecondary),
-    "--color-background-100": hexToRgbValue(colors.surfaceTertiary),
-    "--color-background-error": hexToRgbValue(colors.cancelledSubtle),
-    "--color-background-success": hexToRgbValue(colors.confirmedSubtle),
-    "--color-background-warning": hexToRgbValue(colors.pendingSubtle),
-    "--color-background-info": hexToRgbValue(colors.primarySubtle),
-    "--color-typography-950": hexToRgbValue(colors.textPrimary),
-    "--color-typography-700": hexToRgbValue(colors.textSecondary),
-    "--color-typography-500": hexToRgbValue(colors.textMuted),
-    "--color-typography-0": hexToRgbValue(colors.textInverse),
-    "--color-outline-200": hexToRgbValue(colors.border),
-    "--color-outline-300": hexToRgbValue(colors.focusRing),
-    "--color-error-500": hexToRgbValue(colors.cancelled),
-    "--color-success-500": hexToRgbValue(colors.confirmed),
-    "--color-warning-500": hexToRgbValue(colors.pending),
-    "--color-info-500": hexToRgbValue(colors.primary),
+    "--primary": "37 99 235",
+    "--primary-foreground": "255 255 255",
+    "--background": "255 255 255",
+    "--foreground": "17 24 39",
+    "--card": "255 255 255",
+    "--card-foreground": "17 24 39",
+    "--popover": "255 255 255",
+    "--popover-foreground": "17 24 39",
+    "--secondary": "249 250 251",
+    "--secondary-foreground": "17 24 39",
+    "--muted": "243 244 246",
+    "--muted-foreground": "107 114 128",
+    "--destructive": "220 38 38",
+    "--border": "229 231 235",
+    "--input": "229 231 235",
+    "--ring": "191 219 254",
+    "--accent": "249 250 251",
+    "--accent-foreground": "17 24 39",
   },
   dark: {
-    "--color-primary-500": hexToRgbValue(colors.primary),
-    "--color-primary-600": hexToRgbValue(colors.primaryHover),
-    "--color-primary-100": hexToRgbValue(colors.primaryDisabled),
-    "--color-background-0": hexToRgbValue(colors.surfaceDark),
-    "--color-background-50": hexToRgbValue(colors.surfaceDarkControl),
-    "--color-background-100": hexToRgbValue(colors.surfaceDarkPressed),
-    "--color-background-error": hexToRgbValue("#451A1A"),
-    "--color-background-success": hexToRgbValue("#14532D"),
-    "--color-background-warning": hexToRgbValue("#451A03"),
-    "--color-background-info": hexToRgbValue(colors.primaryDisabled),
-    "--color-typography-950": hexToRgbValue(colors.textInverse),
-    "--color-typography-700": hexToRgbValue(colors.textOnDarkMuted),
-    "--color-typography-500": hexToRgbValue(colors.textMuted),
-    "--color-typography-0": hexToRgbValue(colors.textPrimary),
-    "--color-outline-200": hexToRgbValue(colors.surfaceDarkControl),
-    "--color-outline-300": hexToRgbValue(colors.primary),
-    "--color-error-500": hexToRgbValue(colors.cancelled),
-    "--color-success-500": hexToRgbValue(colors.confirmed),
-    "--color-warning-500": hexToRgbValue(colors.pending),
-    "--color-info-500": hexToRgbValue(colors.primary),
+    "--primary": "37 99 235",
+    "--primary-foreground": "255 255 255",
+    "--background": "21 24 30",
+    "--foreground": "255 255 255",
+    "--card": "21 24 30",
+    "--card-foreground": "255 255 255",
+    "--popover": "21 24 30",
+    "--popover-foreground": "255 255 255",
+    "--secondary": "47 48 51",
+    "--secondary-foreground": "255 255 255",
+    "--muted": "47 48 51",
+    "--muted-foreground": "199 205 216",
+    "--destructive": "220 38 38",
+    "--border": "47 48 51",
+    "--input": "47 48 51",
+    "--ring": "37 99 235",
+    "--accent": "31 32 35",
+    "--accent-foreground": "255 255 255",
   },
-} as const;
+};
+
+export const config = {
+  light: vars(gluestackColorTokens.light),
+  dark: vars(gluestackColorTokens.dark),
+};

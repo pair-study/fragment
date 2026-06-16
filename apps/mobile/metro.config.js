@@ -8,7 +8,9 @@ const workspaceRoot = path.resolve(projectRoot, "../..");
 const config = getDefaultConfig(projectRoot);
 
 function resolvePackageRoot(packageName) {
-  return path.dirname(require.resolve(`${packageName}/package.json`, { paths: [projectRoot] }));
+  return path.dirname(
+    require.resolve(`${packageName}/package.json`, { paths: [projectRoot, workspaceRoot] })
+  );
 }
 
 const appReactRoot = resolvePackageRoot("react");

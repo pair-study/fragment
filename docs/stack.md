@@ -27,7 +27,9 @@
 
 - **UI Components:**
   - shadcn/ui `latest` (웹 전용, 소스 복사 방식 — Radix UI primitives + Tailwind 기반)
-  - Gluestack UI `v2.x` (앱 전용, NativeWind 기반 React Native 컴포넌트 라이브러리)
+  - Gluestack UI `v3.x` (앱 전용, NativeWind 기반 React Native 컴포넌트 라이브러리 — shadcn/ui 스타일 소스 복사 방식)
+    - `@gluestack-ui/core` `3.0.24`
+    - `@gluestack-ui/utils` `3.0.21`
 
 ---
 
@@ -115,5 +117,5 @@
 | Tailwind CSS 3.4.x | 앱 전용. NativeWind 4.x와 함께 사용하는 Tailwind 설정 기준 |
 | shadcn/ui | 소스 복사 방식으로 버전 고정 불필요. Tailwind 4.x + Next.js 15 공식 지원 |
 | NativeWind 4.x | 앱에서 Tailwind 클래스 문법을 사용하기 위한 RN 스타일링 레이어. 현재 모바일 설정은 Tailwind CSS 3.4.x 기준 |
-| Gluestack UI v2 | NativeWind 4 기반으로 설계되어 NativeWind와 공식 호환. Expo SDK 53 지원 |
+| Gluestack UI v3 | shadcn/ui 스타일 소스 복사 방식. 개별 컴포넌트 패키지 없이 `@gluestack-ui/core` 단일 패키지 사용. NativeWind CSS 변수 시스템 기반, Expo SDK 53 호환 |
 | Zustand 5.0.x | React 19 호환, 내장 TypeScript 타입 개선 |
