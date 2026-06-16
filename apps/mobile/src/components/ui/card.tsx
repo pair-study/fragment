@@ -23,11 +23,12 @@ type ICardProps = React.ComponentPropsWithoutRef<typeof View> &
     size?: "default" | "sm";
   };
 
-const Card = React.forwardRef<React.ComponentRef<typeof View>, ICardProps>(
-  function Card({ className, size = "default", ...props }, ref) {
-    return <View className={cardStyle({ size, class: className })} {...props} ref={ref} />;
-  },
-);
+const Card = React.forwardRef<React.ComponentRef<typeof View>, ICardProps>(function Card(
+  { className, size = "default", ...props },
+  ref,
+) {
+  return <View className={cardStyle({ size, class: className })} {...props} ref={ref} />;
+});
 
 Card.displayName = "Card";
 

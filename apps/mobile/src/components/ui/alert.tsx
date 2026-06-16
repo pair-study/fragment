@@ -66,18 +66,19 @@ cssInterop(UIIcon as any, {
 type IAlertProps = Omit<React.ComponentPropsWithoutRef<typeof UIAlert>, "context"> &
   VariantProps<typeof alertStyle>;
 
-const Alert = React.forwardRef<React.ComponentRef<typeof UIAlert>, IAlertProps>(
-  function Alert({ className, variant = "default", ...props }, ref) {
-    return (
-      <UIAlert
-        className={alertStyle({ variant, class: className })}
-        context={{ variant }}
-        ref={ref}
-        {...props}
-      />
-    );
-  },
-);
+const Alert = React.forwardRef<React.ComponentRef<typeof UIAlert>, IAlertProps>(function Alert(
+  { className, variant = "default", ...props },
+  ref,
+) {
+  return (
+    <UIAlert
+      className={alertStyle({ variant, class: className })}
+      context={{ variant }}
+      ref={ref}
+      {...props}
+    />
+  );
+});
 
 type IAlertTextProps = React.ComponentPropsWithoutRef<typeof UIAlert.Text> &
   VariantProps<typeof alertTextStyle>;
@@ -117,9 +118,7 @@ const AlertIcon = React.forwardRef<React.ComponentRef<typeof UIAlert.Icon>, IAle
         />
       );
     } else if ((props.height !== undefined || props.width !== undefined) && size === undefined) {
-      return (
-        <UIAlert.Icon ref={ref} {...props} className={alertIconStyle({ class: className })} />
-      );
+      return <UIAlert.Icon ref={ref} {...props} className={alertIconStyle({ class: className })} />;
     }
     return (
       <UIAlert.Icon

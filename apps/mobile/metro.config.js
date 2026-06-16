@@ -9,7 +9,7 @@ const config = getDefaultConfig(projectRoot);
 
 function resolvePackageRoot(packageName) {
   return path.dirname(
-    require.resolve(`${packageName}/package.json`, { paths: [projectRoot, workspaceRoot] })
+    require.resolve(`${packageName}/package.json`, { paths: [projectRoot, workspaceRoot] }),
   );
 }
 

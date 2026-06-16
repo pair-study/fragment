@@ -102,7 +102,8 @@ const buttonIconStyle = tva({
       outline:
         "text-foreground data-[hover=true]:text-accent-foreground data-[active=true]:text-accent-foreground",
       secondary: "text-secondary-foreground",
-      ghost: "text-foreground data-[hover=true]:text-accent-foreground data-[active=true]:text-accent-foreground",
+      ghost:
+        "text-foreground data-[hover=true]:text-accent-foreground data-[active=true]:text-accent-foreground",
       link: "text-primary",
     },
     size: {
@@ -184,7 +185,11 @@ const ButtonSpinner = React.forwardRef<
     <UIButton.Spinner
       ref={ref}
       {...props}
-      className={buttonSpinnerStyle({ parentVariants: { size: parentSize }, class: className, size })}
+      className={buttonSpinnerStyle({
+        parentVariants: { size: parentSize },
+        class: className,
+        size,
+      })}
     />
   );
 });
