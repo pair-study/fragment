@@ -2,14 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Building2,
-  CalendarDays,
-  Home,
-  IdCard,
-  Users,
-  WalletCards,
-} from "lucide-react";
+import { Building2, CalendarDays, Home, IdCard, Users, WalletCards } from "lucide-react";
 
 import {
   Sidebar,

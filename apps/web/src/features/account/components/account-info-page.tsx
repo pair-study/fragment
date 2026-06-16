@@ -174,12 +174,7 @@ type ReadonlyAccountFieldProps = {
   icon: typeof UserCircle;
 };
 
-function ReadonlyAccountField({
-  id,
-  label,
-  value,
-  icon: Icon,
-}: ReadonlyAccountFieldProps) {
+function ReadonlyAccountField({ id, label, value, icon: Icon }: ReadonlyAccountFieldProps) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>

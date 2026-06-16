@@ -1,15 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Building2,
-  Check,
-  ChevronsUpDown,
-  LogOut,
-  Plus,
-  Settings,
-  UserCircle,
-} from "lucide-react";
+import { Building2, Check, ChevronsUpDown, LogOut, Plus, Settings, UserCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
