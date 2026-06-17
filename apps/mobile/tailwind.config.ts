@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss/types/config";
 import nativewindPreset from "nativewind/preset";
 
-import { colors } from "./theme/colors";
+import { colors } from "./src/theme/colors";
 
 type FontSizeEntry = [string, { lineHeight: string; fontWeight: string }];
 
@@ -19,7 +19,7 @@ const typography: Record<string, FontSizeEntry> = {
 };
 
 export default {
-  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
+  content: ["./src/app/**/*.{js,jsx,ts,tsx}", "./src/components/**/*.{js,jsx,ts,tsx}"],
   presets: [nativewindPreset],
   theme: {
     extend: {
