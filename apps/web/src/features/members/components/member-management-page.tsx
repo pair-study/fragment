@@ -46,11 +46,7 @@ import { cn } from "@/lib/utils";
 
 const ORG_CODE = "STB-KD";
 
-const PAYROLL_TEMPLATES = [
-  "주간 시급제 기본",
-  "주말 포함 시급제",
-  "야간 수당 포함 템플릿",
-] as const;
+const PAY_STANDARDS = ["주간 시급제 기본", "주말 포함 시급제", "야간 수당 포함"] as const;
 
 const ACTIVE_WORKERS: WorkerRecord[] = [
   {
@@ -60,7 +56,7 @@ const ACTIVE_WORKERS: WorkerRecord[] = [
     joinedAt: "2026-06-14",
     phone: "010-4811-1182",
     scheduleType: "fixed",
-    payTemplate: "",
+    payStandard: "",
     verificationStatus: "unverified",
     employmentStatus: "setup-needed",
     hasHistory: false,
@@ -80,7 +76,7 @@ const ACTIVE_WORKERS: WorkerRecord[] = [
     joinedAt: "2026-06-10",
     phone: "010-2287-4143",
     scheduleType: "flexible",
-    payTemplate: "주간 시급제 기본",
+    payStandard: "주간 시급제 기본",
     verificationStatus: "verified",
     employmentStatus: "active",
     hasHistory: true,
@@ -93,7 +89,7 @@ const ACTIVE_WORKERS: WorkerRecord[] = [
     joinedAt: "2026-05-02",
     phone: "010-9123-5581",
     scheduleType: "fixed",
-    payTemplate: "야간 수당 포함 템플릿",
+    payStandard: "야간 수당 포함",
     verificationStatus: "verified",
     employmentStatus: "active",
     hasHistory: true,
@@ -116,7 +112,7 @@ const RETIRED_WORKERS: RetiredWorkerRecord[] = [
     joinedAt: "2025-11-03",
     resignedAt: "2026-05-31",
     scheduleType: "flexible",
-    payTemplate: "주말 포함 시급제",
+    payStandard: "주말 포함 시급제",
   },
 ];
 
@@ -125,7 +121,7 @@ const NEW_WORKER_DRAFT: WorkerDraft = {
   joinedAt: "2026-06-17",
   phone: "",
   scheduleType: "flexible",
-  payTemplate: "",
+  payStandard: "",
   fixedPattern: createDefaultFixedPattern(),
   applyTiming: "즉시 다음 근무",
   customApplyDate: "",
@@ -156,7 +152,7 @@ export function MemberManagementPage({ view = "list", workerId }: MemberManageme
 
   const activeWorkers = useMemo(() => {
     return ACTIVE_WORKERS.filter((worker) =>
-      [worker.name, worker.employeeNumberSuffix, worker.phone, worker.payTemplate]
+      [worker.name, worker.employeeNumberSuffix, worker.phone, worker.payStandard]
         .join(" ")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()),
@@ -165,7 +161,7 @@ export function MemberManagementPage({ view = "list", workerId }: MemberManageme
 
   const retiredWorkers = useMemo(() => {
     return RETIRED_WORKERS.filter((worker) =>
-      [worker.name, worker.employeeNumberSuffix, worker.payTemplate]
+      [worker.name, worker.employeeNumberSuffix, worker.payStandard]
         .join(" ")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()),
@@ -375,7 +371,7 @@ function ActiveWorkerTable({ workers }: { workers: WorkerRecord[] }) {
               <TableHead className="w-[25%] pl-8">이름 / 사번</TableHead>
               <TableHead className="w-[12%]">인증 여부</TableHead>
               <TableHead className="w-[13%]">근무 유형</TableHead>
-              <TableHead className="w-[22%]">임금명세서 템플릿</TableHead>
+              <TableHead className="w-[22%]">급여 기준</TableHead>
               <TableHead className="w-[13%]">입사일</TableHead>
               <TableHead className="w-[15%] pr-8">상태</TableHead>
             </tr>
@@ -413,7 +409,7 @@ function ActiveWorkerTable({ workers }: { workers: WorkerRecord[] }) {
                   {SCHEDULE_TYPE_LABEL[worker.scheduleType]}
                 </td>
                 <td className="px-4 py-4 align-top">
-                  <PayrollTemplateBadge template={worker.payTemplate} />
+                  <PayStandardBadge standard={worker.payStandard} />
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 align-top text-sm tabular-nums text-foreground">
                   {worker.joinedAt}
@@ -440,7 +436,7 @@ function RetiredWorkerTable({ workers }: { workers: RetiredWorkerRecord[] }) {
             <tr className="border-b border-border">
               <TableHead className="w-[34%] pl-8">이름 / 사번</TableHead>
               <TableHead className="w-[20%]">근무 유형</TableHead>
-              <TableHead className="w-[24%]">임금명세서 템플릿</TableHead>
+              <TableHead className="w-[24%]">급여 기준</TableHead>
               <TableHead className="w-[22%] pr-8">퇴사일</TableHead>
             </tr>
           </thead>
@@ -457,7 +453,7 @@ function RetiredWorkerTable({ workers }: { workers: RetiredWorkerRecord[] }) {
                   {SCHEDULE_TYPE_LABEL[worker.scheduleType]}
                 </td>
                 <td className="px-4 py-4 align-top">
-                  <PayrollTemplateBadge template={worker.payTemplate} />
+                  <PayStandardBadge standard={worker.payStandard} />
                 </td>
                 <td className="whitespace-nowrap px-8 py-4 align-top text-sm tabular-nums text-foreground">
                   {worker.resignedAt}
@@ -691,27 +687,27 @@ function WorkerEditor({
                   </Select>
                 </FieldBlock>
 
-                <FieldBlock label="임금명세서 템플릿" required>
+                <FieldBlock label="급여 기준" required>
                   <Select
-                    value={draft.payTemplate}
+                    value={draft.payStandard}
                     onValueChange={(value) =>
-                      setDraft((current) => ({ ...current, payTemplate: value }))
+                      setDraft((current) => ({ ...current, payStandard: value }))
                     }
                   >
-                    <SelectTrigger aria-invalid={!draft.payTemplate}>
-                      <SelectValue placeholder="템플릿 선택" />
+                    <SelectTrigger>
+                      <SelectValue placeholder="급여 기준 선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      {PAYROLL_TEMPLATES.map((template) => (
-                        <SelectItem key={template} value={template}>
-                          {template}
+                      {PAY_STANDARDS.map((standard) => (
+                        <SelectItem key={standard} value={standard}>
+                          {standard}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {!draft.payTemplate ? (
-                    <FieldError>임금명세서 템플릿을 선택해야 저장할 수 있어요.</FieldError>
-                  ) : null}
+                  <p className="text-pretty text-sm leading-6 text-muted-foreground">
+                    시급, 세금 유형, 야간·연장 수당 같은 계산 기준이에요.
+                  </p>
                 </FieldBlock>
 
                 {draft.scheduleType === "fixed" ? (
@@ -765,9 +761,9 @@ function WorkerEditor({
               <>
                 <ReadonlyField label="근무 유형" value={SCHEDULE_TYPE_LABEL[worker.scheduleType]} />
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">임금명세서 템플릿</p>
+                  <p className="text-sm font-medium text-muted-foreground">급여 기준</p>
                   <div className="mt-2">
-                    <PayrollTemplateBadge template={worker.payTemplate} />
+                    <PayStandardBadge standard={worker.payStandard} />
                   </div>
                 </div>
                 {worker.scheduleType === "fixed" && worker.fixedPattern ? (
@@ -1182,8 +1178,8 @@ function VerificationBadge({ status }: { status: VerificationStatus }) {
   );
 }
 
-function PayrollTemplateBadge({ template }: { template: string }) {
-  if (!template) {
+function PayStandardBadge({ standard }: { standard: string }) {
+  if (!standard) {
     return (
       <Badge variant="secondary" className="whitespace-nowrap">
         <FileText className="size-3.5" aria-hidden="true" />
@@ -1195,7 +1191,7 @@ function PayrollTemplateBadge({ template }: { template: string }) {
   return (
     <Badge variant="confirmed" className="max-w-full whitespace-nowrap">
       <FileText className="size-3.5 shrink-0" aria-hidden="true" />
-      <span className="truncate">{template}</span>
+      <span className="truncate">{standard}</span>
     </Badge>
   );
 }
@@ -1204,7 +1200,7 @@ function canSaveWorker(draft: WorkerDraft) {
   return Boolean(
     draft.name &&
     draft.joinedAt &&
-    draft.payTemplate &&
+    draft.payStandard &&
     (draft.scheduleType === "flexible" || draft.fixedPattern.days.length > 0) &&
     (draft.applyTiming !== "직접 입력" || draft.customApplyDate),
   );
@@ -1220,7 +1216,7 @@ function createDraftFromWorker(worker: WorkerRecord | null): WorkerDraft {
     joinedAt: worker.joinedAt,
     phone: worker.phone,
     scheduleType: worker.scheduleType,
-    payTemplate: worker.payTemplate,
+    payStandard: worker.payStandard,
     fixedPattern: worker.fixedPattern ?? createDefaultFixedPattern(),
     applyTiming: worker.applyTiming,
     customApplyDate: "",
@@ -1266,7 +1262,7 @@ type WorkerRecord = {
   joinedAt: string;
   phone: string;
   scheduleType: ScheduleType;
-  payTemplate: string;
+  payStandard: string;
   verificationStatus: VerificationStatus;
   employmentStatus: EmploymentStatus;
   hasHistory: boolean;
@@ -1281,7 +1277,7 @@ type RetiredWorkerRecord = {
   joinedAt: string;
   resignedAt: string;
   scheduleType: ScheduleType;
-  payTemplate: string;
+  payStandard: string;
 };
 
 type WorkerDraft = {
@@ -1289,7 +1285,7 @@ type WorkerDraft = {
   joinedAt: string;
   phone: string;
   scheduleType: ScheduleType;
-  payTemplate: string;
+  payStandard: string;
   fixedPattern: FixedPattern;
   applyTiming: string;
   customApplyDate: string;

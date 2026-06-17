@@ -5,8 +5,10 @@ import {
   AlertTriangle,
   CalendarDays,
   Check,
+  FileText,
   Lock,
   Pencil,
+  Plus,
   Search,
   ShieldCheck,
   X,
@@ -28,10 +30,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { type ClosureRule, OrganizationClosureSection } from "./organization-closure-section";
 import { GpsRadiusField } from "./gps-radius-field";
 import { type WorkType, WorkTypeField } from "./work-type-field";
+import { cn } from "@/lib/utils";
 
 const WORK_TYPE_LABEL: Record<WorkType, string> = {
   fixed: "고정 근무",
@@ -46,6 +56,32 @@ const CURRENT_ORG = {
   addressDetail: "",
   gpsRadius: 120,
   workType: "flexible" as WorkType,
+  payrollPeriodStartMonth: "current",
+  payrollPeriodStartDay: "1",
+  payrollPeriodEndMonth: "current",
+  payrollPeriodEndDay: "31",
+  payrollPayMonth: "next",
+  payrollPayDay: "10",
+  payStandards: [
+    {
+      id: "standard-weekday",
+      name: "주간 시급제 기본",
+      wageType: "시급",
+      amount: "10,500원",
+      taxType: "3.3%",
+      nightRate: "1.5배",
+      overtimeRate: "1.5배",
+    },
+    {
+      id: "standard-weekend",
+      name: "주말 포함 시급제",
+      wageType: "시급",
+      amount: "12,000원",
+      taxType: "4대보험",
+      nightRate: "1.5배",
+      overtimeRate: "1.5배",
+    },
+  ],
   closures: [
     { id: "weekly-sunday", type: "weekly" as const, value: "일요일", label: "정기 휴무" },
     {
@@ -57,8 +93,21 @@ const CURRENT_ORG = {
   ] satisfies ClosureRule[],
 };
 
+const PAYROLL_MONTH_OPTIONS = [
+  { value: "previous", label: "전월" },
+  { value: "current", label: "당월" },
+  { value: "next", label: "익월" },
+];
+
+const PAYROLL_MONTH_LABEL: Record<string, string> = {
+  previous: "전월",
+  current: "당월",
+  next: "익월",
+};
+
 export function OrganizationSettingsPage() {
   const [basicEditing, setBasicEditing] = useState(false);
+  const [payStandardEditing, setPayStandardEditing] = useState(false);
   const [closureEditing, setClosureEditing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -67,6 +116,18 @@ export function OrganizationSettingsPage() {
   const [addressDetail, setAddressDetail] = useState(CURRENT_ORG.addressDetail);
   const [radius, setRadius] = useState(CURRENT_ORG.gpsRadius);
   const [workType, setWorkType] = useState<WorkType>(CURRENT_ORG.workType);
+  const [payrollPeriodStartMonth, setPayrollPeriodStartMonth] = useState(
+    CURRENT_ORG.payrollPeriodStartMonth,
+  );
+  const [payrollPeriodStartDay, setPayrollPeriodStartDay] = useState(
+    CURRENT_ORG.payrollPeriodStartDay,
+  );
+  const [payrollPeriodEndMonth, setPayrollPeriodEndMonth] = useState(
+    CURRENT_ORG.payrollPeriodEndMonth,
+  );
+  const [payrollPeriodEndDay, setPayrollPeriodEndDay] = useState(CURRENT_ORG.payrollPeriodEndDay);
+  const [payrollPayMonth, setPayrollPayMonth] = useState(CURRENT_ORG.payrollPayMonth);
+  const [payrollPayDay, setPayrollPayDay] = useState(CURRENT_ORG.payrollPayDay);
   const [closures, setClosures] = useState<ClosureRule[]>(CURRENT_ORG.closures);
 
   return (
@@ -143,6 +204,42 @@ export function OrganizationSettingsPage() {
                 </div>
                 <WorkTypeField value={workType} onChange={setWorkType} />
               </div>
+
+              <div className="space-y-3">
+                <div>
+                  <Label>정산 주기</Label>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    기준월과 일자를 조합해 정산 기간과 지급일을 지정하세요.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <PayrollDayField
+                    id="payroll-period-start-day"
+                    label="정산 시작일"
+                    monthValue={payrollPeriodStartMonth}
+                    onMonthChange={setPayrollPeriodStartMonth}
+                    value={payrollPeriodStartDay}
+                    onChange={setPayrollPeriodStartDay}
+                  />
+                  <PayrollDayField
+                    id="payroll-period-end-day"
+                    label="정산 종료일"
+                    monthValue={payrollPeriodEndMonth}
+                    onMonthChange={setPayrollPeriodEndMonth}
+                    value={payrollPeriodEndDay}
+                    onChange={setPayrollPeriodEndDay}
+                  />
+                  <PayrollDayField
+                    id="payroll-pay-day"
+                    label="지급일"
+                    monthValue={payrollPayMonth}
+                    onMonthChange={setPayrollPayMonth}
+                    value={payrollPayDay}
+                    onChange={setPayrollPayDay}
+                  />
+                </div>
+              </div>
             </div>
           ) : (
             <dl className="mt-6 space-y-4">
@@ -154,7 +251,71 @@ export function OrganizationSettingsPage() {
               />
               <ReadonlyField label="GPS 허용 반경" value={`${radius}m`} />
               <ReadonlyField label="근무 유형" value={WORK_TYPE_LABEL[workType]} />
+              <ReadonlyField
+                label="정산 주기"
+                value={`${formatPayrollDay(payrollPeriodStartMonth, payrollPeriodStartDay)}-${formatPayrollDay(payrollPeriodEndMonth, payrollPeriodEndDay)} / ${formatPayrollDay(payrollPayMonth, payrollPayDay)} 지급`}
+              />
             </dl>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-8">
+          <SectionHeader
+            title="급여 기준"
+            editing={payStandardEditing}
+            onEdit={() => setPayStandardEditing(true)}
+            onSave={() => setPayStandardEditing(false)}
+            onCancel={() => setPayStandardEditing(false)}
+          />
+
+          {payStandardEditing ? (
+            <div className="mt-6 space-y-5">
+              <PayStandardEditCard />
+              <Button type="button" variant="outline">
+                <Plus className="size-4" aria-hidden="true" />
+                급여 기준 추가
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-6 overflow-hidden rounded-lg border border-border">
+              <table className="w-full min-w-[820px] table-fixed">
+                <thead className="bg-surface-secondary text-left">
+                  <tr className="border-b border-border">
+                    <TableHead className="w-[28%] pl-5">이름</TableHead>
+                    <TableHead className="w-[14%]">급여 타입</TableHead>
+                    <TableHead className="w-[18%]">기준 금액</TableHead>
+                    <TableHead className="w-[16%]">세금 유형</TableHead>
+                    <TableHead className="w-[24%] pr-5">수당 배율</TableHead>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CURRENT_ORG.payStandards.map((standard) => (
+                    <tr key={standard.id} className="border-b border-border last:border-b-0">
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex items-center gap-2">
+                          <FileText className="size-4 text-muted-foreground" aria-hidden="true" />
+                          <span className="font-semibold text-foreground">{standard.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        <Badge variant="secondary">{standard.wageType}</Badge>
+                      </td>
+                      <td className="px-4 py-4 align-top text-sm tabular-nums text-foreground">
+                        {standard.amount}
+                      </td>
+                      <td className="px-4 py-4 align-top text-sm text-foreground">
+                        {standard.taxType}
+                      </td>
+                      <td className="px-5 py-4 align-top text-sm text-muted-foreground">
+                        야간 {standard.nightRate} · 연장 {standard.overtimeRate}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -253,6 +414,145 @@ function formatClosureRule(rule: ClosureRule) {
   if (rule.type === "weekly") return `매주 ${rule.value} - ${rule.label}`;
   if (rule.type === "biweekly") return `격주 ${rule.value} - ${rule.label}`;
   return `${rule.value} - ${rule.label}`;
+}
+
+function formatPayrollDay(month: string, day: string) {
+  return `${PAYROLL_MONTH_LABEL[month]} ${day}일`;
+}
+
+function PayrollDayField({
+  id,
+  label,
+  monthValue,
+  onMonthChange,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  monthValue: string;
+  onMonthChange: (value: string) => void;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-center gap-2">
+        <Select value={monthValue} onValueChange={onMonthChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="기준월" />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYROLL_MONTH_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          id={id}
+          type="number"
+          min={1}
+          max={31}
+          inputMode="numeric"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="tabular-nums"
+        />
+        <span className="text-sm text-muted-foreground">일</span>
+      </div>
+    </div>
+  );
+}
+
+function PayStandardEditCard() {
+  return (
+    <div className="rounded-lg border border-border bg-surface-secondary p-5">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="pay-standard-name">이름</Label>
+          <Input id="pay-standard-name" defaultValue="주간 시급제 기본" />
+        </div>
+
+        <div className="space-y-2">
+          <Label>급여 타입</Label>
+          <Select defaultValue="hourly">
+            <SelectTrigger>
+              <SelectValue placeholder="급여 타입 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="hourly">시급</SelectItem>
+              <SelectItem value="daily">일급</SelectItem>
+              <SelectItem value="monthly">월급</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="pay-standard-amount">기준 금액</Label>
+          <Input
+            id="pay-standard-amount"
+            type="number"
+            inputMode="numeric"
+            defaultValue="10500"
+            className="tabular-nums"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>세금 유형</Label>
+          <Select defaultValue="business-income">
+            <SelectTrigger>
+              <SelectValue placeholder="세금 유형 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="business-income">3.3%</SelectItem>
+              <SelectItem value="social-insurance">4대보험</SelectItem>
+              <SelectItem value="social-income-tax">4대보험+소득세</SelectItem>
+              <SelectItem value="employment-insurance">고용보험만</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="night-rate">야간수당 배율</Label>
+          <Input
+            id="night-rate"
+            type="number"
+            step="0.1"
+            min="1.5"
+            defaultValue="1.5"
+            className="tabular-nums"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="overtime-rate">연장수당 배율</Label>
+          <Input
+            id="overtime-rate"
+            type="number"
+            step="0.1"
+            min="1.5"
+            defaultValue="1.5"
+            className="tabular-nums"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TableHead({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <th
+      scope="col"
+      className={cn("px-4 py-3 text-sm font-semibold text-muted-foreground", className)}
+    >
+      {children}
+    </th>
+  );
 }
 
 function SectionHeader({
