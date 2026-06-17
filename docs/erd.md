@@ -79,7 +79,7 @@ erDiagram
         uuid organization_id FK
         uuid pay_policy_id FK
         varchar name
-        varchar employee_number UK "{org_code}-{관리자 지정값}"
+        varchar employee_number UK "{org_code}-{서버 자동 발급 번호}"
         text schedule_type
         varchar phone
         date joined_at
