@@ -1,49 +1,56 @@
 import Link from "next/link";
-import { Info, Plus } from "lucide-react";
+import { Building2, CheckCircle2, Plus } from "lucide-react";
 
+import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import { Button } from "@/components/ui/button";
-import { OrganizationEmptyIllustration } from "@/features/onboarding/components/organization-empty-illustration";
+import { Card, CardContent } from "@/components/ui/card";
+
+const nextSteps = ["사업자등록번호", "도로명 주소", "GPS 허용 반경", "근무 유형"];
 
 export function OrganizationEmptyPage() {
   return (
-    <main className="min-h-full bg-background px-6 py-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <header>
-          <h1 className="text-3xl font-bold text-foreground text-balance">조직 관리</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground text-pretty">
-            사업자 정보, GPS 반경, 휴무일 같은 조직 운영 기준을 관리하는 화면입니다.
-          </p>
-        </header>
-
-        <section className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-border bg-card px-6 py-12 shadow-card">
-          <div className="w-full max-w-lg text-center">
-            <OrganizationEmptyIllustration />
-
-            <div className="mt-8">
-              <h2 className="text-2xl font-bold text-foreground text-balance">
-                운영할 조직이 아직 없어요
-              </h2>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground text-pretty">
-                첫 조직을 등록하면 근무 일정, 근태, 급여 정산 메뉴를 바로 사용할 수 있어요.
-              </p>
+    <AdminPageShell
+      title="조직 관리"
+      description="사업자 정보, GPS 반경, 휴무일 같은 조직 운영 기준을 관리하는 화면입니다."
+      contentClassName="flex flex-col gap-6"
+      descriptionClassName="max-w-2xl"
+    >
+      <Card className="min-h-[320px]">
+        <CardContent className="grid gap-8 p-8 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-center">
+          <div>
+            <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Building2 className="size-6" aria-hidden="true" />
             </div>
-
-            <div className="mt-8 flex flex-col items-center gap-6">
-              <Button asChild size="lg" className="h-12 px-8 text-base">
+            <h2 className="mt-6 text-balance text-xl font-bold text-foreground">
+              운영할 조직이 아직 없어요
+            </h2>
+            <p className="mt-3 max-w-xl text-pretty text-sm leading-6 text-muted-foreground">
+              사업자등록번호, 주소, GPS 반경, 근무 유형을 먼저 등록하면 근무 일정, 근태, 급여
+              정산 메뉴를 바로 사용할 수 있어요.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Button asChild size="lg" className="h-12 px-6">
                 <Link href="/organizations/new">
                   <Plus className="size-4" aria-hidden="true" />
                   조직 등록하기
                 </Link>
               </Button>
-
-              <p className="inline-flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
-                <Info className="size-4" aria-hidden="true" />
-                조직은 여러 개 등록한 뒤 상단에서 전환할 수 있어요.
-              </p>
             </div>
           </div>
-        </section>
-      </div>
-    </main>
+
+          <div className="rounded-xl border border-border bg-surface-secondary p-5">
+            <p className="text-sm font-semibold text-foreground">등록에 필요한 정보</p>
+            <ul className="mt-4 space-y-3">
+              {nextSteps.map((step) => (
+                <li key={step} className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    </AdminPageShell>
   );
 }
