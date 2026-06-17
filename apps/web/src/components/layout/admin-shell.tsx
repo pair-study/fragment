@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { AdminTopbar } from "@/components/layout/admin-topbar";
@@ -9,9 +12,8 @@ type AdminShellProps = {
 };
 
 export function AdminShell({ children }: AdminShellProps) {
-  // TODO: API 연동 후 서버에서 조직 목록을 가져와 실제 조직 유무를 전달
-  // 와이어프레임 단계에서는 기본 레이아웃을 조직 있음 상태로 본다.
-  const hasOrganizations = true;
+  const pathname = usePathname();
+  const hasOrganizations = pathname !== "/organizations/empty";
 
   return (
     <SidebarProvider>

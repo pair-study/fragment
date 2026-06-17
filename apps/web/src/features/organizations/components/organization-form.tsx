@@ -207,7 +207,9 @@ export function OrganizationForm({ mode }: OrganizationFormProps) {
       <Card>
         <CardContent className="flex flex-col-reverse gap-3 p-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" asChild>
-            <Link href="/onboarding/organization-empty">{isEdit ? "변경 취소" : "취소"}</Link>
+            <Link href={isEdit ? "/organizations" : "/organizations/empty"}>
+              {isEdit ? "변경 취소" : "취소"}
+            </Link>
           </Button>
           <Button type="button" className="min-w-48" disabled={!canSubmit}>
             <Check className="size-4" aria-hidden="true" />

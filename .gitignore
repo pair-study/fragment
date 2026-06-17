@@ -25,6 +25,10 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# ── 로컬 도구 설정 ───────────────────────────────────────────
+.codex/
+.vscode/
+
 # ── 개인 참고 문서 ──────────────────────────────────────────
 docs/erd.dbml
 docs/monorepo-refactoring.md
