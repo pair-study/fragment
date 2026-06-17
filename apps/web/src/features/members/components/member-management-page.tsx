@@ -46,11 +46,7 @@ import { cn } from "@/lib/utils";
 
 const ORG_CODE = "STB-KD";
 
-const PAY_STANDARDS = [
-  "주간 시급제 기본",
-  "주말 포함 시급제",
-  "야간 수당 포함",
-] as const;
+const PAY_STANDARDS = ["주간 시급제 기본", "주말 포함 시급제", "야간 수당 포함"] as const;
 
 const ACTIVE_WORKERS: WorkerRecord[] = [
   {
