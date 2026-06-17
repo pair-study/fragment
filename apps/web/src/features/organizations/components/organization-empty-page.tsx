@@ -25,8 +25,8 @@ export function OrganizationEmptyPage() {
               운영할 조직이 아직 없어요
             </h2>
             <p className="mt-3 max-w-xl text-pretty text-sm leading-6 text-muted-foreground">
-              사업자등록번호, 주소, GPS 반경, 근무 유형을 먼저 등록하면 근무 일정, 근태, 급여
-              정산 메뉴를 바로 사용할 수 있어요.
+              사업자등록번호, 주소, GPS 반경, 근무 유형을 먼저 등록하면 근무 일정, 근태, 급여 정산
+              메뉴를 바로 사용할 수 있어요.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Button asChild size="lg" className="h-12 px-6">
