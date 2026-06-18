@@ -5,7 +5,6 @@
 소·중형 단일 매장부터 다점포 사업장까지, 근무 스케줄 편성과 급여 계산을 자동화하는 SaaS
 
 - **관리자(웹)**: 스케줄 편성, 근태 관리, 급여 정산
-- **근무자(모바일 앱)**: 희망 근무 신청, 스케줄 확인, 대타 요청, 급여 명세 확인
 
 ---
 
@@ -15,14 +14,13 @@
 `docs/stack.md`에 명시된 라이브러리 버전을 임의로 변경하거나 업그레이드하지 않는다. 버전 변경이 필요한 경우 반드시 팀과 협의 후 `docs/stack.md`를 먼저 업데이트한다.
 앱별 상세 규칙은 각 앱의 `CLAUDE.md`를 참조한다.
 
-| 영역                      | 핵심 기술                                                                                                    |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 관리자 웹 (`apps/web`)    | Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui                                             |
-| 근무자 앱 (`apps/mobile`) | Expo (React Native), TypeScript, Expo Router, NativeWind, Gluestack UI                                       |
-| 백엔드 (`apps/api`)       | NestJS, TypeScript, PostgreSQL, Prisma                                                                       |
-| 공통 (웹·앱)              | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                                  |
-| 테스트                    | Vitest + React Testing Library + MSW (Frontend), Jest + Supertest (Backend)                                  |
-| 인프라                    | AWS EC2 (백엔드 API + Next.js SSR), S3 + CloudFront (정적 에셋 CDN), GitHub Actions (CI/CD), pnpm Workspaces |
+| 영역                   | 핵심 기술                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 관리자 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui                                             |
+| 백엔드 (`apps/api`)    | NestJS, TypeScript, PostgreSQL, Prisma                                                                       |
+| 공통                   | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                                  |
+| 테스트                 | Vitest + React Testing Library + MSW (Frontend), Jest + Supertest (Backend)                                  |
+| 인프라                 | AWS EC2 (백엔드 API + Next.js SSR), S3 + CloudFront (정적 에셋 CDN), GitHub Actions (CI/CD), pnpm Workspaces |
 
 **상태 분류 원칙**: 서버 데이터 → TanStack Query / UI 전역 상태 → Zustand / 폼 상태 → React Hook Form / 컴포넌트 로컬 상태 → useState
 
@@ -34,7 +32,6 @@
 final-project/
 ├── apps/
 │   ├── web/          # Next.js — 관리자 웹 (데스크탑 전용)
-│   ├── mobile/       # Expo — 근무자 네이티브 앱 (iOS·Android)
 │   └── api/          # NestJS — 백엔드 API 서버
 ├── packages/
 │   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
@@ -44,7 +41,7 @@ final-project/
 
 **패키지 역할 구분**
 
-- `packages/shared` — 웹·앱·API가 공유하는 Zod 스키마, API 요청·응답 타입, 순수 유틸(GPS 계산 등). 앱 간 공유가 필요한 타입은 `packages/shared/src/index.ts`에서 export한다.
+- `packages/shared` — 웹·API가 공유하는 Zod 스키마, API 요청·응답 타입, 순수 유틸. 공유가 필요한 타입은 `packages/shared/src/index.ts`에서 export한다.
 - `packages/database` — Prisma schema, migrations, seed, `PrismaService` 전담. `apps/api`는 여기서 export하는 `DatabaseModule`만 import한다.
 
 ---
@@ -52,12 +49,9 @@ final-project/
 ## 개발 명령어
 
 ```bash
-pnpm dev                # Next.js 웹만 실행
-pnpm dev:api            # DB 빌드 후 NestJS API 실행
-pnpm dev:all            # 웹 + API 병렬 실행
-pnpm dev:mobile         # Expo Metro 번들러 시작
-pnpm dev:mobile:ios     # iOS 시뮬레이터
-pnpm dev:mobile:android # Android 에뮬레이터
+pnpm dev          # Next.js 웹만 실행
+pnpm dev:api      # DB 빌드 후 NestJS API 실행
+pnpm dev:all      # 웹 + API 병렬 실행
 
 pnpm db:generate  # Prisma 클라이언트 재생성 (스키마 변경 후 필수)
 pnpm db:migrate   # 마이그레이션 실행
@@ -114,7 +108,6 @@ type(scope): 한 줄 설명 (50자 이내)
 | `api`    | `apps/api`                                    |
 | `db`     | `packages/database` (스키마·마이그레이션)     |
 | `shared` | `packages/shared` (공유 타입·Zod 스키마·유틸) |
-| `mobile` | `apps/mobile`                                 |
 | `repo`   | 루트 설정, CI/CD, 문서 전체                   |
 
 **예시**
@@ -229,6 +222,5 @@ git push origin feature/fr-1-org-management
 - 검증 계획 및 기술 리스크 → `docs/TEST_PLAN.md`
 - API 서버 개발 규칙 → `apps/api/CLAUDE.md`
 - 관리자 웹 개발 규칙 → `apps/web/CLAUDE.md`
-- 근무자 앱 개발 규칙 → `apps/mobile/CLAUDE.md`
 - PR 작성 형식 → `.github/pull_request_template.md`
 - 이슈 작성 형식 → `.github/ISSUE_TEMPLATE/feature_request.md`

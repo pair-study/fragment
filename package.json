@@ -17,9 +17,6 @@
   "scripts": {
     "dev": "pnpm --filter @ilgam/web dev",
     "dev:api": "pnpm --filter @ilgam/database build && pnpm --filter @ilgam/api dev",
-    "dev:mobile": "pnpm --filter @ilgam/mobile start",
-    "dev:mobile:ios": "pnpm --filter @ilgam/mobile ios",
-    "dev:mobile:android": "pnpm --filter @ilgam/mobile android",
     "dev:all": "pnpm --filter @ilgam/database build && pnpm --parallel --filter @ilgam/web --filter @ilgam/api dev",
     "build": "pnpm --filter @ilgam/web build",
     "build:api": "pnpm --filter @ilgam/api build",
