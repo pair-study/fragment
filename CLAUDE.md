@@ -19,7 +19,7 @@
 | ------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | 관리자 웹 (`apps/web`)    | Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui                                             |
 | 근무자 앱 (`apps/mobile`) | Expo (React Native), TypeScript, Expo Router, NativeWind, Gluestack UI                                       |
-| 백엔드 (`apps/api`)       | NestJS, TypeScript, PostgreSQL, Prisma                                                                       |
+| 백엔드 (`apps/api`)       | Express, TypeScript, PostgreSQL, Prisma                                                                      |
 | 공통 (웹·앱)              | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                                  |
 | 테스트                    | Vitest + React Testing Library + MSW (Frontend), Jest + Supertest (Backend)                                  |
 | 인프라                    | AWS EC2 (백엔드 API + Next.js SSR), S3 + CloudFront (정적 에셋 CDN), GitHub Actions (CI/CD), pnpm Workspaces |
@@ -35,17 +35,17 @@ final-project/
 ├── apps/
 │   ├── web/          # Next.js — 관리자 웹 (데스크탑 전용)
 │   ├── mobile/       # Expo — 근무자 네이티브 앱 (iOS·Android)
-│   └── api/          # NestJS — 백엔드 API 서버
+│   └── api/          # Express — 백엔드 API 서버
 ├── packages/
 │   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
-│   └── database/     # Prisma 스키마·마이그레이션·PrismaService (@ilgam/database)
+│   └── database/     # Prisma 스키마·마이그레이션·클라이언트 헬퍼 (@ilgam/database)
 └── docs/             # PRD, 기능 명세, 기술 스택 정의서, 아키텍처 결정 기록 등
 ```
 
 **패키지 역할 구분**
 
 - `packages/shared` — 웹·앱·API가 공유하는 Zod 스키마, API 요청·응답 타입, 순수 유틸(GPS 계산 등). 앱 간 공유가 필요한 타입은 `packages/shared/src/index.ts`에서 export한다.
-- `packages/database` — Prisma schema, migrations, seed, `PrismaService` 전담. `apps/api`는 여기서 export하는 `DatabaseModule`만 import한다.
+- `packages/database` — Prisma schema, migrations, seed, Prisma client helper 전담. `apps/api`는 여기서 export하는 `prisma` 또는 `createPrismaClient`를 사용한다.
 
 ---
 
@@ -53,7 +53,7 @@ final-project/
 
 ```bash
 pnpm dev                # Next.js 웹만 실행
-pnpm dev:api            # DB 빌드 후 NestJS API 실행
+pnpm dev:api            # DB 빌드 후 Express API 실행
 pnpm dev:all            # 웹 + API 병렬 실행
 pnpm dev:mobile         # Expo Metro 번들러 시작
 pnpm dev:mobile:ios     # iOS 시뮬레이터

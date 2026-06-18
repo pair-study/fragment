@@ -2,26 +2,26 @@
 
 ## 역할 및 범위
 
-**NestJS 기반 REST API 서버**입니다.
+**Express 기반 REST API 서버**입니다.
 인증, 조직 관리, 스케줄 엔진, 근태 처리, 급여 계산, Push 알림 발송을 담당합니다.
 모든 비즈니스 로직의 원천이며, 웹·앱 양쪽에서 소비합니다.
 
 ## 기술 스택
 
-| 항목           | 기술                                | 버전                                                  |
-| -------------- | ----------------------------------- | ----------------------------------------------------- |
-| Framework      | NestJS                              | 11.x                                                  |
-| Language       | TypeScript                          | 5.8.x                                                 |
-| Runtime        | Node.js                             | 22.x LTS                                              |
-| Database       | PostgreSQL                          | 17.x                                                  |
-| ORM            | Prisma                              | 6.8.x (`packages/database`에서 관리)                  |
-| Validation     | class-validator + class-transformer | 0.14.x / 0.5.x                                        |
-| Auth           | @nestjs/jwt + @nestjs/passport      | 10.x / 10.x                                           |
-| API Docs       | @nestjs/swagger                     | 11.x                                                  |
-| Task Scheduler | @nestjs/schedule                    | 4.x                                                   |
-| Queue (선택적) | @nestjs/bull + bull                 | 4.x / 4.x (급여 계산·알림 대량 발송 비동기화 시 도입) |
-| Testing (Unit) | Jest                                | 29.x                                                  |
-| Testing (E2E)  | Supertest                           | 7.x                                                   |
+| 항목           | 기술                  | 버전                                      |
+| -------------- | --------------------- | ----------------------------------------- |
+| Framework      | Express               | 5.x                                       |
+| Language       | TypeScript            | 5.8.x                                     |
+| Runtime        | Node.js               | 22.x LTS                                  |
+| Database       | PostgreSQL            | 17.x                                      |
+| ORM            | Prisma                | 6.8.x (`packages/database`에서 관리)      |
+| Validation     | Zod                   | 3.24.x (`packages/shared` 우선 활용)      |
+| Auth           | JWT                   | jsonwebtoken 또는 jose                    |
+| API Docs       | OpenAPI 또는 Notion   | MVP 단계에서는 계약 문서 우선             |
+| Task Scheduler | node-cron 또는 worker | cron 기반 자동화 도입 시 선택             |
+| Queue (선택적) | BullMQ 또는 bull      | 급여 계산·알림 대량 발송 비동기화 시 도입 |
+| Testing (Unit) | Jest                  | 29.x                                      |
+| Testing (E2E)  | Supertest             | 7.x                                       |
 
 ## 디렉터리 구조
 
@@ -35,7 +35,7 @@
 │   ├── attendance/       # 출퇴근 체크, 근태 수정 (FR-3)
 │   ├── payroll/          # 급여 계산 엔진, 명세서 발급 (FR-4)
 │   ├── notifications/    # Expo Push 알림 발송
-│   └── common/           # 공통 필터, 인터셉터, 데코레이터, 파이프
+│   └── common/           # 공통 미들웨어, 에러 핸들러, 유틸
 └── test/                 # E2E 테스트
 
 # packages/database/       ← apps/api와 동일 레벨, 별도 패키지
@@ -44,23 +44,23 @@
 │   ├── migrations/
 │   └── seed.ts
 ├── src/
-│   ├── prisma.service.ts
-│   └── database.module.ts  # DatabaseModule로 export
+│   ├── prisma.ts
+│   └── index.ts
 └── package.json
 ```
 
 ## 주요 규칙
 
-### 모듈 구조 (NestJS)
+### 라우터 구조 (Express)
 
-- **도메인 단위로 모듈을 분리**합니다. 하나의 모듈이 다른 모듈의 내부 서비스를 직접 import하지 않고, 필요한 경우 해당 모듈을 `exports`에 노출합니다.
-- Controller → Service → PrismaService 계층을 엄격히 지킵니다. 별도 Repository 클래스를 두지 않으며, Service가 `PrismaService`를 직접 주입받아 쿼리를 작성합니다.
-- Controller는 요청/응답 처리만 담당합니다. 비즈니스 로직은 Service에 작성합니다.
+- **도메인 단위로 라우터를 분리**합니다. 라우터는 HTTP 요청/응답 처리만 담당하고, 비즈니스 로직은 service 함수에 작성합니다.
+- Router → Service → Prisma 계층을 기본으로 합니다. 별도 Repository 추상화는 중복이 명확해질 때만 도입합니다.
+- 공통 미들웨어와 에러 핸들러는 `common/` 아래에 모아 라우터에서 재사용합니다.
 
 ### Prisma 사용 규칙
 
-- Prisma schema, migrations, `PrismaService`, `seed.ts`는 모두 **`packages/database`에서 관리**합니다. `apps/api`에 Prisma 관련 파일을 직접 두지 않습니다.
-- `apps/api`에서는 `packages/database`가 export하는 `DatabaseModule`을 `AppModule`에 import해서 사용합니다.
+- Prisma schema, migrations, client helper, `seed.ts`는 모두 **`packages/database`에서 관리**합니다. `apps/api`에 Prisma 관련 파일을 직접 두지 않습니다.
+- `apps/api`에서는 `packages/database`가 export하는 `prisma` 또는 `createPrismaClient`를 사용합니다.
 - 쿼리 결과 타입은 Prisma가 생성하는 타입을 활용합니다. 별도로 타입을 재정의하지 않습니다.
 - 마이그레이션은 `packages/database`에서 `prisma migrate dev`로 생성하고, 파일명에 목적을 명확히 기재합니다.
 - **소프트 딜리트**(FR-1.5, FR-5.2)는 `deletedAt` 필드로 구현합니다. 모든 조회 쿼리에서 `deletedAt: null` 필터를 기본으로 포함합니다.
@@ -68,30 +68,30 @@
 ### 인증 및 인가
 
 - **JWT Access Token** (유효기간 15분) + **Refresh Token** (7일, HTTP-only 쿠키) 방식을 사용합니다.
-- 관리자 전용 엔드포인트에는 `@Roles('ADMIN')` 가드를 적용합니다.
-- 근로자 전용 엔드포인트에는 `@Roles('WORKER')` 가드를 적용합니다.
+- 관리자 전용 엔드포인트에는 role 확인 미들웨어를 적용합니다.
+- 근로자 전용 엔드포인트에는 role 확인 미들웨어를 적용합니다.
 
 ### 유효성 검증
 
-- 모든 DTO는 **class-validator + class-transformer**로 정의합니다.
-- 전역 `ValidationPipe`를 `whitelist: true`, `forbidNonWhitelisted: true` 옵션으로 설정합니다.
+- 요청 body, params, query는 **Zod schema**로 검증합니다.
+- 공유 가능한 입력/응답 스키마는 `packages/shared`에 정의하고 API와 클라이언트에서 함께 사용합니다.
 
 ### 급여 계산 엔진 (FR-4)
 
-- 급여 계산 로직은 `payroll/` 모듈의 `PayrollCalculatorService`에 순수 함수로 구현합니다.
+- 급여 계산 로직은 `payroll/` 도메인의 service 함수에 순수 함수로 구현합니다.
 - 계산 결과는 항상 **감사 로그**(`PayrollAuditLog`)에 스냅샷(임금명세서 템플릿 포함)과 함께 저장합니다.
 - 성능 목표: 1초 이하 응답 (FR-4.1). 계산이 복잡한 경우 Bull Queue로 비동기 처리합니다.
 
 ### 스케줄 자동화 (FR-2.2, FR-3.3)
 
-- `@nestjs/schedule`의 `@Cron` 데코레이터로 주기 작업을 구현합니다.
+- cron 기반 작업은 node-cron 또는 별도 worker 프로세스로 구현합니다.
 - Cron 표현식은 상수로 분리하여 관리합니다.
-- 퇴근 미처리 자동화 타임라인(예정 퇴근 +30분, +2시간, +12시간)은 `AttendanceScheduler`에서 처리합니다.
+- 퇴근 미처리 자동화 타임라인(예정 퇴근 +30분, +2시간, +12시간)은 attendance 도메인의 scheduler/worker에서 처리합니다.
 
 ### API 문서화
 
-- 모든 Controller와 DTO에 `@ApiTags`, `@ApiOperation`, `@ApiResponse` 데코레이터를 작성합니다.
-- Swagger UI: `http://localhost:4000/api` (개발 환경만 활성화)
+- 엔드포인트별 요청/응답 계약을 OpenAPI 문서 또는 Notion에 기록합니다.
+- Zod schema를 사용하는 경우 문서와 schema가 어긋나지 않도록 변경 시 함께 갱신합니다.
 
 ### 에러 응답 형식
 
@@ -115,19 +115,19 @@
 ## 테스트
 
 ```bash
-pnpm --filter @ilgam/api test         # 단위 테스트 (Jest)
-pnpm --filter @ilgam/api test:e2e     # E2E 테스트 (Supertest)
-pnpm --filter @ilgam/api test:cov     # 커버리지
+pnpm --filter @ilgam/api test        # 단위 테스트 (Jest)
+pnpm --filter @ilgam/api test:e2e    # E2E 테스트 (Supertest)
+pnpm --filter @ilgam/api test:cov    # 커버리지
 ```
 
-- **Service 단위 테스트**: 의존성은 Jest mock으로 처리합니다. Prisma는 `mockDeep<PrismaClient>()`로 모킹합니다.
+- **Service 단위 테스트**: 의존성은 Jest mock으로 처리합니다. Prisma는 필요 시 `mockDeep<PrismaClient>()`로 모킹합니다.
 - **E2E 테스트**: 테스트 전용 PostgreSQL DB(`DATABASE_URL_TEST`)를 사용합니다. 각 테스트 전후로 DB를 초기화합니다.
-- 커버리지 목표: Service 레이어 80% 이상.
+- 커버리지 목표: 핵심 service 레이어 80% 이상.
 
 ## 개발 실행
 
 ```bash
-pnpm --filter @ilgam/api start:dev   # http://localhost:4000 (watch 모드)
+pnpm --filter @ilgam/api start:dev   # http://localhost:3001 (watch 모드)
 pnpm --filter @ilgam/api build
 pnpm --filter @ilgam/api lint
 
