@@ -2,14 +2,11 @@
 
 이 문서는 일감 관리자 웹(`apps/web`)을 먼저 구현하기 위한 1차 디자인 컨벤션이다. 웹 UI는 **shadcn/ui + Tailwind CSS** 조합을 기준으로 한다. shadcn/ui를 그대로 나열하는 문서가 아니라, 프로젝트에서 shadcn/ui primitive를 Tailwind CSS 유틸리티와 함께 어떤 기준으로 조합하고 도메인 컴포넌트로 감쌀지 정한다.
 
-근무자 앱(`apps/mobile`)은 같은 색상, 문구 톤, 상태 의미를 공유하되 구현 컴포넌트는 Gluestack UI와 NativeWind를 사용한다. 앱 규칙은 웹 구현이 안정된 뒤 별도 섹션 또는 `docs/design-mobile.md`로 분리한다.
-
 ## 구현 스택
 
 | 플랫폼 | 컴포넌트 | 스타일링 | 역할 |
 | --- | --- | --- | --- |
 | 관리자 웹 | shadcn/ui | Tailwind CSS | Radix 기반 접근성 primitive를 Tailwind 유틸리티로 조합 |
-| 근무자 앱 | Gluestack UI | NativeWind | React Native 컴포넌트를 Tailwind 유사 문법으로 스타일링 |
 
 웹에서 shadcn/ui는 `Button`, `Input`, `Dialog` 같은 컴포넌트의 구조와 접근성 동작을 맡고, Tailwind CSS는 배치, 간격, 색상, 반응형 스타일을 표현한다.
 
@@ -496,14 +493,3 @@ Badge는 상태를 보조하는 요소다. 중요한 상태는 제목, 버튼, �
 - 설명: 사용자가 왜 입력해야 하는지 알려준다.
 - 에러: 무엇을 고쳐야 하는지 말한다.
 - 위험 작업: 삭제되는 데이터와 되돌릴 수 없음을 명확히 말한다.
-
-## 웹과 앱 문서 분리 기준
-
-초기에는 이 문서에 웹 규칙을 먼저 둔다. 앱 화면을 본격 구현하기 시작하면 다음 기준으로 분리한다.
-
-- 웹과 앱의 토큰 의미는 공유한다.
-- 웹 구현 규칙은 `docs/design.md`에 둔다.
-- 앱 구현 규칙은 `docs/design-mobile.md`로 분리한다.
-- 공유 타입, 상태명, 금액/날짜 표기 규칙은 `packages/shared`와 함께 관리한다.
-
-즉, 색상 의미와 도메인 언어는 하나로 유지하고, 컴포넌트 구현 규칙은 플랫폼별로 나눈다.
