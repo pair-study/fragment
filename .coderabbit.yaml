@@ -153,50 +153,6 @@ reviews:
         - any 타입 사용 자제; 구체적인 타입 또는 packages/shared 타입 사용
         - API 요청/응답 타입은 packages/shared/src/types/api/에서 import
 
-    - path: "apps/mobile/**/*.tsx"
-      instructions: |
-        Expo React Native 모바일 앱 컴포넌트 리뷰 기준:
-
-        [스타일링]
-        - StyleSheet 직접 작성 금지; NativeWind 4.x 클래스만 사용
-        - 웹 전용 클래스 사용 금지: hover:, group-, CSS Grid 관련 클래스
-        - 허용 클래스: flex, gap, p-, m-, 타이포그래피, 색상
-
-        [UI 컴포넌트]
-        - 기본 UI (Button, Input, Modal, Toast)는 Gluestack UI v2 컴포넌트 사용
-        - Gluestack 컴포넌트 직접 수정 금지; 커스터마이징은 components/ui/에 래핑 컴포넌트 생성
-        - Gluestack에 없는 도메인 컴포넌트(출퇴근 버튼, GPS 인디케이터)는 components/features/ 구현
-
-        [네비게이션]
-        - Expo Router(파일 기반 라우팅) 사용; react-navigation API 직접 사용 금지
-        - 인증 흐름: app/(auth)/, 메인 앱: app/(tabs)/ 그룹 구조 유지
-
-        [인증]
-        - JWT는 Expo SecureStore에 저장; AsyncStorage 저장 절대 금지
-
-        [GPS 및 위치]
-        - 출근 체크 전 반드시 위치 권한 확인 로직 포함
-        - GPS 반경 판정은 packages/shared/src/utils/gps.ts 유틸 사용 (앱 내 중복 구현 금지)
-        - 위치 정확도: Accuracy.Balanced 이상 사용; 배터리 절약을 위해 백그라운드 추적 금지
-
-        [Push 알림]
-        - Expo Notifications 사용; 디바이스 토큰은 로그인 시 API 서버에 등록
-        - Foreground/Background 핸들러 분리 여부 확인
-
-        [상태 관리]
-        - 서버 데이터: TanStack Query (gcTime 충분히 설정하여 오프라인 대응)
-        - UI 전역 상태: Zustand
-
-        [공유 패키지]
-        - Zod 스키마: packages/shared에서 import; 앱 내 별도 정의 금지
-        - API 타입: packages/shared/src/types/api/에서 import
-
-    - path: "apps/mobile/**/*.ts"
-      instructions: |
-        모바일 TypeScript 코드 리뷰 기준:
-        - any 타입 사용 자제
-        - 공유 유틸은 packages/shared에서 import; 중복 구현 금지
-
     - path: "packages/database/prisma/schema.prisma"
       instructions: |
         Prisma 스키마 리뷰 기준:
@@ -220,7 +176,7 @@ reviews:
         - 새로운 타입/스키마/유틸은 반드시 packages/shared/src/index.ts에서 re-export
         - Zod 스키마에서 타입을 z.infer<>로 추출; 별도 interface/type 선언 금지
         - 순수 함수로만 구현 (사이드 이펙트 없음, 외부 의존성 없음)
-        - 웹·앱·API 모두에서 사용 가능한 범용적 구현인지 확인
+        - 웹·API 모두에서 사용 가능한 범용적 구현인지 확인
 
     - path: ".github/workflows/**/*.yml"
       instructions: |
@@ -341,7 +297,6 @@ knowledge_base:
       - "CLAUDE.md"
       - "apps/api/CLAUDE.md"
       - "apps/web/CLAUDE.md"
-      - "apps/mobile/CLAUDE.md"
       - "docs/stack.md"
       - "docs/SPEC.md"
   learnings:
@@ -363,5 +318,3 @@ code_generation:
         instructions: "Jest와 NestJS TestingModule 사용. PrismaService는 mockDeep<PrismaClient>()로 모킹."
       - path: "apps/web/**/*.tsx"
         instructions: "Vitest와 React Testing Library 사용. API 호출은 msw로 모킹. 테스트 파일은 대상 파일 옆에 코로케이션."
-      - path: "apps/mobile/**/*.tsx"
-        instructions: "Vitest와 React Testing Library(React Native용) 사용. 네이티브 API는 apps/mobile/__mocks__/ 설정 사용. 테스트 파일은 대상 파일 옆에 코로케이션."

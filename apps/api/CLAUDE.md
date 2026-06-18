@@ -34,7 +34,6 @@
 │   ├── schedules/        # 스케줄 생성·확정·교환 (FR-2)
 │   ├── attendance/       # 출퇴근 체크, 근태 수정 (FR-3)
 │   ├── payroll/          # 급여 계산 엔진, 명세서 발급 (FR-4)
-│   ├── notifications/    # Expo Push 알림 발송
 │   └── common/           # 공통 미들웨어, 에러 핸들러, 유틸
 └── test/                 # E2E 테스트
 
@@ -153,5 +152,4 @@ JWT_REFRESH_SECRET=
 KAKAO_CLIENT_ID=
 NAVER_CLIENT_ID=
 NAVER_CLIENT_SECRET=
-EXPO_ACCESS_TOKEN=           # Expo Push 알림 발송용
 ```

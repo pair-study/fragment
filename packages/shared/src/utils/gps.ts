@@ -1,5 +1,4 @@
 // GPS 반경 판정 유틸
-// apps/mobile과 apps/api에서 동일하게 사용합니다.
 
 export interface Coordinates {
   latitude: number;
