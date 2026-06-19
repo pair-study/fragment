@@ -37,6 +37,7 @@ const WORK_END_DATE = "2026-07-05";
 const ORGANIZATION_OPEN_TIME = "09:00";
 const ORGANIZATION_CLOSE_TIME = "22:00";
 const HOLIDAY_DATES = ["2026-06-21", "2026-06-28", "2026-07-05"];
+const TIMETABLE_DATE_COLUMN_WIDTH = 76;
 
 const INITIAL_AVAILABILITY: AvailabilitySlot[] = [
   { workerId: "worker-1", date: "2026-06-20", startTime: "10:00" },
@@ -322,7 +323,7 @@ export function MvpAvailabilityPage() {
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card">
         <div className="border-b border-border px-6 py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -336,12 +337,12 @@ export function MvpAvailabilityPage() {
           </div>
         </div>
 
-        <div className="overflow-auto p-4">
-          <div className="w-max">
+        <div className="max-w-full overflow-x-auto overflow-y-hidden p-4">
+          <div className="w-max min-w-max">
             <div
               className="grid gap-1"
               style={{
-                gridTemplateColumns: `56px repeat(${dateRange.length}, 40px)`,
+                gridTemplateColumns: `56px repeat(${dateRange.length}, ${TIMETABLE_DATE_COLUMN_WIDTH}px)`,
               }}
             >
               <div />
