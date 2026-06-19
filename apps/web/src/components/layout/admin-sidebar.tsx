@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Clock3, Home, ListChecks, Users } from "lucide-react";
+import { CalendarDays, Clock3, History, Home, ListChecks, Users } from "lucide-react";
 
 import {
   Sidebar,
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 const primaryNavigationItems = [
   { title: "대시보드", href: "/dashboard", icon: Home, requiresOrg: true },
   { title: "스케줄", href: "/schedules", icon: CalendarDays, requiresOrg: true },
+  { title: "스케줄 이력", href: "/schedule-history", icon: History, requiresOrg: true },
 ];
 
 const operationsNavigationItems = [

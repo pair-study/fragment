@@ -3,16 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
-import { Download, Store, Users } from "lucide-react";
+import { Download, Store } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
-
-type SetupMetric = {
-  label: string;
-  value: string;
-  href: string;
-  icon: typeof Users;
-};
 
 type ConfirmedSchedule = {
   id: string;
@@ -21,15 +14,6 @@ type ConfirmedSchedule = {
   endTime: string;
   workerName: string;
 };
-
-const setupMetrics: SetupMetric[] = [
-  {
-    label: "근무자",
-    value: "3명",
-    href: "/workers",
-    icon: Users,
-  },
-];
 
 const dashboardSummary = {
   organizationName: "강남 스터디 카페",
@@ -155,30 +139,6 @@ export function MvpDashboardPage() {
             <Link href="/organizations">매장 수정</Link>
           </Button>
         </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        {setupMetrics.map((metric) => {
-          const Icon = metric.icon;
-
-          return (
-            <Link
-              key={metric.href}
-              href={metric.href}
-              className="rounded-xl border border-border bg-card p-5 shadow-card transition-colors hover:bg-accent"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{metric.label}</p>
-                  <p className="mt-2 text-2xl font-bold text-foreground">{metric.value}</p>
-                </div>
-                <span className="flex size-10 items-center justify-center rounded-lg bg-surface-secondary text-muted-foreground">
-                  <Icon className="size-5" aria-hidden="true" />
-                </span>
-              </div>
-            </Link>
-          );
-        })}
       </section>
 
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
