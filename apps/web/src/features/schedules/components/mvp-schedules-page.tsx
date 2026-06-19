@@ -453,13 +453,13 @@ export function MvpSchedulesPage() {
                     {getStatusLabel(status)}
                   </Badge>
                 </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {RECOMMENDATION_WORK_START_DATE}~{RECOMMENDATION_WORK_END_DATE} 추천 결과를
-                달력에서 검토하고 직접 조정합니다.
-              </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {RECOMMENDATION_WORK_START_DATE}~{RECOMMENDATION_WORK_END_DATE} 추천 결과를
+                  달력에서 검토하고 직접 조정합니다.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
           {calendarDates.length > 0 ? (
             <div className="p-6">
@@ -474,80 +474,80 @@ export function MvpSchedulesPage() {
                 ))}
 
                 {calendarDates.map((date) => {
-                const inWorkRange =
-                  date >= RECOMMENDATION_WORK_START_DATE && date <= RECOMMENDATION_WORK_END_DATE;
-                const dateSchedules = schedules.filter((schedule) => schedule.date === date);
-                const unfilled = unfilledConditions.some((condition) => condition.date === date);
-                const selected = selectedDate === date;
-                const visibleSchedules = dateSchedules.slice(0, 3);
-                const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
+                  const inWorkRange =
+                    date >= RECOMMENDATION_WORK_START_DATE && date <= RECOMMENDATION_WORK_END_DATE;
+                  const dateSchedules = schedules.filter((schedule) => schedule.date === date);
+                  const unfilled = unfilledConditions.some((condition) => condition.date === date);
+                  const selected = selectedDate === date;
+                  const visibleSchedules = dateSchedules.slice(0, 3);
+                  const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
 
-                return (
-                  <button
-                    key={date}
-                    type="button"
-                    disabled={!inWorkRange}
-                    onClick={() => {
-                      setSelectedDate(date);
-                      closeForm();
-                    }}
-                    className={
-                      inWorkRange
-                        ? [
-                            "min-h-40 border-b border-r p-3 text-left transition-colors",
-                            selected
-                              ? "border-primary bg-accent"
-                              : unfilled
-                                ? "border-destructive bg-destructive/5 hover:bg-destructive/10"
-                                : "border-border bg-card hover:bg-accent/60",
-                          ].join(" ")
-                        : "min-h-40 cursor-not-allowed border-b border-r border-border bg-surface-secondary p-3 text-left opacity-45"
-                    }
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
-                      {unfilled && inWorkRange ? (
-                        <Badge
-                          variant="neutral-weak"
-                          size="sm"
-                          className="border-destructive/30 bg-destructive/10 text-destructive"
-                        >
-                          미충족
-                        </Badge>
-                      ) : !inWorkRange ? (
-                        <span className="text-xs font-medium text-muted-foreground">범위 밖</span>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{dateSchedules.length}명 배정</span>
-                    </div>
-
-                    <div className="mt-3 space-y-1">
-                      {visibleSchedules.length > 0 ? (
-                        visibleSchedules.map((schedule) => (
-                          <p
-                            key={schedule.id}
-                            className="truncate text-xs font-medium text-foreground"
+                  return (
+                    <button
+                      key={date}
+                      type="button"
+                      disabled={!inWorkRange}
+                      onClick={() => {
+                        setSelectedDate(date);
+                        closeForm();
+                      }}
+                      className={
+                        inWorkRange
+                          ? [
+                              "min-h-40 border-b border-r p-3 text-left transition-colors",
+                              selected
+                                ? "border-primary bg-accent"
+                                : unfilled
+                                  ? "border-destructive bg-destructive/5 hover:bg-destructive/10"
+                                  : "border-border bg-card hover:bg-accent/60",
+                            ].join(" ")
+                          : "min-h-40 cursor-not-allowed border-b border-r border-border bg-surface-secondary p-3 text-left opacity-45"
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
+                        {unfilled && inWorkRange ? (
+                          <Badge
+                            variant="neutral-weak"
+                            size="sm"
+                            className="border-destructive/30 bg-destructive/10 text-destructive"
                           >
-                            {schedule.startTime}-{schedule.endTime}{" "}
-                            {getWorkerName(schedule.workerId)}
+                            미충족
+                          </Badge>
+                        ) : !inWorkRange ? (
+                          <span className="text-xs font-medium text-muted-foreground">범위 밖</span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{dateSchedules.length}명 배정</span>
+                      </div>
+
+                      <div className="mt-3 space-y-1">
+                        {visibleSchedules.length > 0 ? (
+                          visibleSchedules.map((schedule) => (
+                            <p
+                              key={schedule.id}
+                              className="truncate text-xs font-medium text-foreground"
+                            >
+                              {schedule.startTime}-{schedule.endTime}{" "}
+                              {getWorkerName(schedule.workerId)}
+                            </p>
+                          ))
+                        ) : !inWorkRange ? null : (
+                          <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                            배정 없음
                           </p>
-                        ))
-                      ) : !inWorkRange ? null : (
-                        <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                          배정 없음
-                        </p>
-                      )}
-                      {hiddenScheduleCount > 0 ? (
-                        <p className="text-xs font-medium text-muted-foreground">
-                          +{hiddenScheduleCount}개 더보기
-                        </p>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
+                        )}
+                        {hiddenScheduleCount > 0 ? (
+                          <p className="text-xs font-medium text-muted-foreground">
+                            +{hiddenScheduleCount}개 더보기
+                          </p>
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -606,7 +606,11 @@ export function MvpSchedulesPage() {
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-base font-semibold text-foreground">배정 목록</h3>
               {isDraft ? (
-                <Button type="button" variant="outline" onClick={() => openCreateForm(selectedDate)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => openCreateForm(selectedDate)}
+                >
                   <Plus className="size-4" aria-hidden="true" />
                   스케줄 추가
                 </Button>
