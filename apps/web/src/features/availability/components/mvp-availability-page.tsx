@@ -278,8 +278,14 @@ export function MvpAvailabilityPage() {
       contentClassName="space-y-6"
     >
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <div className="grid gap-5 lg:grid-cols-[minmax(360px,480px)_minmax(240px,320px)_1fr] lg:items-end">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">근무 기간 설정</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              모든 근무자의 가능 시간 입력에 공통으로 적용되는 기간입니다.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:w-[480px]">
             <div className="space-y-2">
               <Label htmlFor="availability-work-start-date">근무 시작 날짜</Label>
               <Input
@@ -307,7 +313,11 @@ export function MvpAvailabilityPage() {
               />
             </div>
           </div>
+        </div>
+      </section>
 
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="grid gap-5 lg:grid-cols-[minmax(240px,320px)_1fr] lg:items-end">
           <div className="space-y-2">
             <Label htmlFor="worker-select">근무자 선택</Label>
             <Select
@@ -334,9 +344,8 @@ export function MvpAvailabilityPage() {
           <div className="rounded-lg bg-surface-secondary px-4 py-3">
             <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 근무 기간:{" "}
-              {workStartDate}~{workEndDate} · 운영 시간: {ORGANIZATION_OPEN_TIME}-
-              {ORGANIZATION_CLOSE_TIME}
+              주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 운영 시간:{" "}
+              {ORGANIZATION_OPEN_TIME}-{ORGANIZATION_CLOSE_TIME}
             </p>
           </div>
         </div>
