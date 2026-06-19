@@ -1,26 +1,29 @@
 # 일감 디자인 컨벤션
 
-이 문서는 일감 관리자 웹(`apps/web`)을 먼저 구현하기 위한 1차 디자인 컨벤션이다. 웹 UI는 **shadcn/ui + Tailwind CSS** 조합을 기준으로 한다. shadcn/ui를 그대로 나열하는 문서가 아니라, 프로젝트에서 shadcn/ui primitive를 Tailwind CSS 유틸리티와 함께 어떤 기준으로 조합하고 도메인 컴포넌트로 감쌀지 정한다.
+이 문서는 일감 관리자 웹(`apps/web`)을 먼저 구현하기 위한 1차 디자인 컨벤션이다. 웹 UI는 **`@moyeorak/design-system`(1순위) + shadcn/ui(보조) + Tailwind CSS** 조합을 기준으로 한다. 새 화면을 만들 때는 `@moyeorak/design-system`에 필요한 컴포넌트가 있는지 먼저 확인하고, 없는 것만 shadcn/ui로 채운다. 이 문서는 두 라이브러리를 어떤 기준으로 조합하고 도메인 컴포넌트로 감쌀지 정한다.
+
+> **적용 범위**: 이 우선순위 규칙은 새로 구현하는 화면부터 적용한다. 이미 shadcn/ui로 구현된 기존 화면(인증, 조직 관리, 인력 관리, 급여정산)은 일괄 교체하지 않는다.
 
 ## 구현 스택
 
 | 플랫폼 | 컴포넌트 | 스타일링 | 역할 |
 | --- | --- | --- | --- |
-| 관리자 웹 | shadcn/ui | Tailwind CSS | Radix 기반 접근성 primitive를 Tailwind 유틸리티로 조합 |
+| 관리자 웹 | `@moyeorak/design-system`(1순위) | 패키지 자체 토큰(Panda CSS) | 자체 디자인 토큰 기반 brand 컴포넌트 |
+| 관리자 웹 | shadcn/ui(보조) | Tailwind CSS | `@moyeorak/design-system`에 없는 컴포넌트를 Radix 기반 primitive + Tailwind 유틸리티로 조합 |
 
-웹에서 shadcn/ui는 `Button`, `Input`, `Dialog` 같은 컴포넌트의 구조와 접근성 동작을 맡고, Tailwind CSS는 배치, 간격, 색상, 반응형 스타일을 표현한다.
+`@moyeorak/design-system`에 있는 컴포넌트(`Button`, `Badge`, `Chip`, `FloatingButton`, `Icon`, `IconButton`, `Toast` 등)는 그 컴포넌트를 그대로 쓴다. 아직 없는 컴포넌트(`Input`, `Select`, `Dialog`, `Form`, `Checkbox`, `Table` 등)는 지금까지와 동일하게 shadcn/ui가 구조와 접근성 동작을 맡고, Tailwind CSS가 배치·간격·반응형 스타일을 표현한다.
 
 ## 역할
 
 - `docs/design.md`: 디자인 의사결정과 사용 규칙을 기록한다.
-- `apps/web/src/components/ui`: shadcn/ui primitive를 둔다.
+- `apps/web/src/components/ui`: shadcn/ui primitive를 둔다 (`@moyeorak/design-system`에 없는 것만).
 - `apps/web/src/components`: 레이아웃, 공통 폼, 공통 표시 컴포넌트를 둔다.
 - `apps/web/src/features`: 조직, 스케줄, 급여처럼 도메인 의미가 있는 컴포넌트를 둔다.
 
-새 화면을 만들 때는 페이지에서 shadcn/ui를 직접 길게 조합하지 않는다. 먼저 재사용 가능한 단위로 감싸고, 페이지는 그 컴포넌트를 배치하는 역할만 맡긴다.
+새 화면을 만들 때는 페이지에서 `@moyeorak/design-system`이나 shadcn/ui를 직접 길게 조합하지 않는다. 먼저 재사용 가능한 단위로 감싸고, 페이지는 그 컴포넌트를 배치하는 역할만 맡긴다.
 
 ```txt
-shadcn/ui primitive
+@moyeorak/design-system 컴포넌트가 있으면 그것, 없으면 shadcn/ui primitive
 -> 공통 컴포넌트
 -> 도메인 컴포넌트
 -> 페이지
@@ -123,13 +126,29 @@ Radius:
 
 shadcn 기본 radius와 충돌하지 않도록 실제 구현에서는 CSS variable `--radius`를 기준으로 조정한다.
 
-## shadcn/ui 사용 원칙
+## 컴포넌트 우선순위 규칙
+
+새 화면에서 컴포넌트가 필요하면 다음 순서로 확인한다.
+
+1. `@moyeorak/design-system`에 해당 컴포넌트가 있는가? → 있으면 그것을 쓴다.
+2. 없으면 아래 "우선 설치/사용할 shadcn 컴포넌트" 목록에서 shadcn/ui로 채운다.
+3. 둘 다 없는 도메인 특화 컴포넌트는 `components/features/`에서 1·2번을 조합해 만든다.
+
+`@moyeorak/design-system`이 현재 제공하는 컴포넌트: `Button`, `Badge`, `Chip`, `FloatingButton`, `Icon`, `IconButton`, `Toast`. 이 목록은 패키지 버전이 올라가면서 늘어날 수 있으므로, 작업 전에 패키지의 export 목록을 확인한다.
+
+## `@moyeorak/design-system` 사용 원칙
+
+- 패키지에서 제공하는 컴포넌트는 그대로 import해서 쓰고, 별도로 감싸지 않는 것을 기본으로 한다. 프로젝트 고유 동작(예: 로딩 상태 결합)이 필요할 때만 `components/common/`에서 한 번 감싼다.
+- 패키지 자체의 디자인 토큰(Panda CSS 기반)을 그대로 따른다. shadcn/Tailwind 토큰 값으로 임의 대체하지 않는다.
+- 한 화면에 shadcn/ui 컴포넌트와 같이 쓸 때는 색상·spacing이 시각적으로 어긋나지 않는지 확인한다.
+
+## shadcn/ui 사용 원칙 (보조)
 
 ### 기본 규칙
 
-- shadcn/ui는 primitive로 사용하고, 도메인 의미가 있는 컴포넌트로 한 번 감싼다.
+- shadcn/ui는 `@moyeorak/design-system`에 없는 컴포넌트에 한해 primitive로 사용하고, 도메인 의미가 있는 컴포넌트로 한 번 감싼다.
 - keyboard, focus, dialog, dropdown 동작은 직접 만들지 않는다.
-- 아이콘은 lucide-react를 사용한다.
+- 아이콘은 lucide-react를 사용한다. (`@moyeorak/design-system`의 `Icon`을 쓸 수 있는 경우는 그쪽을 우선한다.)
 - 아이콘만 있는 버튼에는 반드시 `aria-label`을 넣는다.
 - destructive action은 반드시 `AlertDialog`를 사용한다.
 - loading은 `Skeleton`을 먼저 고려한다.
@@ -137,9 +156,8 @@ shadcn 기본 radius와 충돌하지 않도록 실제 구현에서는 CSS variab
 
 ### 우선 설치/사용할 shadcn 컴포넌트
 
-관리자 웹 1차 구현에 필요한 primitive:
+`@moyeorak/design-system`에 아직 없는 primitive 중 관리자 웹 구현에 필요한 것:
 
-- `Button`
 - `Input`
 - `Label`
 - `Form`
@@ -148,7 +166,6 @@ shadcn 기본 radius와 충돌하지 않도록 실제 구현에서는 CSS variab
 - `Switch`
 - `Slider`
 - `Card`
-- `Badge`
 - `Separator`
 - `Tabs`
 - `Dialog`
@@ -161,6 +178,8 @@ shadcn 기본 radius와 충돌하지 않도록 실제 구현에서는 CSS variab
 - `ScrollArea`
 - `Skeleton`
 - `Calendar`
+
+`Button`, `Badge`는 `@moyeorak/design-system`에 이미 있으므로 새 화면에서는 shadcn 버전 대신 그쪽을 우선 사용한다. 단, 상태 5종(`confirmed`/`pending`/`cancelled`/`draft`/`unprocessed`) 톤은 `@moyeorak/design-system` `Badge`가 아직 지원하지 않으므로, `StatusBadge`는 계속 shadcn `Badge` 기반으로 유지한다 (자세한 내용은 "상태 Badge 규칙" 참고).
 
 ## 레이아웃 규칙
 
@@ -241,15 +260,19 @@ FormItem
 
 ## 버튼 규칙
 
-shadcn `Button` variant 사용 기준:
+새 화면의 버튼은 `@moyeorak/design-system` `Button`을 우선 사용한다. 단, `destructive` variant는 `@moyeorak/design-system`에 없으므로 삭제·취소 불가 작업은 계속 shadcn `Button`(`destructive`)을 쓴다.
+
+`@moyeorak/design-system` `Button` variant 사용 기준:
 
 | variant | 사용 |
 | --- | --- |
-| `default` | 저장, 생성, 등록 완료, 로그인 같은 주요 액션 |
+| `brand` | 저장, 생성, 등록 완료, 로그인 같은 주요 액션 |
+| `brand-weak` | 낮은 강조의 보조 선택 |
 | `outline` | 취소, 이전, 주소 검색, 보조 액션 |
-| `secondary` | 낮은 강조의 보조 선택 |
 | `ghost` | 링크성 버튼, 사이드바 안 보조 액션 |
-| `destructive` | 삭제, 취소 불가 작업 |
+| `ghost-brand` | 강조가 필요한 링크성 버튼 |
+
+삭제·취소 불가 작업: shadcn `Button`(`destructive` variant).
 
 규칙:
 

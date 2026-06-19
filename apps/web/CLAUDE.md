@@ -18,7 +18,8 @@
 | Form          | React Hook Form      | 7.54.x                  |
 | Validation    | Zod                  | 3.24.x                  |
 | Styling       | Tailwind CSS         | 4.1.x                   |
-| UI Components | shadcn/ui            | latest (소스 복사 방식) |
+| UI Components | @moyeorak/design-system (1순위) | 0.1.x (npm 패키지)      |
+| UI Components | shadcn/ui (보조)      | latest (소스 복사 방식) |
 
 ## 디렉터리 구조
 
@@ -35,7 +36,7 @@ apps/web/
     │   ├── globals.css
     │   └── layout.tsx
     ├── components/
-    │   ├── ui/               # shadcn/ui 소스 복사 컴포넌트
+    │   ├── ui/               # shadcn/ui 소스 복사 컴포넌트 (@moyeorak/design-system에 없는 것만)
     │   ├── layout/           # AdminShell, SidebarNav, Topbar 등
     │   └── common/           # 폼 필드, 상태 배지 등 공통 조합 컴포넌트
     ├── features/             # 도메인별 컴포넌트 (stores/, schedule/, payroll/ 등)
@@ -74,10 +75,25 @@ apps/web/
 
 ### UI 컴포넌트
 
-- **shadcn/ui**를 기본 컴포넌트 라이브러리로 사용합니다.
+새로 구현하는 화면부터 아래 우선순위를 적용합니다. **기존에 이미 구현된 화면(인증, 조직 관리, 인력 관리, 급여정산)은 일괄 교체하지 않고 그대로 둡니다.**
+
+1. **`@moyeorak/design-system`에 필요한 컴포넌트가 있으면 그것을 사용합니다.** (1순위)
+2. 없는 컴포넌트만 **shadcn/ui**를 사용합니다. (보조)
+3. 한 화면 안에서 두 라이브러리를 섞어 쓸 수 있습니다. 단, 같은 역할(예: 버튼)에 두 라이브러리 컴포넌트를 동시에 쓰지 않습니다 — 화면 단위로 우선순위 1번을 먼저 확인하고, 없는 요소만 2번으로 채웁니다.
+
+`@moyeorak/design-system`:
+
+- npm 패키지로 설치합니다(`pnpm add @moyeorak/design-system --filter @ilgam/web`). 소스를 복사하지 않습니다.
+- 컴포넌트는 패키지에서 직접 import합니다. 커스터마이징이 필요하면 패키지 자체를 수정(별도 레포)하거나, 불가피한 경우에만 `components/common/`에서 한 번 감쌉니다.
+- 루트 레이아웃(`src/app/layout.tsx`)에서 `@moyeorak/design-system/dist/style.css`를 전역 import합니다.
+- 패키지의 CSS는 Panda CSS 기반 자체 디자인 토큰을 쓰므로, shadcn/Tailwind 토큰(`--primary`, `--foreground` 등)과 색상·spacing이 동일하지 않습니다. 한 화면에 섞어 쓸 때 시각적으로 어긋나지 않는지 확인합니다.
+- 버전은 `docs/stack.md`에 명시된 범위(`0.1.x`)를 따릅니다. 메이저/마이너 업그레이드는 팀과 협의 후 `docs/stack.md`를 먼저 업데이트합니다.
+
+shadcn/ui (보조):
+
 - shadcn/ui는 패키지가 아닌 소스 복사 방식입니다. `components/ui/`에 복사된 파일을 직접 수정해 커스터마이징합니다.
 - `pnpm dlx shadcn@latest add <component>`로 컴포넌트를 추가합니다. 추가 후 팀에 공유합니다.
-- shadcn/ui에 없는 도메인 특화 컴포넌트(스케줄 캘린더, 근태 현황 타임라인 등)는 `components/features/`에 shadcn/ui 컴포넌트를 조합해 구현합니다.
+- 두 라이브러리 모두에 없는 도메인 특화 컴포넌트(스케줄 캘린더, 근태 현황 타임라인 등)는 `components/features/`에 둘을 조합해 구현합니다.
 - shadcn/ui 내부적으로 Radix UI primitives를 사용하므로 별도 접근성(a11y) 처리가 필요하지 않습니다.
 
 ### 인증 처리

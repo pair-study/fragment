@@ -16,7 +16,7 @@
 
 | 영역                   | 핵심 기술                                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 관리자 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui                                             |
+| 관리자 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, @moyeorak/design-system(1순위) + shadcn/ui(보조)      |
 | 백엔드 (`apps/api`)    | NestJS, TypeScript, PostgreSQL, Prisma                                                                       |
 | 공통                   | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                                  |
 | 테스트                 | Vitest + React Testing Library + MSW (Frontend), Jest + Supertest (Backend)                                  |
