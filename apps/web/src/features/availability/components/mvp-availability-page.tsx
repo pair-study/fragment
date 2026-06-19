@@ -129,7 +129,7 @@ function hasSameSlots(firstSlots: AvailabilitySlot[], secondSlots: AvailabilityS
   return [...firstKeys].every((key) => secondKeys.has(key));
 }
 
-function summarizeAvailability(slots: AvailabilitySlot[]) {
+function summarizeAvailabilityByDate(slots: AvailabilitySlot[]) {
   const slotsByDate = slots.reduce<Record<string, string[]>>((acc, slot) => {
     acc[slot.date] = [...(acc[slot.date] ?? []), slot.startTime];
     return acc;
@@ -137,9 +137,9 @@ function summarizeAvailability(slots: AvailabilitySlot[]) {
 
   return Object.entries(slotsByDate)
     .sort(([firstDate], [secondDate]) => firstDate.localeCompare(secondDate))
-    .flatMap(([date, startTimes]) => {
+    .map(([date, startTimes]) => {
       const sortedMinutes = [...new Set(startTimes.map(timeToMinutes))].sort((a, b) => a - b);
-      const ranges: { date: string; startTime: string; endTime: string }[] = [];
+      const ranges: { startTime: string; endTime: string }[] = [];
 
       let rangeStart = sortedMinutes[0];
       let previous = sortedMinutes[0];
@@ -151,7 +151,6 @@ function summarizeAvailability(slots: AvailabilitySlot[]) {
         }
 
         ranges.push({
-          date,
           startTime: minutesToTime(rangeStart),
           endTime: minutesToTime(previous + 30),
         });
@@ -161,18 +160,21 @@ function summarizeAvailability(slots: AvailabilitySlot[]) {
 
       if (rangeStart !== undefined && previous !== undefined) {
         ranges.push({
-          date,
           startTime: minutesToTime(rangeStart),
           endTime: minutesToTime(previous + 30),
         });
       }
 
-      return ranges;
+      return {
+        date,
+        ranges,
+      };
     });
 }
 
 export function MvpAvailabilityPage() {
   const [selectedWorkerId, setSelectedWorkerId] = useState(WORKERS[0]?.id ?? "");
+  const [selectedAvailabilityDate, setSelectedAvailabilityDate] = useState("");
   const [savedAvailability, setSavedAvailability] =
     useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
   const [draftAvailability, setDraftAvailability] =
@@ -188,7 +190,17 @@ export function MvpAvailabilityPage() {
   const selectedDraftAvailability = draftAvailability.filter(
     (slot) => slot.workerId === selectedWorkerId,
   );
-  const selectedAvailabilityRanges = summarizeAvailability(selectedDraftAvailability);
+  const selectedAvailabilityByDate = summarizeAvailabilityByDate(selectedDraftAvailability);
+  const activeAvailabilityDate =
+    selectedAvailabilityByDate.find((group) => group.date === selectedAvailabilityDate)?.date ??
+    selectedAvailabilityByDate[0]?.date ??
+    "";
+  const activeAvailabilityRanges =
+    selectedAvailabilityByDate.find((group) => group.date === activeAvailabilityDate)?.ranges ?? [];
+  const selectedAvailabilityRangeCount = selectedAvailabilityByDate.reduce(
+    (total, group) => total + group.ranges.length,
+    0,
+  );
   const draftSlotKeys = new Set(
     selectedDraftAvailability.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
   );
@@ -262,6 +274,7 @@ export function MvpAvailabilityPage() {
               value={selectedWorkerId}
               onValueChange={(value) => {
                 setSelectedWorkerId(value);
+                setSelectedAvailabilityDate("");
                 setSaveMessage("");
               }}
             >
@@ -294,27 +307,58 @@ export function MvpAvailabilityPage() {
           <div>
             <h2 className="text-base font-semibold text-foreground">선택된 가능 시간</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              연속된 30분 단위 선택은 하나의 시간 구간으로 표시합니다.
+              날짜를 선택하면 해당 날짜의 가능 시간이 표시됩니다.
             </p>
           </div>
-          <Badge variant="neutral-weak">{selectedAvailabilityRanges.length}개 구간</Badge>
+          <Badge variant="neutral-weak">{selectedAvailabilityRangeCount}개 구간</Badge>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {selectedAvailabilityRanges.length > 0 ? (
-            selectedAvailabilityRanges.map((range) => (
-              <span
-                key={`${range.date}-${range.startTime}`}
-                className="rounded-full border border-border bg-surface-secondary px-3 py-1.5 text-sm font-medium text-foreground"
-              >
-                {formatDateLabel(range.date)}({formatWeekday(range.date)}) {range.startTime}~
-                {range.endTime}
-              </span>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">선택된 가능 시간이 없습니다.</p>
-          )}
-        </div>
+        {selectedAvailabilityByDate.length > 0 ? (
+          <>
+            <div className="mt-4 max-w-full overflow-x-auto pb-1">
+              <div className="flex w-max min-w-max gap-2">
+                {selectedAvailabilityByDate.map((group) => {
+                  const active = group.date === activeAvailabilityDate;
+
+                  return (
+                    <button
+                      key={group.date}
+                      type="button"
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-surface-secondary text-foreground hover:border-primary hover:bg-accent",
+                      )}
+                      onClick={() => setSelectedAvailabilityDate(group.date)}
+                    >
+                      {formatDateLabel(group.date)}({formatWeekday(group.date)}) ·{" "}
+                      {group.ranges.length}개
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-lg bg-surface-secondary px-4 py-3">
+              <p className="text-sm font-semibold text-foreground">
+                {formatDateLabel(activeAvailabilityDate)}({formatWeekday(activeAvailabilityDate)})
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeAvailabilityRanges.map((range) => (
+                  <span
+                    key={`${activeAvailabilityDate}-${range.startTime}`}
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground"
+                  >
+                    {range.startTime}~{range.endTime}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">선택된 가능 시간이 없습니다.</p>
+        )}
       </section>
 
       {saveMessage ? (
