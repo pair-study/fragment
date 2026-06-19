@@ -129,8 +129,7 @@ export function MvpScheduleHistoryPage() {
   const [selectedHistoryId, setSelectedHistoryId] = useState(SCHEDULE_HISTORIES[0]?.id ?? "");
   const [exportMessage, setExportMessage] = useState("");
   const selectedHistory =
-    SCHEDULE_HISTORIES.find((history) => history.id === selectedHistoryId) ??
-    SCHEDULE_HISTORIES[0];
+    SCHEDULE_HISTORIES.find((history) => history.id === selectedHistoryId) ?? SCHEDULE_HISTORIES[0];
   const calendarDates = useMemo(
     () => createCalendarDates(selectedHistory.startDate, selectedHistory.endDate),
     [selectedHistory.endDate, selectedHistory.startDate],
@@ -172,7 +171,9 @@ export function MvpScheduleHistoryPage() {
                     {selected ? <Badge variant="neutral-weak">선택됨</Badge> : null}
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">확정일 {history.confirmedAt}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{history.scheduleCount}개 배정</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {history.scheduleCount}개 배정
+                  </p>
                 </button>
               );
             })}
@@ -231,7 +232,8 @@ export function MvpScheduleHistoryPage() {
                 ))}
 
                 {calendarDates.map((date) => {
-                  const inRange = date >= selectedHistory.startDate && date <= selectedHistory.endDate;
+                  const inRange =
+                    date >= selectedHistory.startDate && date <= selectedHistory.endDate;
                   const dateSchedules = selectedHistory.schedules.filter(
                     (schedule) => schedule.date === date,
                   );
