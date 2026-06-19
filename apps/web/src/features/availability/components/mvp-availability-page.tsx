@@ -32,21 +32,23 @@ const WORKERS: Worker[] = [
   { id: "worker-3", name: "이서연", weeklyContractHours: 12 },
 ];
 
-const WORK_START_DATE = "2026-06-22";
-const WORK_END_DATE = "2026-06-28";
+const WORK_START_DATE = "2026-06-20";
+const WORK_END_DATE = "2026-07-05";
 const ORGANIZATION_OPEN_TIME = "09:00";
 const ORGANIZATION_CLOSE_TIME = "22:00";
-const HOLIDAY_DATES = ["2026-06-28"];
+const HOLIDAY_DATES = ["2026-06-21", "2026-06-28", "2026-07-05"];
 
 const INITIAL_AVAILABILITY: AvailabilitySlot[] = [
-  { workerId: "worker-1", date: "2026-06-22", startTime: "18:00" },
-  { workerId: "worker-1", date: "2026-06-22", startTime: "18:30" },
-  { workerId: "worker-1", date: "2026-06-22", startTime: "19:00" },
+  { workerId: "worker-1", date: "2026-06-20", startTime: "10:00" },
+  { workerId: "worker-1", date: "2026-06-20", startTime: "10:30" },
+  { workerId: "worker-1", date: "2026-06-20", startTime: "11:00" },
   { workerId: "worker-1", date: "2026-06-24", startTime: "18:00" },
   { workerId: "worker-1", date: "2026-06-24", startTime: "18:30" },
   { workerId: "worker-2", date: "2026-06-26", startTime: "14:00" },
   { workerId: "worker-2", date: "2026-06-26", startTime: "14:30" },
   { workerId: "worker-2", date: "2026-06-26", startTime: "15:00" },
+  { workerId: "worker-3", date: "2026-07-02", startTime: "16:00" },
+  { workerId: "worker-3", date: "2026-07-02", startTime: "16:30" },
 ];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
@@ -126,6 +128,48 @@ function hasSameSlots(firstSlots: AvailabilitySlot[], secondSlots: AvailabilityS
   return [...firstKeys].every((key) => secondKeys.has(key));
 }
 
+function summarizeAvailability(slots: AvailabilitySlot[]) {
+  const slotsByDate = slots.reduce<Record<string, string[]>>((acc, slot) => {
+    acc[slot.date] = [...(acc[slot.date] ?? []), slot.startTime];
+    return acc;
+  }, {});
+
+  return Object.entries(slotsByDate)
+    .sort(([firstDate], [secondDate]) => firstDate.localeCompare(secondDate))
+    .flatMap(([date, startTimes]) => {
+      const sortedMinutes = [...new Set(startTimes.map(timeToMinutes))].sort((a, b) => a - b);
+      const ranges: { date: string; startTime: string; endTime: string }[] = [];
+
+      let rangeStart = sortedMinutes[0];
+      let previous = sortedMinutes[0];
+
+      for (const current of sortedMinutes.slice(1)) {
+        if (current === previous + 30) {
+          previous = current;
+          continue;
+        }
+
+        ranges.push({
+          date,
+          startTime: minutesToTime(rangeStart),
+          endTime: minutesToTime(previous + 30),
+        });
+        rangeStart = current;
+        previous = current;
+      }
+
+      if (rangeStart !== undefined && previous !== undefined) {
+        ranges.push({
+          date,
+          startTime: minutesToTime(rangeStart),
+          endTime: minutesToTime(previous + 30),
+        });
+      }
+
+      return ranges;
+    });
+}
+
 export function MvpAvailabilityPage() {
   const [selectedWorkerId, setSelectedWorkerId] = useState(WORKERS[0]?.id ?? "");
   const [savedAvailability, setSavedAvailability] =
@@ -143,6 +187,7 @@ export function MvpAvailabilityPage() {
   const selectedDraftAvailability = draftAvailability.filter(
     (slot) => slot.workerId === selectedWorkerId,
   );
+  const selectedAvailabilityRanges = summarizeAvailability(selectedDraftAvailability);
   const draftSlotKeys = new Set(
     selectedDraftAvailability.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
   );
@@ -243,6 +288,34 @@ export function MvpAvailabilityPage() {
         </div>
       </section>
 
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">선택된 가능 시간</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              연속된 30분 단위 선택은 하나의 시간 구간으로 표시합니다.
+            </p>
+          </div>
+          <Badge variant="neutral-weak">{selectedAvailabilityRanges.length}개 구간</Badge>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {selectedAvailabilityRanges.length > 0 ? (
+            selectedAvailabilityRanges.map((range) => (
+              <span
+                key={`${range.date}-${range.startTime}`}
+                className="rounded-full border border-border bg-surface-secondary px-3 py-1.5 text-sm font-medium text-foreground"
+              >
+                {formatDateLabel(range.date)}({formatWeekday(range.date)}) {range.startTime}~
+                {range.endTime}
+              </span>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">선택된 가능 시간이 없습니다.</p>
+          )}
+        </div>
+      </section>
+
       {saveMessage ? (
         <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
           {saveMessage}
@@ -264,8 +337,13 @@ export function MvpAvailabilityPage() {
         </div>
 
         <div className="overflow-auto p-4">
-          <div className="w-full min-w-[520px]">
-            <div className="grid grid-cols-[56px_repeat(7,minmax(48px,1fr))] gap-1">
+          <div className="w-max">
+            <div
+              className="grid gap-1"
+              style={{
+                gridTemplateColumns: `56px repeat(${dateRange.length}, 40px)`,
+              }}
+            >
               <div />
               {dateRange.map((date) => (
                 <div key={date} className="py-2 text-center">
@@ -286,7 +364,7 @@ export function MvpAvailabilityPage() {
 
                 return (
                   <div key={time} className="contents">
-                    <div className="h-9 pr-2 text-right text-sm text-muted-foreground">
+                    <div className="h-8 pr-2 text-right text-sm text-muted-foreground">
                       {showHourLabel ? Number(time.slice(0, 2)) : ""}
                     </div>
                     {dateRange.map((date) => {
@@ -300,7 +378,7 @@ export function MvpAvailabilityPage() {
                           disabled={disabled}
                           aria-label={`${date} ${time} 가능 시간 ${selected ? "해제" : "선택"}`}
                           className={cn(
-                            "h-9 rounded-md border text-xs transition-colors",
+                            "h-8 rounded-md border text-[10px] transition-colors",
                             disabled
                               ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
                               : selected
