@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
-import { CalendarDays, Clock3, Download, ListChecks, Users } from "lucide-react";
+import { Download, Store, Users } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 
@@ -29,23 +29,12 @@ const setupMetrics: SetupMetric[] = [
     href: "/workers",
     icon: Users,
   },
-  {
-    label: "가능 시간",
-    value: "3개",
-    href: "/availability",
-    icon: Clock3,
-  },
-  {
-    label: "최소 인원 조건",
-    value: "3개",
-    href: "/staffing-rules",
-    icon: ListChecks,
-  },
 ];
 
 const dashboardSummary = {
   organizationName: "강남 스터디 카페",
   operationHours: "09:00 - 22:00",
+  closedDays: "매주 일요일",
   scheduleRange: "2026-06-20 ~ 2026-07-05",
   scheduleStatus: "CONFIRMED",
   confirmedScheduleCount: 20,
@@ -142,25 +131,28 @@ export function MvpDashboardPage() {
   return (
     <AdminPageShell
       title="대시보드"
-      description="현재 매장의 스케줄 준비 상태와 이번 주 운영 현황을 확인합니다."
+      description="현재 매장 정보와 확정된 스케줄을 확인합니다."
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">
-              {dashboardSummary.organizationName}
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              운영 시간 {dashboardSummary.operationHours}
-            </p>
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-surface-secondary text-muted-foreground">
+                <Store className="size-5" aria-hidden="true" />
+              </span>
+              <h2 className="text-xl font-semibold text-foreground">
+                {dashboardSummary.organizationName}
+              </h2>
+            </div>
+            <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+              <p>운영 시간 {dashboardSummary.operationHours}</p>
+              <p>휴무일 {dashboardSummary.closedDays}</p>
+            </div>
           </div>
           <Button asChild variant="outline">
-            <Link href="/schedules">
-              <CalendarDays className="size-4" aria-hidden="true" />
-              <span>새 스케줄 생성</span>
-            </Link>
+            <Link href="/organizations">매장 수정</Link>
           </Button>
         </div>
       </section>
@@ -279,17 +271,6 @@ export function MvpDashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <h2 className="text-base font-semibold text-foreground">다음 작업</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          새로운 근무 기간의 스케줄이 필요하면 스케줄 화면에서 추천 생성을 시작하세요.
-        </p>
-        <div className="mt-5">
-          <Button asChild variant="outline">
-            <Link href="/schedules">스케줄 생성하기</Link>
-          </Button>
-        </div>
-      </section>
     </AdminPageShell>
   );
 }
