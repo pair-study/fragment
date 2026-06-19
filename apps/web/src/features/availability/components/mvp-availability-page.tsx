@@ -187,10 +187,10 @@ export function MvpAvailabilityPage() {
   const [draftAvailability, setDraftAvailability] =
     useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
   const [saveMessage, setSaveMessage] = useState("");
-  const dateRange = useMemo(() => createDateRange(workStartDate, workEndDate), [
-    workEndDate,
-    workStartDate,
-  ]);
+  const dateRange = useMemo(
+    () => createDateRange(workStartDate, workEndDate),
+    [workEndDate, workStartDate],
+  );
   const timeSlots = useMemo(
     () => createTimeSlots(ORGANIZATION_OPEN_TIME, ORGANIZATION_CLOSE_TIME),
     [],
