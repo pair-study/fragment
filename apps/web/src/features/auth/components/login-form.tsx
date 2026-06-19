@@ -1,23 +1,48 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@moyeorak/design-system";
 import { Mail } from "lucide-react";
 
 import { PasswordInput } from "@/components/common/password-input";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
 import { AuthField } from "./auth-field";
 import { AuthFooterLink } from "./auth-footer-link";
 
 export function LoginForm() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const errors = {
+    email: !email.trim() ? "이메일을 입력하세요." : "",
+    password: !password ? "비밀번호를 입력하세요." : "",
+  };
+  const hasErrors = Object.values(errors).some(Boolean);
+
   return (
-    <form className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setSubmitted(true);
+
+        if (hasErrors) {
+          return;
+        }
+
+        setIsSubmitting(true);
+        router.push("/dashboard");
+      }}
+    >
       <div>
-        <h1 className="text-balance text-2xl font-bold text-foreground">다시 오신 걸 환영해요</h1>
+        <h1 className="text-balance text-2xl font-bold text-foreground">로그인</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          이메일과 비밀번호로 로그인하세요.
+          관리자 계정으로 스케줄 운영 대시보드에 접속합니다.
         </p>
       </div>
 
@@ -33,10 +58,16 @@ export function LoginForm() {
               name="email"
               type="email"
               placeholder="name@company.com"
+              value={email}
               autoComplete="email"
               className="pl-9"
+              aria-invalid={submitted && Boolean(errors.email)}
+              onChange={(event) => setEmail(event.target.value)}
             />
           </div>
+          {submitted && errors.email ? (
+            <p className="text-sm text-destructive">{errors.email}</p>
+          ) : null}
         </AuthField>
 
         <AuthField id="password" label="비밀번호">
@@ -44,26 +75,19 @@ export function LoginForm() {
             id="password"
             name="password"
             placeholder="비밀번호 입력"
+            value={password}
             autoComplete="current-password"
+            aria-invalid={submitted && Boolean(errors.password)}
+            onChange={(event) => setPassword(event.target.value)}
           />
+          {submitted && errors.password ? (
+            <p className="text-sm text-destructive">{errors.password}</p>
+          ) : null}
         </AuthField>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Checkbox defaultChecked aria-label="로그인 상태 유지" />
-          로그인 상태 유지
-        </label>
-        <Link
-          href="/forgot-password"
-          className="text-sm font-semibold text-primary hover:underline"
-        >
-          비밀번호를 잊으셨나요?
-        </Link>
-      </div>
-
-      <Button type="submit" size="lg" className="h-12 w-full text-base">
-        로그인
+      <Button type="submit" variant="brand" size="lg" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? "로그인 중" : "로그인"}
       </Button>
 
       <div className="border-t border-border pt-6">
