@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -32,8 +33,8 @@ const WORKERS: Worker[] = [
   { id: "worker-3", name: "이서연", weeklyContractHours: 12 },
 ];
 
-const WORK_START_DATE = "2026-06-20";
-const WORK_END_DATE = "2026-07-05";
+const DEFAULT_WORK_START_DATE = "2026-06-20";
+const DEFAULT_WORK_END_DATE = "2026-07-05";
 const ORGANIZATION_OPEN_TIME = "09:00";
 const ORGANIZATION_CLOSE_TIME = "22:00";
 const HOLIDAY_DATES = ["2026-06-21", "2026-06-28", "2026-07-05"];
@@ -81,6 +82,10 @@ function addDays(date: string, days: number) {
 }
 
 function createDateRange(startDate: string, endDate: string) {
+  if (!startDate || !endDate || endDate < startDate) {
+    return [];
+  }
+
   const dates: string[] = [];
   let currentDate = startDate;
 
@@ -175,12 +180,17 @@ function summarizeAvailabilityByDate(slots: AvailabilitySlot[]) {
 export function MvpAvailabilityPage() {
   const [selectedWorkerId, setSelectedWorkerId] = useState(WORKERS[0]?.id ?? "");
   const [selectedAvailabilityDate, setSelectedAvailabilityDate] = useState("");
+  const [workStartDate, setWorkStartDate] = useState(DEFAULT_WORK_START_DATE);
+  const [workEndDate, setWorkEndDate] = useState(DEFAULT_WORK_END_DATE);
   const [savedAvailability, setSavedAvailability] =
     useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
   const [draftAvailability, setDraftAvailability] =
     useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
   const [saveMessage, setSaveMessage] = useState("");
-  const dateRange = useMemo(() => createDateRange(WORK_START_DATE, WORK_END_DATE), []);
+  const dateRange = useMemo(() => createDateRange(workStartDate, workEndDate), [
+    workEndDate,
+    workStartDate,
+  ]);
   const timeSlots = useMemo(
     () => createTimeSlots(ORGANIZATION_OPEN_TIME, ORGANIZATION_CLOSE_TIME),
     [],
@@ -188,7 +198,8 @@ export function MvpAvailabilityPage() {
 
   const selectedWorker = WORKERS.find((worker) => worker.id === selectedWorkerId) ?? WORKERS[0];
   const selectedDraftAvailability = draftAvailability.filter(
-    (slot) => slot.workerId === selectedWorkerId,
+    (slot) =>
+      slot.workerId === selectedWorkerId && slot.date >= workStartDate && slot.date <= workEndDate,
   );
   const selectedAvailabilityByDate = summarizeAvailabilityByDate(selectedDraftAvailability);
   const activeAvailabilityDate =
@@ -239,7 +250,7 @@ export function MvpAvailabilityPage() {
   return (
     <AdminPageShell
       title="가능 시간 관리"
-      description="근무자별로 일할 수 있는 날짜와 시간대를 30분 단위로 선택한 뒤 저장합니다."
+      description="근무 기간을 정하고, 근무자별로 일할 수 있는 날짜와 시간대를 30분 단위로 선택한 뒤 저장합니다."
       actions={
         <div className="flex flex-wrap justify-end gap-2">
           <Button
@@ -267,7 +278,36 @@ export function MvpAvailabilityPage() {
       contentClassName="space-y-6"
     >
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <div className="grid gap-5 lg:grid-cols-[minmax(240px,360px)_1fr] lg:items-end">
+        <div className="grid gap-5 lg:grid-cols-[minmax(360px,480px)_minmax(240px,320px)_1fr] lg:items-end">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="availability-work-start-date">근무 시작 날짜</Label>
+              <Input
+                id="availability-work-start-date"
+                type="date"
+                value={workStartDate}
+                onChange={(event) => {
+                  setWorkStartDate(event.target.value);
+                  setSelectedAvailabilityDate("");
+                  setSaveMessage("");
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="availability-work-end-date">근무 종료 날짜</Label>
+              <Input
+                id="availability-work-end-date"
+                type="date"
+                value={workEndDate}
+                onChange={(event) => {
+                  setWorkEndDate(event.target.value);
+                  setSelectedAvailabilityDate("");
+                  setSaveMessage("");
+                }}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="worker-select">근무자 선택</Label>
             <Select
@@ -295,7 +335,7 @@ export function MvpAvailabilityPage() {
             <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 근무 기간:{" "}
-              {WORK_START_DATE}~{WORK_END_DATE} · 운영 시간: {ORGANIZATION_OPEN_TIME}-
+              {workStartDate}~{workEndDate} · 운영 시간: {ORGANIZATION_OPEN_TIME}-
               {ORGANIZATION_CLOSE_TIME}
             </p>
           </div>

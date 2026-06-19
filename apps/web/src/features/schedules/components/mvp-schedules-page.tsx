@@ -75,6 +75,8 @@ const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
 ];
 
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+const RECOMMENDATION_WORK_START_DATE = "2026-06-20";
+const RECOMMENDATION_WORK_END_DATE = "2026-07-05";
 
 const EMPTY_DRAFT: ScheduleDraft = {
   date: "",
@@ -209,8 +211,6 @@ function createRecommendedSchedules(workStartDate: string, workEndDate: string) 
 }
 
 export function MvpSchedulesPage() {
-  const [workStartDate, setWorkStartDate] = useState("2026-06-20");
-  const [workEndDate, setWorkEndDate] = useState("2026-07-05");
   const [status, setStatus] = useState<ScheduleStatus>("NONE");
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [unfilledConditions, setUnfilledConditions] = useState<UnfilledCondition[]>([]);
@@ -224,35 +224,24 @@ export function MvpSchedulesPage() {
   const [exportMessage, setExportMessage] = useState("");
 
   const errors = useMemo(
-    () => validateScheduleDraft(draft, workStartDate, workEndDate),
-    [draft, workEndDate, workStartDate],
-  );
-  const dateRange = useMemo(
-    () => createDateRange(workStartDate, workEndDate),
-    [workEndDate, workStartDate],
+    () => validateScheduleDraft(draft, RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
+    [draft],
   );
   const calendarDates = useMemo(
-    () => createCalendarDates(workStartDate, workEndDate),
-    [workEndDate, workStartDate],
+    () => createCalendarDates(RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
+    [],
   );
   const hasErrors = Object.values(errors).some(Boolean);
-  const canGenerate = dateRange.length > 0 && status === "NONE";
+  const canGenerate = status === "NONE";
   const isDraft = status === "DRAFT";
   const isConfirmed = status === "CONFIRMED";
   const canExport = isConfirmed && schedules.length > 0;
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
 
-  function resetScheduleResult() {
-    setStatus("NONE");
-    setSchedules([]);
-    setUnfilledConditions([]);
-    setExportMessage("");
-  }
-
   function openCreateForm() {
     setFormMode("create");
     setEditingScheduleId(null);
-    setDraft({ ...EMPTY_DRAFT, date: workStartDate });
+    setDraft({ ...EMPTY_DRAFT, date: RECOMMENDATION_WORK_START_DATE });
     setSubmitted(false);
     setFormOpen(true);
   }
@@ -278,7 +267,9 @@ export function MvpSchedulesPage() {
     }
 
     setStatus("DRAFT");
-    setSchedules(createRecommendedSchedules(workStartDate, workEndDate));
+    setSchedules(
+      createRecommendedSchedules(RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
+    );
     setUnfilledConditions(INITIAL_UNFILLED_CONDITIONS);
     setExportMessage("");
   }
@@ -321,70 +312,64 @@ export function MvpSchedulesPage() {
   return (
     <AdminPageShell
       title="스케줄"
-      description="근무 시작 날짜와 종료 날짜를 기준으로 추천 스케줄을 생성하고, 조정한 뒤 확정하거나 CSV로 내보냅니다."
+      description="근무자, 가능 시간, 최소 인원 조건을 기준으로 추천 결과를 생성하고 확정합니다."
       actions={
         <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="brand"
-            onClick={generateRecommendation}
-            disabled={!canGenerate}
-          >
-            <Sparkles className="size-4" aria-hidden="true" />
-            추천 생성
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setConfirmOpen(true)}
-            disabled={!isDraft || schedules.length === 0}
-          >
-            스케줄 확정
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canExport}
-            onClick={() => setExportMessage("확정 스케줄 CSV export가 준비되었습니다.")}
-          >
-            <Download className="size-4" aria-hidden="true" />
-            CSV export
-          </Button>
+          {status === "NONE" ? (
+            <Button
+              type="button"
+              variant="brand"
+              onClick={generateRecommendation}
+              disabled={!canGenerate}
+            >
+              <Sparkles className="size-4" aria-hidden="true" />
+              추천 생성
+            </Button>
+          ) : null}
+          {isDraft ? (
+            <Button
+              type="button"
+              variant="brand"
+              onClick={() => setConfirmOpen(true)}
+              disabled={schedules.length === 0}
+            >
+              스케줄 확정
+            </Button>
+          ) : null}
+          {isConfirmed ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canExport}
+              onClick={() => setExportMessage("확정 스케줄 CSV export가 준비되었습니다.")}
+            >
+              <Download className="size-4" aria-hidden="true" />
+              CSV export
+            </Button>
+          ) : null}
         </div>
       }
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
-      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="work-start-date">근무 시작 날짜</Label>
-              <Input
-                id="work-start-date"
-                type="date"
-                value={workStartDate}
-                onChange={(event) => {
-                  setWorkStartDate(event.target.value);
-                  resetScheduleResult();
-                }}
-              />
+      {status === "NONE" ? (
+        <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">추천 결과 없음</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                가능 시간 관리에서 설정한 {RECOMMENDATION_WORK_START_DATE}~
+                {RECOMMENDATION_WORK_END_DATE} 기간을 기준으로 추천 결과를 생성합니다.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                동일 입력 조건에서는 중복 생성하지 않습니다. 근무자, 가능 시간, 최소 인원 조건,
+                근무 기간 중 하나가 변경되면 다시 추천 생성할 수 있습니다.
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="work-end-date">근무 종료 날짜</Label>
-              <Input
-                id="work-end-date"
-                type="date"
-                value={workEndDate}
-                onChange={(event) => {
-                  setWorkEndDate(event.target.value);
-                  resetScheduleResult();
-                }}
-              />
-            </div>
+            <Badge variant="neutral-weak">{getStatusLabel(status)}</Badge>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {exportMessage ? (
         <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
@@ -392,7 +377,8 @@ export function MvpSchedulesPage() {
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+      {status !== "NONE" ? (
+        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
         <div className="border-b border-border px-6 py-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -404,7 +390,8 @@ export function MvpSchedulesPage() {
                 </Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                추천 생성 후 DRAFT 스케줄을 달력에서 검토하고 직접 조정합니다.
+                {RECOMMENDATION_WORK_START_DATE}~{RECOMMENDATION_WORK_END_DATE} 추천 결과를
+                달력에서 검토하고 직접 조정합니다.
               </p>
             </div>
             {isDraft ? (
@@ -429,7 +416,8 @@ export function MvpSchedulesPage() {
               ))}
 
               {calendarDates.map((date) => {
-                const inWorkRange = date >= workStartDate && date <= workEndDate;
+                const inWorkRange =
+                  date >= RECOMMENDATION_WORK_START_DATE && date <= RECOMMENDATION_WORK_END_DATE;
                 const dateSchedules = schedules.filter((schedule) => schedule.date === date);
 
                 return (
@@ -480,10 +468,6 @@ export function MvpSchedulesPage() {
                             ) : null}
                           </div>
                         ))
-                      ) : status === "NONE" && inWorkRange ? (
-                        <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                          추천 생성 전
-                        </p>
                       ) : !inWorkRange ? null : (
                         <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
                           배정 없음
@@ -504,6 +488,7 @@ export function MvpSchedulesPage() {
           </div>
         )}
       </section>
+      ) : null}
 
       {unfilledConditions.length > 0 && status === "DRAFT" ? (
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
@@ -553,7 +538,7 @@ export function MvpSchedulesPage() {
                   {formTitle}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  근무 시작 날짜와 종료 날짜 사이에서 날짜, 시간, 근무자를 입력하세요.
+                  추천 기준 근무 기간 안에서 날짜, 시간, 근무자를 입력하세요.
                 </p>
               </div>
               <button
@@ -572,8 +557,8 @@ export function MvpSchedulesPage() {
                 <Input
                   id="schedule-date"
                   type="date"
-                  min={workStartDate}
-                  max={workEndDate}
+                  min={RECOMMENDATION_WORK_START_DATE}
+                  max={RECOMMENDATION_WORK_END_DATE}
                   value={draft.date}
                   aria-invalid={submitted && Boolean(errors.date)}
                   onChange={(event) =>
