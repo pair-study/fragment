@@ -52,6 +52,7 @@ type ScheduleFormMode = "create" | "edit";
 
 type UnfilledCondition = {
   id: string;
+  date: string;
   dayLabel: string;
   timeRange: string;
   requiredWorkers: number;
@@ -84,6 +85,7 @@ const WORKERS: Worker[] = [
 const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
   {
     id: "unfilled-1",
+    date: "2026-06-26",
     dayLabel: "금요일",
     timeRange: "18:00-22:00",
     requiredWorkers: 20,
@@ -196,8 +198,13 @@ function getStatusLabel(status: ScheduleStatus) {
   return "스케줄 없음";
 }
 
+function formatDateTitle(date: string) {
+  return `${date} ${getDayLabel(date)}`;
+}
+
 function createRecommendedSchedules(workStartDate: string, workEndDate: string) {
   const availableDates = createDateRange(workStartDate, workEndDate);
+  const denseDate = "2026-06-26";
   const timeRanges = [
     ["09:00", "13:00"],
     ["10:00", "14:00"],
@@ -208,7 +215,8 @@ function createRecommendedSchedules(workStartDate: string, workEndDate: string) 
 
   return WORKERS.map((worker, index) => {
     const [startTime, endTime] = timeRanges[index % timeRanges.length];
-    const date = availableDates[index % availableDates.length] ?? workEndDate;
+    const date =
+      index < 17 ? denseDate : (availableDates[(index + 2) % availableDates.length] ?? workEndDate);
 
     return {
       id: `schedule-${index + 1}`,
@@ -232,6 +240,7 @@ export function MvpSchedulesPage() {
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ScheduleItem | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
   const [draft, setDraft] = useState<ScheduleDraft>(EMPTY_DRAFT);
   const [submitted, setSubmitted] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
@@ -251,11 +260,16 @@ export function MvpSchedulesPage() {
   const isConfirmed = status === "CONFIRMED";
   const canExport = isConfirmed && schedules.length > 0;
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
+  const selectedDateSchedules = schedules.filter((schedule) => schedule.date === selectedDate);
+  const selectedDateUnfilledConditions = unfilledConditions.filter(
+    (condition) => condition.date === selectedDate,
+  );
 
-  function openCreateForm() {
+  function openCreateForm(date: string) {
     setFormMode("create");
     setEditingScheduleId(null);
-    setDraft({ ...EMPTY_DRAFT, date: RECOMMENDATION_WORK_START_DATE });
+    setSelectedDate(date);
+    setDraft({ ...EMPTY_DRAFT, date });
     setSubmitted(false);
     setFormOpen(true);
   }
@@ -263,6 +277,7 @@ export function MvpSchedulesPage() {
   function openEditForm(schedule: ScheduleItem) {
     setFormMode("edit");
     setEditingScheduleId(schedule.id);
+    setSelectedDate(schedule.date);
     setDraft(createDraftFromSchedule(schedule));
     setSubmitted(false);
     setFormOpen(true);
@@ -285,6 +300,7 @@ export function MvpSchedulesPage() {
       createRecommendedSchedules(RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
     );
     setUnfilledConditions(INITIAL_UNFILLED_CONDITIONS);
+    setSelectedDate(INITIAL_UNFILLED_CONDITIONS[0]?.date ?? RECOMMENDATION_WORK_START_DATE);
     setExportMessage("");
   }
 
@@ -437,19 +453,13 @@ export function MvpSchedulesPage() {
                     {getStatusLabel(status)}
                   </Badge>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {RECOMMENDATION_WORK_START_DATE}~{RECOMMENDATION_WORK_END_DATE} 추천 결과를
-                  달력에서 검토하고 직접 조정합니다.
-                </p>
-              </div>
-              {isDraft ? (
-                <Button type="button" variant="outline" onClick={openCreateForm}>
-                  <Plus className="size-4" aria-hidden="true" />
-                  스케줄 추가
-                </Button>
-              ) : null}
+              <p className="mt-1 text-sm text-muted-foreground">
+                {RECOMMENDATION_WORK_START_DATE}~{RECOMMENDATION_WORK_END_DATE} 추천 결과를
+                달력에서 검토하고 직접 조정합니다.
+              </p>
             </div>
           </div>
+        </div>
 
           {calendarDates.length > 0 ? (
             <div className="p-6">
@@ -464,76 +474,80 @@ export function MvpSchedulesPage() {
                 ))}
 
                 {calendarDates.map((date) => {
-                  const inWorkRange =
-                    date >= RECOMMENDATION_WORK_START_DATE && date <= RECOMMENDATION_WORK_END_DATE;
-                  const dateSchedules = schedules.filter((schedule) => schedule.date === date);
+                const inWorkRange =
+                  date >= RECOMMENDATION_WORK_START_DATE && date <= RECOMMENDATION_WORK_END_DATE;
+                const dateSchedules = schedules.filter((schedule) => schedule.date === date);
+                const unfilled = unfilledConditions.some((condition) => condition.date === date);
+                const selected = selectedDate === date;
+                const visibleSchedules = dateSchedules.slice(0, 3);
+                const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
 
-                  return (
-                    <article
-                      key={date}
-                      className={
-                        inWorkRange
-                          ? "min-h-40 border-b border-r border-border bg-card p-3"
-                          : "min-h-40 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
-                      }
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
-                        {!inWorkRange ? (
-                          <span className="text-xs font-medium text-muted-foreground">범위 밖</span>
-                        ) : null}
-                      </div>
+                return (
+                  <button
+                    key={date}
+                    type="button"
+                    disabled={!inWorkRange}
+                    onClick={() => {
+                      setSelectedDate(date);
+                      closeForm();
+                    }}
+                    className={
+                      inWorkRange
+                        ? [
+                            "min-h-40 border-b border-r p-3 text-left transition-colors",
+                            selected
+                              ? "border-primary bg-accent"
+                              : unfilled
+                                ? "border-destructive bg-destructive/5 hover:bg-destructive/10"
+                                : "border-border bg-card hover:bg-accent/60",
+                          ].join(" ")
+                        : "min-h-40 cursor-not-allowed border-b border-r border-border bg-surface-secondary p-3 text-left opacity-45"
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
+                      {unfilled && inWorkRange ? (
+                        <Badge
+                          variant="neutral-weak"
+                          size="sm"
+                          className="border-destructive/30 bg-destructive/10 text-destructive"
+                        >
+                          미충족
+                        </Badge>
+                      ) : !inWorkRange ? (
+                        <span className="text-xs font-medium text-muted-foreground">범위 밖</span>
+                      ) : null}
+                    </div>
 
-                      <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1">
-                        {dateSchedules.length > 0 ? (
-                          dateSchedules.map((schedule) => (
-                            <div
-                              key={schedule.id}
-                              className="rounded-md border border-border bg-surface-secondary px-2 py-1.5"
-                            >
-                              <div className="flex items-start justify-between gap-1">
-                                <div className="min-w-0">
-                                  <p className="truncate text-xs font-semibold text-foreground">
-                                    {schedule.startTime}-{schedule.endTime}
-                                  </p>
-                                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                    {getWorkerName(schedule.workerId)}
-                                  </p>
-                                </div>
-                                {isDraft ? (
-                                  <div className="flex shrink-0 gap-1">
-                                    <button
-                                      type="button"
-                                      className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                      aria-label={`${getWorkerName(schedule.workerId)} 스케줄 수정`}
-                                      title="수정"
-                                      onClick={() => openEditForm(schedule)}
-                                    >
-                                      <Pencil className="size-3.5" aria-hidden="true" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                                      aria-label={`${getWorkerName(schedule.workerId)} 스케줄 삭제`}
-                                      title="삭제"
-                                      onClick={() => setDeleteTarget(schedule)}
-                                    >
-                                      <Trash2 className="size-3.5" aria-hidden="true" />
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            </div>
-                          ))
-                        ) : !inWorkRange ? null : (
-                          <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                            배정 없음
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{dateSchedules.length}명 배정</span>
+                    </div>
+
+                    <div className="mt-3 space-y-1">
+                      {visibleSchedules.length > 0 ? (
+                        visibleSchedules.map((schedule) => (
+                          <p
+                            key={schedule.id}
+                            className="truncate text-xs font-medium text-foreground"
+                          >
+                            {schedule.startTime}-{schedule.endTime}{" "}
+                            {getWorkerName(schedule.workerId)}
                           </p>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
+                        ))
+                      ) : !inWorkRange ? null : (
+                        <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                          배정 없음
+                        </p>
+                      )}
+                      {hiddenScheduleCount > 0 ? (
+                        <p className="text-xs font-medium text-muted-foreground">
+                          +{hiddenScheduleCount}개 더보기
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
               </div>
             </div>
           ) : (
@@ -547,124 +561,198 @@ export function MvpSchedulesPage() {
         </section>
       ) : null}
 
-      {formOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="schedule-form-title"
-            className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-modal"
-          >
+      {selectedDate && status !== "NONE" ? (
+        <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-border bg-card shadow-modal">
+          <div className="border-b border-border px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 id="schedule-form-title" className="text-lg font-semibold text-foreground">
-                  {formTitle}
+                <p className="text-sm font-medium text-muted-foreground">날짜별 스케줄</p>
+                <h2 className="mt-1 text-lg font-semibold text-foreground">
+                  {formatDateTitle(selectedDate)}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  추천 기준 근무 기간 안에서 날짜, 시간, 근무자를 입력하세요.
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selectedDateSchedules.length}명 배정
                 </p>
               </div>
               <button
                 type="button"
                 className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="닫기"
-                onClick={closeForm}
+                aria-label="날짜 상세 닫기"
+                onClick={() => {
+                  setSelectedDate("");
+                  closeForm();
+                }}
               >
                 <X className="size-5" aria-hidden="true" />
               </button>
             </div>
+          </div>
 
-            <div className="mt-6 space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="schedule-date">날짜</Label>
-                <Input
-                  id="schedule-date"
-                  type="date"
-                  min={RECOMMENDATION_WORK_START_DATE}
-                  max={RECOMMENDATION_WORK_END_DATE}
-                  value={draft.date}
-                  aria-invalid={submitted && Boolean(errors.date)}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, date: event.target.value }))
-                  }
-                />
-                {submitted && errors.date ? (
-                  <p className="text-sm text-destructive">{errors.date}</p>
-                ) : null}
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="schedule-start-time">시작 시간</Label>
-                  <Input
-                    id="schedule-start-time"
-                    type="time"
-                    value={draft.startTime}
-                    aria-invalid={submitted && Boolean(errors.startTime)}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, startTime: event.target.value }))
-                    }
-                  />
-                  {submitted && errors.startTime ? (
-                    <p className="text-sm text-destructive">{errors.startTime}</p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="schedule-end-time">종료 시간</Label>
-                  <Input
-                    id="schedule-end-time"
-                    type="time"
-                    value={draft.endTime}
-                    aria-invalid={submitted && Boolean(errors.endTime)}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, endTime: event.target.value }))
-                    }
-                  />
-                  {submitted && errors.endTime ? (
-                    <p className="text-sm text-destructive">{errors.endTime}</p>
-                  ) : null}
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {selectedDateUnfilledConditions.length > 0 ? (
+              <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+                <p className="text-sm font-semibold text-destructive">미충족 조건</p>
+                <div className="mt-2 space-y-1">
+                  {selectedDateUnfilledConditions.map((condition) => (
+                    <p key={condition.id} className="text-sm text-foreground">
+                      {condition.timeRange} · 필요 {condition.requiredWorkers}명 / 배정{" "}
+                      {condition.assignedWorkers}명
+                    </p>
+                  ))}
                 </div>
               </div>
+            ) : null}
 
-              <div className="space-y-2">
-                <Label htmlFor="schedule-worker">근무자</Label>
-                <Select
-                  value={draft.workerId}
-                  onValueChange={(value) =>
-                    setDraft((current) => ({ ...current, workerId: value }))
-                  }
-                >
-                  <SelectTrigger
-                    id="schedule-worker"
-                    aria-invalid={submitted && Boolean(errors.workerId)}
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-foreground">배정 목록</h3>
+              {isDraft ? (
+                <Button type="button" variant="outline" onClick={() => openCreateForm(selectedDate)}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  스케줄 추가
+                </Button>
+              ) : null}
+            </div>
+
+            {formOpen ? (
+              <section className="mt-5 rounded-xl border border-border bg-surface-secondary p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">{formTitle}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {formatDateTitle(draft.date)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    aria-label="폼 닫기"
+                    onClick={closeForm}
                   >
-                    <SelectValue placeholder="근무자를 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WORKERS.map((worker) => (
-                      <SelectItem key={worker.id} value={worker.id}>
-                        {worker.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {submitted && errors.workerId ? (
-                  <p className="text-sm text-destructive">{errors.workerId}</p>
-                ) : null}
-              </div>
-            </div>
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
+                </div>
 
-            <div className="mt-8 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={closeForm}>
-                취소
-              </Button>
-              <Button type="button" variant="brand" onClick={saveSchedule}>
-                저장
-              </Button>
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="schedule-start-time">시작 시간</Label>
+                      <Input
+                        id="schedule-start-time"
+                        type="time"
+                        value={draft.startTime}
+                        aria-invalid={submitted && Boolean(errors.startTime)}
+                        onChange={(event) =>
+                          setDraft((current) => ({ ...current, startTime: event.target.value }))
+                        }
+                      />
+                      {submitted && errors.startTime ? (
+                        <p className="text-sm text-destructive">{errors.startTime}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="schedule-end-time">종료 시간</Label>
+                      <Input
+                        id="schedule-end-time"
+                        type="time"
+                        value={draft.endTime}
+                        aria-invalid={submitted && Boolean(errors.endTime)}
+                        onChange={(event) =>
+                          setDraft((current) => ({ ...current, endTime: event.target.value }))
+                        }
+                      />
+                      {submitted && errors.endTime ? (
+                        <p className="text-sm text-destructive">{errors.endTime}</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="schedule-worker">근무자</Label>
+                    <Select
+                      value={draft.workerId}
+                      onValueChange={(value) =>
+                        setDraft((current) => ({ ...current, workerId: value }))
+                      }
+                    >
+                      <SelectTrigger
+                        id="schedule-worker"
+                        aria-invalid={submitted && Boolean(errors.workerId)}
+                      >
+                        <SelectValue placeholder="근무자를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKERS.map((worker) => (
+                          <SelectItem key={worker.id} value={worker.id}>
+                            {worker.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {submitted && errors.workerId ? (
+                      <p className="text-sm text-destructive">{errors.workerId}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-5 flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={closeForm}>
+                    취소
+                  </Button>
+                  <Button type="button" variant="brand" onClick={saveSchedule}>
+                    저장
+                  </Button>
+                </div>
+              </section>
+            ) : null}
+
+            <div className="mt-5 space-y-2">
+              {selectedDateSchedules.length > 0 ? (
+                selectedDateSchedules.map((schedule) => (
+                  <div
+                    key={schedule.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        {schedule.startTime}-{schedule.endTime}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {getWorkerName(schedule.workerId)}
+                      </p>
+                    </div>
+                    {isDraft ? (
+                      <div className="flex shrink-0 gap-1">
+                        <button
+                          type="button"
+                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          aria-label={`${getWorkerName(schedule.workerId)} 스케줄 수정`}
+                          title="수정"
+                          onClick={() => openEditForm(schedule)}
+                        >
+                          <Pencil className="size-4" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={`${getWorkerName(schedule.workerId)} 스케줄 삭제`}
+                          title="삭제"
+                          onClick={() => setDeleteTarget(schedule)}
+                        >
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                  이 날짜에 배정된 스케줄이 없습니다.
+                </p>
+              )}
             </div>
-          </section>
-        </div>
+          </div>
+        </aside>
       ) : null}
 
       <AlertDialog
