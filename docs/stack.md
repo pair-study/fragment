@@ -26,29 +26,27 @@
 ### 2. Backend (서버 로직 및 데이터베이스)
 
 - **Core:**
-  - NestJS `11.x` (TypeScript)
+  - Express `5.x` (TypeScript)
   - Node.js `22.x` LTS
 
 - **Database:** PostgreSQL `17.x` (RDBMS)
 
 - **ORM:** Prisma `6.8.x` (타입 안정성을 보장하는 데이터베이스 통신 및 스키마 관리)
-  - schema, migrations, seed, PrismaService는 `packages/database` 패키지에서 전담 관리
-  - `apps/api`는 `packages/database`가 export하는 `DatabaseModule`만 import
+  - schema, migrations, seed, Prisma client helper는 `packages/database` 패키지에서 전담 관리
+  - `apps/api`는 `packages/database`가 export하는 `prisma` 또는 `createPrismaClient`를 사용
 
 - **Auth:**
-  - @nestjs/jwt `10.x`
-  - @nestjs/passport `10.x`
+  - jsonwebtoken 또는 jose 기반 JWT 인증
   - passport-jwt `4.x`
 
 - **Validation:**
-  - class-validator `0.14.x`
-  - class-transformer `0.5.x`
+  - Zod `3.24.x` (`packages/shared`의 스키마 우선 활용)
 
-- **API Docs:** @nestjs/swagger `11.x`
+- **API Docs:** OpenAPI 문서 또는 Notion (MVP 단계에서는 엔드포인트 계약 우선 정리)
 
-- **Task Scheduling:** @nestjs/schedule `4.x` (cron 기반 자동화, 퇴근 미처리 처리 등)
+- **Task Scheduling:** node-cron 또는 별도 worker 프로세스 (cron 기반 자동화, 퇴근 미처리 처리 등)
 
-- **Queue (선택적):** @nestjs/bull + bull `4.x` (급여 계산·알림 대량 발송 비동기화 시 도입)
+- **Queue (선택적):** BullMQ 또는 bull `4.x` (급여 계산·알림 대량 발송 비동기화 시 도입)
 
 ---
 
@@ -61,7 +59,7 @@
 
 - **Backend Testing:**
   - Jest `29.x`
-  - Supertest `7.x` (NestJS 서비스 로직 단위 테스트 및 API 통합/E2E 테스트)
+  - Supertest `7.x` (Express API 통합/E2E 테스트)
 
 ---
 
@@ -82,7 +80,7 @@
 
 ### 5. Collaboration & Documentation (협업 및 문서화)
 
-- **API Docs:** Swagger UI (@nestjs/swagger `11.x` 내장 기능 활용) 또는 Notion (명확한 책임 경계와 응답 포맷 사전 조율)
+- **API Docs:** OpenAPI 문서 또는 Notion (명확한 책임 경계와 응답 포맷 사전 조율)
 - **Version Control:** Git `2.x`, GitHub (체계적인 브랜치 전략 및 코드 리뷰)
 - **Git Hooks:** Husky `9.x` + commitlint `21.x` (커밋 메시지 컨벤션 강제, main·develop 직접 push 차단)
 - **Code Formatter:** Prettier `3.8.x` (코드 스타일 일관성 유지)
@@ -93,7 +91,7 @@
 
 | 항목 | 비고 |
 |------|------|
-| Node.js 22.x LTS | 2026년 현재 Active LTS. NestJS 11, Prisma 6 공식 지원 버전 |
+| Node.js 22.x LTS | 2026년 현재 Active LTS. Express 5, Prisma 6 지원 버전 |
 | Next.js 15.3.x | React 19 정식 지원, App Router 안정화, Turbopack 기본 활성화 |
 | React 19.1.x | Next.js 15와 호환 |
 | TanStack Query 5.74.x | React 19 concurrent 기능 완전 지원 |

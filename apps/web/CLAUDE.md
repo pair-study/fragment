@@ -8,18 +8,18 @@
 
 ## 기술 스택
 
-| 항목          | 기술                 | 버전                    |
-| ------------- | -------------------- | ----------------------- |
-| Framework     | Next.js (App Router) | 15.3.x                  |
-| Language      | TypeScript           | 5.8.x                   |
-| UI Library    | React                | 19.1.x                  |
-| Global State  | Zustand              | 5.0.x                   |
-| Server State  | TanStack Query       | 5.74.x                  |
-| Form          | React Hook Form      | 7.54.x                  |
-| Validation    | Zod                  | 3.24.x                  |
-| Styling       | Tailwind CSS         | 4.1.x                   |
+| 항목          | 기술                            | 버전                    |
+| ------------- | ------------------------------- | ----------------------- |
+| Framework     | Next.js (App Router)            | 15.3.x                  |
+| Language      | TypeScript                      | 5.8.x                   |
+| UI Library    | React                           | 19.1.x                  |
+| Global State  | Zustand                         | 5.0.x                   |
+| Server State  | TanStack Query                  | 5.74.x                  |
+| Form          | React Hook Form                 | 7.54.x                  |
+| Validation    | Zod                             | 3.24.x                  |
+| Styling       | Tailwind CSS                    | 4.1.x                   |
 | UI Components | @moyeorak/design-system (1순위) | 0.1.x (npm 패키지)      |
-| UI Components | shadcn/ui (보조)      | latest (소스 복사 방식) |
+| UI Components | shadcn/ui (보조)                | latest (소스 복사 방식) |
 
 ## 디렉터리 구조
 
