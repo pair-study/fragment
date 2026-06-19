@@ -64,33 +64,6 @@ const WORKERS: Worker[] = [
   { id: "worker-3", name: "이서연" },
 ];
 
-const INITIAL_SCHEDULES: ScheduleItem[] = [
-  {
-    id: "schedule-1",
-    date: "2026-06-22",
-    dayLabel: "월요일",
-    startTime: "18:00",
-    endTime: "22:00",
-    workerId: "worker-1",
-  },
-  {
-    id: "schedule-2",
-    date: "2026-06-24",
-    dayLabel: "수요일",
-    startTime: "18:00",
-    endTime: "22:00",
-    workerId: "worker-1",
-  },
-  {
-    id: "schedule-3",
-    date: "2026-06-26",
-    dayLabel: "금요일",
-    startTime: "14:00",
-    endTime: "22:00",
-    workerId: "worker-2",
-  },
-];
-
 const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
   {
     id: "unfilled-1",
@@ -100,6 +73,8 @@ const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
     assignedWorkers: 1,
   },
 ];
+
+const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
 const EMPTY_DRAFT: ScheduleDraft = {
   date: "",
@@ -143,6 +118,27 @@ function createDateRange(startDate: string, endDate: string) {
   return dates;
 }
 
+function getMonday(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const targetDate = new Date(Date.UTC(year, month - 1, day));
+  const dayIndex = targetDate.getUTCDay();
+  const diff = dayIndex === 0 ? -6 : 1 - dayIndex;
+
+  return addDays(date, diff);
+}
+
+function getSunday(date: string) {
+  return addDays(getMonday(date), 6);
+}
+
+function createCalendarDates(startDate: string, endDate: string) {
+  if (!startDate || !endDate || endDate < startDate) {
+    return [];
+  }
+
+  return createDateRange(getMonday(startDate), getSunday(endDate));
+}
+
 function createDraftFromSchedule(schedule: ScheduleItem): ScheduleDraft {
   return {
     date: schedule.date,
@@ -171,24 +167,53 @@ function validateScheduleDraft(draft: ScheduleDraft, workStartDate: string, work
 
 function getStatusLabel(status: ScheduleStatus) {
   if (status === "DRAFT") {
-    return "작성 중";
+    return "DRAFT";
   }
 
   if (status === "CONFIRMED") {
-    return "확정";
+    return "CONFIRMED";
   }
 
   return "스케줄 없음";
 }
 
+function createRecommendedSchedules(workStartDate: string, workEndDate: string) {
+  const availableDates = createDateRange(workStartDate, workEndDate);
+
+  return [
+    {
+      id: "schedule-1",
+      date: availableDates[2] ?? workStartDate,
+      startTime: "18:00",
+      endTime: "22:00",
+      workerId: "worker-1",
+    },
+    {
+      id: "schedule-2",
+      date: availableDates[4] ?? workStartDate,
+      startTime: "18:00",
+      endTime: "22:00",
+      workerId: "worker-1",
+    },
+    {
+      id: "schedule-3",
+      date: availableDates[6] ?? workEndDate,
+      startTime: "14:00",
+      endTime: "22:00",
+      workerId: "worker-2",
+    },
+  ].map((schedule) => ({
+    ...schedule,
+    dayLabel: getDayLabel(schedule.date),
+  }));
+}
+
 export function MvpSchedulesPage() {
-  const [workStartDate, setWorkStartDate] = useState("2026-06-22");
-  const [workEndDate, setWorkEndDate] = useState("2026-06-28");
-  const [status, setStatus] = useState<ScheduleStatus>("DRAFT");
-  const [schedules, setSchedules] = useState<ScheduleItem[]>(INITIAL_SCHEDULES);
-  const [unfilledConditions, setUnfilledConditions] = useState<UnfilledCondition[]>(
-    INITIAL_UNFILLED_CONDITIONS,
-  );
+  const [workStartDate, setWorkStartDate] = useState("2026-06-20");
+  const [workEndDate, setWorkEndDate] = useState("2026-07-05");
+  const [status, setStatus] = useState<ScheduleStatus>("NONE");
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [unfilledConditions, setUnfilledConditions] = useState<UnfilledCondition[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<ScheduleFormMode>("create");
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
@@ -206,10 +231,23 @@ export function MvpSchedulesPage() {
     () => createDateRange(workStartDate, workEndDate),
     [workEndDate, workStartDate],
   );
+  const calendarDates = useMemo(
+    () => createCalendarDates(workStartDate, workEndDate),
+    [workEndDate, workStartDate],
+  );
   const hasErrors = Object.values(errors).some(Boolean);
+  const canGenerate = dateRange.length > 0 && status === "NONE";
+  const isDraft = status === "DRAFT";
   const isConfirmed = status === "CONFIRMED";
   const canExport = isConfirmed && schedules.length > 0;
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
+
+  function resetScheduleResult() {
+    setStatus("NONE");
+    setSchedules([]);
+    setUnfilledConditions([]);
+    setExportMessage("");
+  }
 
   function openCreateForm() {
     setFormMode("create");
@@ -235,12 +273,12 @@ export function MvpSchedulesPage() {
   }
 
   function generateRecommendation() {
-    if (status === "DRAFT") {
+    if (!canGenerate) {
       return;
     }
 
     setStatus("DRAFT");
-    setSchedules(INITIAL_SCHEDULES);
+    setSchedules(createRecommendedSchedules(workStartDate, workEndDate));
     setUnfilledConditions(INITIAL_UNFILLED_CONDITIONS);
     setExportMessage("");
   }
@@ -288,22 +326,18 @@ export function MvpSchedulesPage() {
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="brand"
             onClick={generateRecommendation}
-            disabled={status === "DRAFT"}
+            disabled={!canGenerate}
           >
             <Sparkles className="size-4" aria-hidden="true" />
             추천 생성
           </Button>
-          <Button type="button" variant="outline" onClick={openCreateForm} disabled={isConfirmed}>
-            <Plus className="size-4" aria-hidden="true" />
-            스케줄 추가
-          </Button>
           <Button
             type="button"
-            variant="brand"
+            variant="outline"
             onClick={() => setConfirmOpen(true)}
-            disabled={isConfirmed || schedules.length === 0}
+            disabled={!isDraft || schedules.length === 0}
           >
             스케줄 확정
           </Button>
@@ -332,7 +366,7 @@ export function MvpSchedulesPage() {
                 value={workStartDate}
                 onChange={(event) => {
                   setWorkStartDate(event.target.value);
-                  setExportMessage("");
+                  resetScheduleResult();
                 }}
               />
             </div>
@@ -344,14 +378,11 @@ export function MvpSchedulesPage() {
                 value={workEndDate}
                 onChange={(event) => {
                   setWorkEndDate(event.target.value);
-                  setExportMessage("");
+                  resetScheduleResult();
                 }}
               />
             </div>
           </div>
-          <Badge variant={status === "CONFIRMED" ? "brand-weak" : "neutral-weak"}>
-            {getStatusLabel(status)}
-          </Badge>
         </div>
       </section>
 
@@ -363,73 +394,106 @@ export function MvpSchedulesPage() {
 
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
         <div className="border-b border-border px-6 py-4">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="size-5 text-muted-foreground" aria-hidden="true" />
-            <h2 className="text-base font-semibold text-foreground">근무 기간 달력</h2>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <CalendarDays className="size-5 text-muted-foreground" aria-hidden="true" />
+                <h2 className="text-base font-semibold text-foreground">근무 기간 달력</h2>
+                <Badge variant={status === "CONFIRMED" ? "brand-weak" : "neutral-weak"}>
+                  {getStatusLabel(status)}
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                추천 생성 후 DRAFT 스케줄을 달력에서 검토하고 직접 조정합니다.
+              </p>
+            </div>
+            {isDraft ? (
+              <Button type="button" variant="outline" onClick={openCreateForm}>
+                <Plus className="size-4" aria-hidden="true" />
+                스케줄 추가
+              </Button>
+            ) : null}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            선택한 근무 시작/종료 날짜 안에서 일자별 배정을 확인합니다.
-          </p>
         </div>
 
-        {dateRange.length > 0 ? (
-          <div className="grid gap-3 p-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            {dateRange.map((date) => {
-              const dateSchedules = schedules.filter((schedule) => schedule.date === date);
-
-              return (
-                <article
-                  key={date}
-                  className="min-h-44 rounded-lg border border-border bg-surface-secondary p-3"
+        {calendarDates.length > 0 ? (
+          <div className="p-6">
+            <div className="grid grid-cols-7 border-l border-t border-border">
+              {WEEKDAY_LABELS.map((weekday) => (
+                <div
+                  key={weekday}
+                  className="border-b border-r border-border bg-surface-secondary px-3 py-2 text-center text-xs font-semibold text-muted-foreground"
                 >
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      {getDayLabel(date)}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-foreground">{date}</p>
-                  </div>
+                  {weekday}
+                </div>
+              ))}
 
-                  <div className="mt-4 space-y-2">
-                    {dateSchedules.length > 0 ? (
-                      dateSchedules.map((schedule) => (
-                        <div key={schedule.id} className="rounded-md bg-card p-3 shadow-xs">
-                          <p className="text-sm font-semibold text-foreground">
-                            {schedule.startTime}-{schedule.endTime}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {getWorkerName(schedule.workerId)}
-                          </p>
-                          <div className="mt-3 flex gap-2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              disabled={isConfirmed}
-                              onClick={() => openEditForm(schedule)}
-                            >
-                              <Pencil className="size-4" aria-hidden="true" />
-                              수정
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              disabled={isConfirmed}
-                              onClick={() => setDeleteTarget(schedule)}
-                            >
-                              <Trash2 className="size-4" aria-hidden="true" />
-                              삭제
-                            </Button>
+              {calendarDates.map((date) => {
+                const inWorkRange = date >= workStartDate && date <= workEndDate;
+                const dateSchedules = schedules.filter((schedule) => schedule.date === date);
+
+                return (
+                  <article
+                    key={date}
+                    className={
+                      inWorkRange
+                        ? "min-h-40 border-b border-r border-border bg-card p-3"
+                        : "min-h-40 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
+                      {!inWorkRange ? (
+                        <span className="text-xs font-medium text-muted-foreground">범위 밖</span>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      {dateSchedules.length > 0 ? (
+                        dateSchedules.map((schedule) => (
+                          <div key={schedule.id} className="rounded-md bg-surface-secondary p-3">
+                            <p className="text-sm font-semibold text-foreground">
+                              {schedule.startTime}-{schedule.endTime}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {getWorkerName(schedule.workerId)}
+                            </p>
+                            {isDraft ? (
+                              <div className="mt-3 flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() => openEditForm(schedule)}
+                                >
+                                  <Pencil className="size-4" aria-hidden="true" />
+                                  수정
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setDeleteTarget(schedule)}
+                                >
+                                  <Trash2 className="size-4" aria-hidden="true" />
+                                  삭제
+                                </Button>
+                              </div>
+                            ) : null}
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                        배정 없음
-                      </p>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+                        ))
+                      ) : status === "NONE" && inWorkRange ? (
+                        <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                          추천 생성 전
+                        </p>
+                      ) : !inWorkRange ? null : (
+                        <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                          배정 없음
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="px-6 py-16 text-center">
@@ -631,7 +695,7 @@ export function MvpSchedulesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>스케줄 확정</AlertDialogTitle>
             <AlertDialogDescription>
-              확정 후에는 이 주차의 스케줄을 최종본으로 관리합니다.
+              확정 후에는 이 근무 기간의 스케줄을 최종본으로 관리합니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
