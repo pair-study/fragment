@@ -5,7 +5,7 @@ import { LoginForm } from "@/features/auth/components/login-form";
 export default function LoginPage() {
   return (
     <AuthPageShell>
-      <AuthCard className="max-w-md">
+      <AuthCard>
         <LoginForm />
       </AuthCard>
     </AuthPageShell>

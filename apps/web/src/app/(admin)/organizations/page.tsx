@@ -1,5 +1,5 @@
-import { OrganizationSettingsPage } from "@/features/organizations/components/organization-settings-page";
+import { MvpOrganizationEditPage } from "@/features/organizations/components/mvp-organization-edit-page";
 
 export default function OrganizationsPage() {
-  return <OrganizationSettingsPage />;
+  return <MvpOrganizationEditPage />;
 }

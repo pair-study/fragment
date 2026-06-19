@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CalendarDays, Home, IdCard, Users, WalletCards } from "lucide-react";
+import { Archive, CalendarDays, Clock3, Home, ListChecks, LogOut, Users } from "lucide-react";
 
 import {
   Sidebar,
@@ -18,13 +18,16 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-const navigationItems = [
-  { title: "홈", href: "/home", icon: Home, requiresOrg: false },
-  { title: "근무일정", href: "/schedule", icon: CalendarDays, requiresOrg: true },
-  { title: "근태관리", href: "/attendance", icon: IdCard, requiresOrg: true },
-  { title: "급여정산", href: "/payroll", icon: WalletCards, requiresOrg: true },
-  { title: "인력관리", href: "/members", icon: Users, requiresOrg: true },
-  { title: "조직 관리", href: "/organizations", icon: Building2, requiresOrg: false },
+const primaryNavigationItems = [
+  { title: "대시보드", href: "/dashboard", icon: Home, requiresOrg: true },
+  { title: "스케줄", href: "/schedules", icon: CalendarDays, requiresOrg: true },
+  { title: "보관함", href: "/schedule-history", icon: Archive, requiresOrg: true },
+];
+
+const operationsNavigationItems = [
+  { title: "근무자", href: "/workers", icon: Users, requiresOrg: true },
+  { title: "가능 시간", href: "/availability", icon: Clock3, requiresOrg: true },
+  { title: "최소 인원 조건", href: "/staffing-rules", icon: ListChecks, requiresOrg: true },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -56,41 +59,80 @@ export function AdminSidebar({ hasOrganizations = true }: AdminSidebarProps) {
         <SidebarGroup>
           <SidebarGroupLabel>메뉴</SidebarGroupLabel>
           <SidebarMenu>
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              const disabled = item.requiresOrg && !hasOrganizations;
-              const href = item.href;
-              const isActive = !disabled && isActivePath(pathname, href);
+            {primaryNavigationItems.map((item) => (
+              <NavigationMenuItem
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                hasOrganizations={hasOrganizations}
+              />
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
 
-              return (
-                <SidebarMenuItem key={item.href}>
-                  {disabled ? (
-                    <SidebarMenuButton
-                      className={cn("cursor-not-allowed opacity-40")}
-                      aria-disabled="true"
-                    >
-                      <Icon aria-hidden="true" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  ) : (
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <Link
-                        href={href}
-                        title={item.title}
-                        aria-current={isActive ? "page" : undefined}
-                      >
-                        <Icon aria-hidden="true" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              );
-            })}
+        <SidebarGroup>
+          <SidebarGroupLabel>운영 설정</SidebarGroupLabel>
+          <SidebarMenu>
+            {operationsNavigationItems.map((item) => (
+              <NavigationMenuItem
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                hasOrganizations={hasOrganizations}
+              />
+            ))}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter />
+      <SidebarFooter className="border-t border-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link href="/login" title="로그아웃">
+                <LogOut aria-hidden="true" />
+                <span>로그아웃</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
+  );
+}
+
+type NavigationItem = {
+  title: string;
+  href: string;
+  icon: typeof Home;
+  requiresOrg: boolean;
+};
+
+type NavigationMenuItemProps = {
+  item: NavigationItem;
+  pathname: string;
+  hasOrganizations: boolean;
+};
+
+function NavigationMenuItem({ item, pathname, hasOrganizations }: NavigationMenuItemProps) {
+  const Icon = item.icon;
+  const disabled = item.requiresOrg && !hasOrganizations;
+  const isActive = !disabled && isActivePath(pathname, item.href);
+
+  return (
+    <SidebarMenuItem>
+      {disabled ? (
+        <SidebarMenuButton className={cn("cursor-not-allowed opacity-40")} aria-disabled="true">
+          <Icon aria-hidden="true" />
+          <span>{item.title}</span>
+        </SidebarMenuButton>
+      ) : (
+        <SidebarMenuButton asChild isActive={isActive}>
+          <Link href={item.href} title={item.title} aria-current={isActive ? "page" : undefined}>
+            <Icon aria-hidden="true" />
+            <span>{item.title}</span>
+          </Link>
+        </SidebarMenuButton>
+      )}
+    </SidebarMenuItem>
   );
 }

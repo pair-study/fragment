@@ -22,7 +22,7 @@ export function getDistanceInMeters(a: Coordinates, b: Coordinates): number {
 }
 
 /**
- * 현재 위치가 매장 반경 내에 있는지 판정합니다.
+ * 현재 위치가 조직 반경 내에 있는지 판정합니다.
  */
 export function isWithinRadius(
   current: Coordinates,
