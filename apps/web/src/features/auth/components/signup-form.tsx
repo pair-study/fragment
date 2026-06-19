@@ -16,6 +16,7 @@ export function SignupForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,6 +28,11 @@ export function SignupForm() {
         ? "이메일 형식으로 입력하세요."
         : "",
     password: !password ? "비밀번호를 입력하세요." : "",
+    passwordConfirm: !passwordConfirm
+      ? "비밀번호 확인을 입력하세요."
+      : passwordConfirm !== password
+        ? "비밀번호가 일치하지 않습니다."
+        : "",
   };
   const hasErrors = Object.values(errors).some(Boolean);
 
@@ -103,6 +109,21 @@ export function SignupForm() {
           />
           {submitted && errors.password ? (
             <p className="text-sm text-destructive">{errors.password}</p>
+          ) : null}
+        </AuthField>
+
+        <AuthField id="password-confirm" label="비밀번호 확인">
+          <PasswordInput
+            id="password-confirm"
+            name="passwordConfirm"
+            placeholder="비밀번호 재입력"
+            value={passwordConfirm}
+            autoComplete="new-password"
+            aria-invalid={submitted && Boolean(errors.passwordConfirm)}
+            onChange={(event) => setPasswordConfirm(event.target.value)}
+          />
+          {submitted && errors.passwordConfirm ? (
+            <p className="text-sm text-destructive">{errors.passwordConfirm}</p>
           ) : null}
         </AuthField>
       </div>

@@ -58,12 +58,16 @@ function validateWorkerDraft(draft: WorkerDraft) {
 
   return {
     name: !draft.name.trim() ? "이름을 입력하세요." : "",
-    employeeNumber: !draft.employeeNumber.trim() ? "사번을 입력하세요." : "",
     weeklyContractHours:
       !Number.isFinite(weeklyHours) || weeklyHours < 1
         ? "주간 계약 시간은 1 이상의 숫자로 입력하세요."
         : "",
   };
+}
+
+function createNextEmployeeNumber(workers: Worker[]) {
+  const nextNumber = workers.length + 1;
+  return `A${String(nextNumber).padStart(3, "0")}`;
 }
 
 export function MvpWorkersPage() {
@@ -115,7 +119,7 @@ export function MvpWorkersPage() {
         {
           id: `worker-${Date.now()}`,
           name: draft.name.trim(),
-          employeeNumber: draft.employeeNumber.trim(),
+          employeeNumber: createNextEmployeeNumber(currentWorkers),
           weeklyContractHours: Number(draft.weeklyContractHours),
         },
       ]);
@@ -126,7 +130,6 @@ export function MvpWorkersPage() {
             ? {
                 ...worker,
                 name: draft.name.trim(),
-                employeeNumber: draft.employeeNumber.trim(),
                 weeklyContractHours: Number(draft.weeklyContractHours),
               }
             : worker,
@@ -219,7 +222,9 @@ export function MvpWorkersPage() {
                   {formTitle}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  이름, 사번, 주간 계약 시간을 입력하세요.
+                  {formMode === "create"
+                    ? "이름과 주간 계약 시간을 입력하면 사번은 자동으로 생성됩니다."
+                    : "이름과 주간 계약 시간을 수정할 수 있습니다."}
                 </p>
               </div>
               <button
@@ -249,21 +254,17 @@ export function MvpWorkersPage() {
                 ) : null}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="employee-number">사번</Label>
-                <Input
-                  id="employee-number"
-                  value={draft.employeeNumber}
-                  placeholder="예: A001"
-                  aria-invalid={submitted && Boolean(errors.employeeNumber)}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, employeeNumber: event.target.value }))
-                  }
-                />
-                {submitted && errors.employeeNumber ? (
-                  <p className="text-sm text-destructive">{errors.employeeNumber}</p>
-                ) : null}
-              </div>
+              {formMode === "edit" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="employee-number">사번</Label>
+                  <Input
+                    id="employee-number"
+                    value={draft.employeeNumber}
+                    readOnly
+                    className="bg-surface-secondary"
+                  />
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label htmlFor="weekly-contract-hours">주간 계약 시간</Label>

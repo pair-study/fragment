@@ -1,21 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button } from "@moyeorak/design-system";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Badge } from "@moyeorak/design-system";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -24,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type Worker = {
   id: string;
@@ -31,23 +20,13 @@ type Worker = {
   weeklyContractHours: number;
 };
 
-type Availability = {
-  id: string;
+type DayOfWeek = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+
+type AvailabilitySlot = {
   workerId: string;
   dayOfWeek: DayOfWeek;
   startTime: string;
-  endTime: string;
 };
-
-type AvailabilityDraft = {
-  dayOfWeek: DayOfWeek | "";
-  startTime: string;
-  endTime: string;
-};
-
-type AvailabilityFormMode = "create" | "edit";
-
-type DayOfWeek = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
 
 const WORKERS: Worker[] = [
   { id: "worker-1", name: "김민지", weeklyContractHours: 15 },
@@ -55,153 +34,100 @@ const WORKERS: Worker[] = [
   { id: "worker-3", name: "이서연", weeklyContractHours: 12 },
 ];
 
-const DAY_LABELS: Record<DayOfWeek, string> = {
-  MON: "월요일",
-  TUE: "화요일",
-  WED: "수요일",
-  THU: "목요일",
-  FRI: "금요일",
-  SAT: "토요일",
-  SUN: "일요일",
-};
-
-const INITIAL_AVAILABILITY: Availability[] = [
-  {
-    id: "availability-1",
-    workerId: "worker-1",
-    dayOfWeek: "MON",
-    startTime: "18:00",
-    endTime: "22:00",
-  },
-  {
-    id: "availability-2",
-    workerId: "worker-1",
-    dayOfWeek: "WED",
-    startTime: "18:00",
-    endTime: "22:00",
-  },
-  {
-    id: "availability-3",
-    workerId: "worker-2",
-    dayOfWeek: "FRI",
-    startTime: "14:00",
-    endTime: "22:00",
-  },
+const DAYS: Array<{ value: DayOfWeek; shortLabel: string; label: string }> = [
+  { value: "MON", shortLabel: "월", label: "월요일" },
+  { value: "TUE", shortLabel: "화", label: "화요일" },
+  { value: "WED", shortLabel: "수", label: "수요일" },
+  { value: "THU", shortLabel: "목", label: "목요일" },
+  { value: "FRI", shortLabel: "금", label: "금요일" },
+  { value: "SAT", shortLabel: "토", label: "토요일" },
+  { value: "SUN", shortLabel: "일", label: "일요일" },
 ];
 
-const EMPTY_DRAFT: AvailabilityDraft = {
-  dayOfWeek: "",
-  startTime: "",
-  endTime: "",
-};
+const ORGANIZATION_OPEN_TIME = "09:00";
+const ORGANIZATION_CLOSE_TIME = "22:00";
+const HOLIDAY_DAYS: DayOfWeek[] = ["SUN"];
 
-function createDraftFromAvailability(availability: Availability): AvailabilityDraft {
-  return {
-    dayOfWeek: availability.dayOfWeek,
-    startTime: availability.startTime,
-    endTime: availability.endTime,
-  };
+const INITIAL_AVAILABILITY: AvailabilitySlot[] = [
+  { workerId: "worker-1", dayOfWeek: "MON", startTime: "18:00" },
+  { workerId: "worker-1", dayOfWeek: "MON", startTime: "18:30" },
+  { workerId: "worker-1", dayOfWeek: "MON", startTime: "19:00" },
+  { workerId: "worker-1", dayOfWeek: "MON", startTime: "19:30" },
+  { workerId: "worker-1", dayOfWeek: "WED", startTime: "18:00" },
+  { workerId: "worker-1", dayOfWeek: "WED", startTime: "18:30" },
+  { workerId: "worker-1", dayOfWeek: "WED", startTime: "19:00" },
+  { workerId: "worker-2", dayOfWeek: "FRI", startTime: "14:00" },
+  { workerId: "worker-2", dayOfWeek: "FRI", startTime: "14:30" },
+  { workerId: "worker-2", dayOfWeek: "FRI", startTime: "15:00" },
+];
+
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
 }
 
-function validateAvailabilityDraft(draft: AvailabilityDraft) {
-  return {
-    dayOfWeek: !draft.dayOfWeek ? "요일을 선택하세요." : "",
-    startTime: !draft.startTime ? "시작 시간을 선택하세요." : "",
-    endTime: !draft.endTime
-      ? "종료 시간을 선택하세요."
-      : draft.startTime && draft.endTime <= draft.startTime
-        ? "종료 시간은 시작 시간보다 늦어야 합니다."
-        : "",
-  };
+function minutesToTime(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(restMinutes).padStart(2, "0")}`;
+}
+
+function createTimeSlots(openTime: string, closeTime: string) {
+  const slots: string[] = [];
+
+  for (let minutes = timeToMinutes(openTime); minutes < timeToMinutes(closeTime); minutes += 30) {
+    slots.push(minutesToTime(minutes));
+  }
+
+  return slots;
+}
+
+function getSlotKey(workerId: string, dayOfWeek: DayOfWeek, startTime: string) {
+  return `${workerId}:${dayOfWeek}:${startTime}`;
 }
 
 export function MvpAvailabilityPage() {
   const [selectedWorkerId, setSelectedWorkerId] = useState(WORKERS[0]?.id ?? "");
-  const [availability, setAvailability] = useState<Availability[]>(INITIAL_AVAILABILITY);
-  const [formOpen, setFormOpen] = useState(false);
-  const [formMode, setFormMode] = useState<AvailabilityFormMode>("create");
-  const [editingAvailabilityId, setEditingAvailabilityId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Availability | null>(null);
-  const [draft, setDraft] = useState<AvailabilityDraft>(EMPTY_DRAFT);
-  const [submitted, setSubmitted] = useState(false);
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
+  const timeSlots = useMemo(
+    () => createTimeSlots(ORGANIZATION_OPEN_TIME, ORGANIZATION_CLOSE_TIME),
+    [],
+  );
 
   const selectedWorker = WORKERS.find((worker) => worker.id === selectedWorkerId) ?? WORKERS[0];
-  const selectedAvailability = availability.filter((item) => item.workerId === selectedWorkerId);
-  const errors = useMemo(() => validateAvailabilityDraft(draft), [draft]);
-  const hasErrors = Object.values(errors).some(Boolean);
-  const formTitle = formMode === "create" ? "가능 시간 추가" : "가능 시간 수정";
+  const selectedAvailability = availability.filter((slot) => slot.workerId === selectedWorkerId);
+  const selectedSlotKeys = new Set(
+    selectedAvailability.map((slot) => getSlotKey(slot.workerId, slot.dayOfWeek, slot.startTime)),
+  );
 
-  function openCreateForm() {
-    setFormMode("create");
-    setEditingAvailabilityId(null);
-    setDraft(EMPTY_DRAFT);
-    setSubmitted(false);
-    setFormOpen(true);
-  }
-
-  function openEditForm(item: Availability) {
-    setFormMode("edit");
-    setEditingAvailabilityId(item.id);
-    setDraft(createDraftFromAvailability(item));
-    setSubmitted(false);
-    setFormOpen(true);
-  }
-
-  function closeForm() {
-    setFormOpen(false);
-    setSubmitted(false);
-    setEditingAvailabilityId(null);
-    setDraft(EMPTY_DRAFT);
-  }
-
-  function saveAvailability() {
-    setSubmitted(true);
-
-    if (hasErrors || !draft.dayOfWeek) {
+  function toggleSlot(dayOfWeek: DayOfWeek, startTime: string) {
+    if (HOLIDAY_DAYS.includes(dayOfWeek)) {
       return;
     }
 
-    const dayOfWeek = draft.dayOfWeek;
+    const key = getSlotKey(selectedWorkerId, dayOfWeek, startTime);
+    const selected = selectedSlotKeys.has(key);
 
-    if (formMode === "create") {
-      setAvailability((currentAvailability) => [
-        ...currentAvailability,
-        {
-          id: `availability-${Date.now()}`,
-          workerId: selectedWorkerId,
-          dayOfWeek,
-          startTime: draft.startTime,
-          endTime: draft.endTime,
-        },
-      ]);
-    } else if (editingAvailabilityId) {
-      setAvailability((currentAvailability) =>
-        currentAvailability.map((item) =>
-          item.id === editingAvailabilityId && draft.dayOfWeek
-            ? {
-                ...item,
-                dayOfWeek,
-                startTime: draft.startTime,
-                endTime: draft.endTime,
-              }
-            : item,
-        ),
-      );
-    }
-
-    closeForm();
+    setAvailability((currentAvailability) =>
+      selected
+        ? currentAvailability.filter(
+            (slot) => getSlotKey(slot.workerId, slot.dayOfWeek, slot.startTime) !== key,
+          )
+        : [
+            ...currentAvailability,
+            {
+              workerId: selectedWorkerId,
+              dayOfWeek,
+              startTime,
+            },
+          ],
+    );
   }
 
   return (
     <AdminPageShell
       title="가능 시간 관리"
-      description="근무자별로 일할 수 있는 요일과 시간대를 등록하고 관리합니다."
-      actions={
-        <Button type="button" variant="brand" onClick={openCreateForm}>
-          <Plus className="size-4" aria-hidden="true" />
-          가능 시간 추가
-        </Button>
-      }
+      description="근무자별로 일할 수 있는 요일과 시간대를 30분 단위로 등록합니다."
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
@@ -226,199 +152,118 @@ export function MvpAvailabilityPage() {
           <div className="rounded-lg bg-surface-secondary px-4 py-3">
             <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간
+              주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 매장 운영 시간:{" "}
+              {ORGANIZATION_OPEN_TIME}-{ORGANIZATION_CLOSE_TIME}
             </p>
           </div>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-        <div className="border-b border-border px-6 py-4">
-          <h2 className="text-base font-semibold text-foreground">가능 시간 목록</h2>
-        </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+          <div className="border-b border-border px-6 py-4">
+            <h2 className="text-base font-semibold text-foreground">가능 시간 타임테이블</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              셀을 클릭하면 가능 시간이 추가되고, 다시 클릭하면 해제됩니다.
+            </p>
+          </div>
 
-        {selectedAvailability.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-2xl border-collapse text-left text-sm">
-              <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-3">요일</th>
-                  <th className="px-6 py-3">시작 시간</th>
-                  <th className="px-6 py-3">종료 시간</th>
-                  <th className="px-6 py-3 text-right">액션</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {selectedAvailability.map((item) => (
-                  <tr key={item.id} className="bg-card">
-                    <td className="px-6 py-4 font-medium text-foreground">
-                      {DAY_LABELS[item.dayOfWeek]}
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">{item.startTime}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{item.endTime}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" onClick={() => openEditForm(item)}>
-                          <Pencil className="size-4" aria-hidden="true" />
-                          수정
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setDeleteTarget(item)}
-                        >
-                          <Trash2 className="size-4" aria-hidden="true" />
-                          삭제
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+          <div className="overflow-auto p-4">
+            <div className="min-w-4xl">
+              <div className="grid grid-cols-[56px_repeat(7,minmax(96px,1fr))] gap-1">
+                <div />
+                {DAYS.map((day) => (
+                  <div key={day.value} className="py-2 text-center">
+                    <p className="text-xs font-semibold text-muted-foreground">{day.shortLabel}</p>
+                    <p className="mt-1 text-sm font-bold text-foreground">{day.label}</p>
+                    {HOLIDAY_DAYS.includes(day.value) ? (
+                      <Badge variant="neutral-weak" size="sm" className="mt-2">
+                        휴무
+                      </Badge>
+                    ) : null}
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="px-6 py-16 text-center">
-            <p className="text-sm font-medium text-foreground">등록된 가능 시간이 없습니다.</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              선택한 근무자가 일할 수 있는 시간을 추가하세요.
-            </p>
-          </div>
-        )}
-      </section>
 
-      {formOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="availability-form-title"
-            className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-modal"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 id="availability-form-title" className="text-lg font-semibold text-foreground">
-                  {formTitle}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {selectedWorker.name} 근무자가 일할 수 있는 시간을 입력하세요.
-                </p>
+                {timeSlots.map((time) => {
+                  const showHourLabel = time.endsWith(":00");
+
+                  return (
+                    <div key={time} className="contents">
+                      <div className="h-10 pr-2 text-right text-sm text-muted-foreground">
+                        {showHourLabel ? Number(time.slice(0, 2)) : ""}
+                      </div>
+                      {DAYS.map((day) => {
+                        const disabled = HOLIDAY_DAYS.includes(day.value);
+                        const selected = selectedSlotKeys.has(
+                          getSlotKey(selectedWorkerId, day.value, time),
+                        );
+
+                        return (
+                          <button
+                            key={`${day.value}-${time}`}
+                            type="button"
+                            disabled={disabled}
+                            aria-label={`${day.label} ${time} 가능 시간 ${
+                              selected ? "해제" : "선택"
+                            }`}
+                            className={cn(
+                              "h-10 rounded-md border text-xs transition-colors",
+                              disabled
+                                ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
+                                : selected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
+                            )}
+                            onClick={() => toggleSlot(day.value, time)}
+                          >
+                            {selected ? "가능" : ""}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
-              <button
-                type="button"
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="닫기"
-                onClick={closeForm}
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
             </div>
+          </div>
+        </section>
 
-            <div className="mt-6 space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="day-of-week">요일</Label>
-                <Select
-                  value={draft.dayOfWeek}
-                  onValueChange={(value) =>
-                    setDraft((current) => ({ ...current, dayOfWeek: value as DayOfWeek }))
-                  }
-                >
-                  <SelectTrigger
-                    id="day-of-week"
-                    aria-invalid={submitted && Boolean(errors.dayOfWeek)}
+        <aside className="rounded-xl border border-border bg-card p-6 shadow-card">
+          <h2 className="text-base font-semibold text-foreground">선택된 가능 시간</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {selectedWorker.name} 근무자의 가능 시간이 {selectedAvailability.length}개 선택됐습니다.
+          </p>
+
+          <div className="mt-5 space-y-2">
+            {selectedAvailability.length > 0 ? (
+              selectedAvailability
+                .sort(
+                  (a, b) =>
+                    DAYS.findIndex((day) => day.value === a.dayOfWeek) -
+                      DAYS.findIndex((day) => day.value === b.dayOfWeek) ||
+                    a.startTime.localeCompare(b.startTime),
+                )
+                .map((slot) => (
+                  <div
+                    key={getSlotKey(slot.workerId, slot.dayOfWeek, slot.startTime)}
+                    className="flex items-center justify-between rounded-md bg-surface-secondary px-3 py-2 text-sm"
                   >
-                    <SelectValue placeholder="요일을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(DAY_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {submitted && errors.dayOfWeek ? (
-                  <p className="text-sm text-destructive">{errors.dayOfWeek}</p>
-                ) : null}
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="availability-start-time">시작 시간</Label>
-                  <Input
-                    id="availability-start-time"
-                    type="time"
-                    value={draft.startTime}
-                    aria-invalid={submitted && Boolean(errors.startTime)}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, startTime: event.target.value }))
-                    }
-                  />
-                  {submitted && errors.startTime ? (
-                    <p className="text-sm text-destructive">{errors.startTime}</p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="availability-end-time">종료 시간</Label>
-                  <Input
-                    id="availability-end-time"
-                    type="time"
-                    value={draft.endTime}
-                    aria-invalid={submitted && Boolean(errors.endTime)}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, endTime: event.target.value }))
-                    }
-                  />
-                  {submitted && errors.endTime ? (
-                    <p className="text-sm text-destructive">{errors.endTime}</p>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={closeForm}>
-                취소
-              </Button>
-              <Button type="button" variant="brand" onClick={saveAvailability}>
-                저장
-              </Button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      <AlertDialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>가능 시간 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 가능 시간을 삭제하면 추천 생성 시 해당 시간대에 배정되지 않습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (!deleteTarget) {
-                  return;
-                }
-
-                setAvailability((currentAvailability) =>
-                  currentAvailability.filter((item) => item.id !== deleteTarget.id),
-                );
-                setDeleteTarget(null);
-              }}
-            >
-              삭제
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                    <span className="font-medium text-foreground">
+                      {DAYS.find((day) => day.value === slot.dayOfWeek)?.label}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {slot.startTime}-{minutesToTime(timeToMinutes(slot.startTime) + 30)}
+                    </span>
+                  </div>
+                ))
+            ) : (
+              <p className="rounded-md bg-surface-secondary px-3 py-8 text-center text-sm text-muted-foreground">
+                선택된 가능 시간이 없습니다.
+              </p>
+            )}
+          </div>
+        </aside>
+      </div>
     </AdminPageShell>
   );
 }
