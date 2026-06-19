@@ -62,6 +62,23 @@ const WORKERS: Worker[] = [
   { id: "worker-1", name: "김민지" },
   { id: "worker-2", name: "박준호" },
   { id: "worker-3", name: "이서연" },
+  { id: "worker-4", name: "최유나" },
+  { id: "worker-5", name: "정도윤" },
+  { id: "worker-6", name: "한서준" },
+  { id: "worker-7", name: "오하린" },
+  { id: "worker-8", name: "강지우" },
+  { id: "worker-9", name: "윤태오" },
+  { id: "worker-10", name: "임서아" },
+  { id: "worker-11", name: "조민규" },
+  { id: "worker-12", name: "배수빈" },
+  { id: "worker-13", name: "문지훈" },
+  { id: "worker-14", name: "신예린" },
+  { id: "worker-15", name: "남현우" },
+  { id: "worker-16", name: "서다은" },
+  { id: "worker-17", name: "권도현" },
+  { id: "worker-18", name: "백지민" },
+  { id: "worker-19", name: "유시우" },
+  { id: "worker-20", name: "홍나연" },
 ];
 
 const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
@@ -69,8 +86,8 @@ const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
     id: "unfilled-1",
     dayLabel: "금요일",
     timeRange: "18:00-22:00",
-    requiredWorkers: 3,
-    assignedWorkers: 1,
+    requiredWorkers: 20,
+    assignedWorkers: 17,
   },
 ];
 
@@ -181,30 +198,26 @@ function getStatusLabel(status: ScheduleStatus) {
 
 function createRecommendedSchedules(workStartDate: string, workEndDate: string) {
   const availableDates = createDateRange(workStartDate, workEndDate);
+  const timeRanges = [
+    ["09:00", "13:00"],
+    ["10:00", "14:00"],
+    ["13:00", "17:00"],
+    ["14:00", "18:00"],
+    ["18:00", "22:00"],
+  ];
 
-  return [
-    {
-      id: "schedule-1",
-      date: availableDates[2] ?? workStartDate,
-      startTime: "18:00",
-      endTime: "22:00",
-      workerId: "worker-1",
-    },
-    {
-      id: "schedule-2",
-      date: availableDates[4] ?? workStartDate,
-      startTime: "18:00",
-      endTime: "22:00",
-      workerId: "worker-1",
-    },
-    {
-      id: "schedule-3",
-      date: availableDates[6] ?? workEndDate,
-      startTime: "14:00",
-      endTime: "22:00",
-      workerId: "worker-2",
-    },
-  ].map((schedule) => ({
+  return WORKERS.map((worker, index) => {
+    const [startTime, endTime] = timeRanges[index % timeRanges.length];
+    const date = availableDates[index % availableDates.length] ?? workEndDate;
+
+    return {
+      id: `schedule-${index + 1}`,
+      date,
+      startTime,
+      endTime,
+      workerId: worker.id,
+    };
+  }).map((schedule) => ({
     ...schedule,
     dayLabel: getDayLabel(schedule.date),
   }));
@@ -378,6 +391,40 @@ export function MvpSchedulesPage() {
         </div>
       ) : null}
 
+      {unfilledConditions.length > 0 && status === "DRAFT" ? (
+        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+          <div className="border-b border-border px-6 py-4">
+            <h2 className="text-base font-semibold text-foreground">미충족 조건</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-2xl border-collapse text-left text-sm">
+              <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-6 py-3">요일</th>
+                  <th className="px-6 py-3">시간대</th>
+                  <th className="px-6 py-3">필요 인원</th>
+                  <th className="px-6 py-3">배정 인원</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {unfilledConditions.map((condition) => (
+                  <tr key={condition.id} className="bg-card">
+                    <td className="px-6 py-4 font-medium text-foreground">{condition.dayLabel}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{condition.timeRange}</td>
+                    <td className="px-6 py-4 text-muted-foreground">
+                      {condition.requiredWorkers}명
+                    </td>
+                    <td className="px-6 py-4 text-muted-foreground">
+                      {condition.assignedWorkers}명
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
       {status !== "NONE" ? (
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-4">
@@ -437,39 +484,48 @@ export function MvpSchedulesPage() {
                         ) : null}
                       </div>
 
-                      <div className="mt-3 space-y-2">
-                        {dateSchedules.length > 0 ? (
-                          dateSchedules.map((schedule) => (
-                            <div key={schedule.id} className="rounded-md bg-surface-secondary p-3">
-                              <p className="text-sm font-semibold text-foreground">
-                                {schedule.startTime}-{schedule.endTime}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {getWorkerName(schedule.workerId)}
-                              </p>
+                    <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1">
+                      {dateSchedules.length > 0 ? (
+                        dateSchedules.map((schedule) => (
+                          <div
+                            key={schedule.id}
+                            className="rounded-md border border-border bg-surface-secondary px-2 py-1.5"
+                          >
+                            <div className="flex items-start justify-between gap-1">
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-foreground">
+                                  {schedule.startTime}-{schedule.endTime}
+                                </p>
+                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                  {getWorkerName(schedule.workerId)}
+                                </p>
+                              </div>
                               {isDraft ? (
-                                <div className="mt-3 flex gap-2">
-                                  <Button
+                                <div className="flex shrink-0 gap-1">
+                                  <button
                                     type="button"
-                                    variant="ghost"
+                                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                    aria-label={`${getWorkerName(schedule.workerId)} 스케줄 수정`}
+                                    title="수정"
                                     onClick={() => openEditForm(schedule)}
                                   >
-                                    <Pencil className="size-4" aria-hidden="true" />
-                                    수정
-                                  </Button>
-                                  <Button
+                                    <Pencil className="size-3.5" aria-hidden="true" />
+                                  </button>
+                                  <button
                                     type="button"
-                                    variant="outline"
+                                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                    aria-label={`${getWorkerName(schedule.workerId)} 스케줄 삭제`}
+                                    title="삭제"
                                     onClick={() => setDeleteTarget(schedule)}
                                   >
-                                    <Trash2 className="size-4" aria-hidden="true" />
-                                    삭제
-                                  </Button>
+                                    <Trash2 className="size-3.5" aria-hidden="true" />
+                                  </button>
                                 </div>
                               ) : null}
                             </div>
-                          ))
-                        ) : !inWorkRange ? null : (
+                          </div>
+                        ))
+                      ) : !inWorkRange ? null : (
                           <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
                             배정 없음
                           </p>
@@ -488,40 +544,6 @@ export function MvpSchedulesPage() {
               </p>
             </div>
           )}
-        </section>
-      ) : null}
-
-      {unfilledConditions.length > 0 && status === "DRAFT" ? (
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-          <div className="border-b border-border px-6 py-4">
-            <h2 className="text-base font-semibold text-foreground">미충족 조건</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-2xl border-collapse text-left text-sm">
-              <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-3">요일</th>
-                  <th className="px-6 py-3">시간대</th>
-                  <th className="px-6 py-3">필요 인원</th>
-                  <th className="px-6 py-3">배정 인원</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {unfilledConditions.map((condition) => (
-                  <tr key={condition.id} className="bg-card">
-                    <td className="px-6 py-4 font-medium text-foreground">{condition.dayLabel}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{condition.timeRange}</td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {condition.requiredWorkers}명
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {condition.assignedWorkers}명
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </section>
       ) : null}
 
