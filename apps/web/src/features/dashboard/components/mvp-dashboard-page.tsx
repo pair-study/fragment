@@ -270,7 +270,6 @@ export function MvpDashboardPage() {
           </div>
         </div>
       </section>
-
     </AdminPageShell>
   );
 }
