@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge } from "@moyeorak/design-system";
+import { Badge, Button } from "@moyeorak/design-system";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import { Label } from "@/components/ui/label";
@@ -20,11 +20,9 @@ type Worker = {
   weeklyContractHours: number;
 };
 
-type DayOfWeek = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
-
 type AvailabilitySlot = {
   workerId: string;
-  dayOfWeek: DayOfWeek;
+  date: string;
   startTime: string;
 };
 
@@ -34,32 +32,33 @@ const WORKERS: Worker[] = [
   { id: "worker-3", name: "이서연", weeklyContractHours: 12 },
 ];
 
-const DAYS: Array<{ value: DayOfWeek; shortLabel: string; label: string }> = [
-  { value: "MON", shortLabel: "월", label: "월요일" },
-  { value: "TUE", shortLabel: "화", label: "화요일" },
-  { value: "WED", shortLabel: "수", label: "수요일" },
-  { value: "THU", shortLabel: "목", label: "목요일" },
-  { value: "FRI", shortLabel: "금", label: "금요일" },
-  { value: "SAT", shortLabel: "토", label: "토요일" },
-  { value: "SUN", shortLabel: "일", label: "일요일" },
-];
-
+const WORK_START_DATE = "2026-06-22";
+const WORK_END_DATE = "2026-06-28";
 const ORGANIZATION_OPEN_TIME = "09:00";
 const ORGANIZATION_CLOSE_TIME = "22:00";
-const HOLIDAY_DAYS: DayOfWeek[] = ["SUN"];
+const HOLIDAY_DATES = ["2026-06-28"];
 
 const INITIAL_AVAILABILITY: AvailabilitySlot[] = [
-  { workerId: "worker-1", dayOfWeek: "MON", startTime: "18:00" },
-  { workerId: "worker-1", dayOfWeek: "MON", startTime: "18:30" },
-  { workerId: "worker-1", dayOfWeek: "MON", startTime: "19:00" },
-  { workerId: "worker-1", dayOfWeek: "MON", startTime: "19:30" },
-  { workerId: "worker-1", dayOfWeek: "WED", startTime: "18:00" },
-  { workerId: "worker-1", dayOfWeek: "WED", startTime: "18:30" },
-  { workerId: "worker-1", dayOfWeek: "WED", startTime: "19:00" },
-  { workerId: "worker-2", dayOfWeek: "FRI", startTime: "14:00" },
-  { workerId: "worker-2", dayOfWeek: "FRI", startTime: "14:30" },
-  { workerId: "worker-2", dayOfWeek: "FRI", startTime: "15:00" },
+  { workerId: "worker-1", date: "2026-06-22", startTime: "18:00" },
+  { workerId: "worker-1", date: "2026-06-22", startTime: "18:30" },
+  { workerId: "worker-1", date: "2026-06-22", startTime: "19:00" },
+  { workerId: "worker-1", date: "2026-06-24", startTime: "18:00" },
+  { workerId: "worker-1", date: "2026-06-24", startTime: "18:30" },
+  { workerId: "worker-2", date: "2026-06-26", startTime: "14:00" },
+  { workerId: "worker-2", date: "2026-06-26", startTime: "14:30" },
+  { workerId: "worker-2", date: "2026-06-26", startTime: "15:00" },
 ];
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "Asia/Seoul",
+});
+
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
+  weekday: "short",
+  timeZone: "Asia/Seoul",
+});
 
 function timeToMinutes(time: string) {
   const [hours, minutes] = time.split(":").map(Number);
@@ -72,6 +71,24 @@ function minutesToTime(minutes: number) {
   return `${String(hours).padStart(2, "0")}:${String(restMinutes).padStart(2, "0")}`;
 }
 
+function addDays(date: string, days: number) {
+  const nextDate = new Date(`${date}T00:00:00+09:00`);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate.toISOString().slice(0, 10);
+}
+
+function createDateRange(startDate: string, endDate: string) {
+  const dates: string[] = [];
+  let currentDate = startDate;
+
+  while (currentDate <= endDate) {
+    dates.push(currentDate);
+    currentDate = addDays(currentDate, 1);
+  }
+
+  return dates;
+}
+
 function createTimeSlots(openTime: string, closeTime: string) {
   const slots: string[] = [];
 
@@ -82,52 +99,112 @@ function createTimeSlots(openTime: string, closeTime: string) {
   return slots;
 }
 
-function getSlotKey(workerId: string, dayOfWeek: DayOfWeek, startTime: string) {
-  return `${workerId}:${dayOfWeek}:${startTime}`;
+function formatDateLabel(date: string) {
+  return DATE_FORMATTER.format(new Date(`${date}T00:00:00+09:00`)).replace(". ", ".");
+}
+
+function formatWeekday(date: string) {
+  return WEEKDAY_FORMATTER.format(new Date(`${date}T00:00:00+09:00`));
+}
+
+function getSlotKey(workerId: string, date: string, startTime: string) {
+  return `${workerId}:${date}:${startTime}`;
+}
+
+function hasSameSlots(firstSlots: AvailabilitySlot[], secondSlots: AvailabilitySlot[]) {
+  const firstKeys = new Set(
+    firstSlots.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
+  );
+  const secondKeys = new Set(
+    secondSlots.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
+  );
+
+  if (firstKeys.size !== secondKeys.size) {
+    return false;
+  }
+
+  return [...firstKeys].every((key) => secondKeys.has(key));
 }
 
 export function MvpAvailabilityPage() {
   const [selectedWorkerId, setSelectedWorkerId] = useState(WORKERS[0]?.id ?? "");
-  const [availability, setAvailability] = useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
+  const [savedAvailability, setSavedAvailability] =
+    useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
+  const [draftAvailability, setDraftAvailability] =
+    useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
+  const [saveMessage, setSaveMessage] = useState("");
+  const dateRange = useMemo(() => createDateRange(WORK_START_DATE, WORK_END_DATE), []);
   const timeSlots = useMemo(
     () => createTimeSlots(ORGANIZATION_OPEN_TIME, ORGANIZATION_CLOSE_TIME),
     [],
   );
 
   const selectedWorker = WORKERS.find((worker) => worker.id === selectedWorkerId) ?? WORKERS[0];
-  const selectedAvailability = availability.filter((slot) => slot.workerId === selectedWorkerId);
-  const selectedSlotKeys = new Set(
-    selectedAvailability.map((slot) => getSlotKey(slot.workerId, slot.dayOfWeek, slot.startTime)),
+  const selectedDraftAvailability = draftAvailability.filter(
+    (slot) => slot.workerId === selectedWorkerId,
   );
+  const draftSlotKeys = new Set(
+    selectedDraftAvailability.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
+  );
+  const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
 
-  function toggleSlot(dayOfWeek: DayOfWeek, startTime: string) {
-    if (HOLIDAY_DAYS.includes(dayOfWeek)) {
+  function toggleSlot(date: string, startTime: string) {
+    if (HOLIDAY_DATES.includes(date)) {
       return;
     }
 
-    const key = getSlotKey(selectedWorkerId, dayOfWeek, startTime);
-    const selected = selectedSlotKeys.has(key);
+    const key = getSlotKey(selectedWorkerId, date, startTime);
+    const selected = draftSlotKeys.has(key);
 
-    setAvailability((currentAvailability) =>
+    setDraftAvailability((currentAvailability) =>
       selected
         ? currentAvailability.filter(
-            (slot) => getSlotKey(slot.workerId, slot.dayOfWeek, slot.startTime) !== key,
+            (slot) => getSlotKey(slot.workerId, slot.date, slot.startTime) !== key,
           )
         : [
             ...currentAvailability,
             {
               workerId: selectedWorkerId,
-              dayOfWeek,
+              date,
               startTime,
             },
           ],
     );
+    setSaveMessage("");
+  }
+
+  function saveAvailability() {
+    setSavedAvailability(draftAvailability);
+    setSaveMessage("가능 시간이 저장되었습니다.");
   }
 
   return (
     <AdminPageShell
       title="가능 시간 관리"
-      description="근무자별로 일할 수 있는 요일과 시간대를 30분 단위로 등록합니다."
+      description="근무자별로 일할 수 있는 날짜와 시간대를 30분 단위로 선택한 뒤 저장합니다."
+      actions={
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!hasUnsavedChanges}
+            onClick={() => {
+              setDraftAvailability(savedAvailability);
+              setSaveMessage("");
+            }}
+          >
+            변경 취소
+          </Button>
+          <Button
+            type="button"
+            variant="brand"
+            disabled={!hasUnsavedChanges}
+            onClick={saveAvailability}
+          >
+            변경사항 저장
+          </Button>
+        </div>
+      }
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
@@ -135,7 +212,13 @@ export function MvpAvailabilityPage() {
         <div className="grid gap-5 lg:grid-cols-[minmax(240px,360px)_1fr] lg:items-end">
           <div className="space-y-2">
             <Label htmlFor="worker-select">근무자 선택</Label>
-            <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
+            <Select
+              value={selectedWorkerId}
+              onValueChange={(value) => {
+                setSelectedWorkerId(value);
+                setSaveMessage("");
+              }}
+            >
               <SelectTrigger id="worker-select">
                 <SelectValue placeholder="근무자를 선택하세요" />
               </SelectTrigger>
@@ -152,118 +235,91 @@ export function MvpAvailabilityPage() {
           <div className="rounded-lg bg-surface-secondary px-4 py-3">
             <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 매장 운영 시간:{" "}
-              {ORGANIZATION_OPEN_TIME}-{ORGANIZATION_CLOSE_TIME}
+              주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 근무 기간:{" "}
+              {WORK_START_DATE}~{WORK_END_DATE} · 운영 시간: {ORGANIZATION_OPEN_TIME}-
+              {ORGANIZATION_CLOSE_TIME}
             </p>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-          <div className="border-b border-border px-6 py-4">
-            <h2 className="text-base font-semibold text-foreground">가능 시간 타임테이블</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              셀을 클릭하면 가능 시간이 추가되고, 다시 클릭하면 해제됩니다.
-            </p>
+      {saveMessage ? (
+        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
+          {saveMessage}
+        </div>
+      ) : null}
+
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+        <div className="border-b border-border px-6 py-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">가능 시간 타임테이블</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                셀을 선택한 뒤 상단의 변경사항 저장 버튼을 눌러 등록합니다. 선택된 셀을 다시 누르면
+                삭제됩니다.
+              </p>
+            </div>
+            {hasUnsavedChanges ? <Badge variant="brand-weak">저장 전 변경 있음</Badge> : null}
           </div>
+        </div>
 
-          <div className="overflow-auto p-4">
-            <div className="min-w-4xl">
-              <div className="grid grid-cols-[56px_repeat(7,minmax(96px,1fr))] gap-1">
-                <div />
-                {DAYS.map((day) => (
-                  <div key={day.value} className="py-2 text-center">
-                    <p className="text-xs font-semibold text-muted-foreground">{day.shortLabel}</p>
-                    <p className="mt-1 text-sm font-bold text-foreground">{day.label}</p>
-                    {HOLIDAY_DAYS.includes(day.value) ? (
-                      <Badge variant="neutral-weak" size="sm" className="mt-2">
-                        휴무
-                      </Badge>
-                    ) : null}
-                  </div>
-                ))}
+        <div className="overflow-auto p-4">
+          <div className="w-full min-w-[520px]">
+            <div className="grid grid-cols-[56px_repeat(7,minmax(48px,1fr))] gap-1">
+              <div />
+              {dateRange.map((date) => (
+                <div key={date} className="py-2 text-center">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {formatWeekday(date)}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{formatDateLabel(date)}</p>
+                  {HOLIDAY_DATES.includes(date) ? (
+                    <Badge variant="neutral-weak" size="sm" className="mt-2">
+                      휴무
+                    </Badge>
+                  ) : null}
+                </div>
+              ))}
 
-                {timeSlots.map((time) => {
-                  const showHourLabel = time.endsWith(":00");
+              {timeSlots.map((time) => {
+                const showHourLabel = time.endsWith(":00");
 
-                  return (
-                    <div key={time} className="contents">
-                      <div className="h-10 pr-2 text-right text-sm text-muted-foreground">
-                        {showHourLabel ? Number(time.slice(0, 2)) : ""}
-                      </div>
-                      {DAYS.map((day) => {
-                        const disabled = HOLIDAY_DAYS.includes(day.value);
-                        const selected = selectedSlotKeys.has(
-                          getSlotKey(selectedWorkerId, day.value, time),
-                        );
-
-                        return (
-                          <button
-                            key={`${day.value}-${time}`}
-                            type="button"
-                            disabled={disabled}
-                            aria-label={`${day.label} ${time} 가능 시간 ${
-                              selected ? "해제" : "선택"
-                            }`}
-                            className={cn(
-                              "h-10 rounded-md border text-xs transition-colors",
-                              disabled
-                                ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
-                                : selected
-                                  ? "border-primary bg-primary text-primary-foreground"
-                                  : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
-                            )}
-                            onClick={() => toggleSlot(day.value, time)}
-                          >
-                            {selected ? "가능" : ""}
-                          </button>
-                        );
-                      })}
+                return (
+                  <div key={time} className="contents">
+                    <div className="h-9 pr-2 text-right text-sm text-muted-foreground">
+                      {showHourLabel ? Number(time.slice(0, 2)) : ""}
                     </div>
-                  );
-                })}
-              </div>
+                    {dateRange.map((date) => {
+                      const disabled = HOLIDAY_DATES.includes(date);
+                      const selected = draftSlotKeys.has(getSlotKey(selectedWorkerId, date, time));
+
+                      return (
+                        <button
+                          key={`${date}-${time}`}
+                          type="button"
+                          disabled={disabled}
+                          aria-label={`${date} ${time} 가능 시간 ${selected ? "해제" : "선택"}`}
+                          className={cn(
+                            "h-9 rounded-md border text-xs transition-colors",
+                            disabled
+                              ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
+                              : selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
+                          )}
+                          onClick={() => toggleSlot(date, time)}
+                        >
+                          {selected ? "가능" : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </section>
-
-        <aside className="rounded-xl border border-border bg-card p-6 shadow-card">
-          <h2 className="text-base font-semibold text-foreground">선택된 가능 시간</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {selectedWorker.name} 근무자의 가능 시간이 {selectedAvailability.length}개 선택됐습니다.
-          </p>
-
-          <div className="mt-5 space-y-2">
-            {selectedAvailability.length > 0 ? (
-              selectedAvailability
-                .sort(
-                  (a, b) =>
-                    DAYS.findIndex((day) => day.value === a.dayOfWeek) -
-                      DAYS.findIndex((day) => day.value === b.dayOfWeek) ||
-                    a.startTime.localeCompare(b.startTime),
-                )
-                .map((slot) => (
-                  <div
-                    key={getSlotKey(slot.workerId, slot.dayOfWeek, slot.startTime)}
-                    className="flex items-center justify-between rounded-md bg-surface-secondary px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium text-foreground">
-                      {DAYS.find((day) => day.value === slot.dayOfWeek)?.label}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {slot.startTime}-{minutesToTime(timeToMinutes(slot.startTime) + 30)}
-                    </span>
-                  </div>
-                ))
-            ) : (
-              <p className="rounded-md bg-surface-secondary px-3 py-8 text-center text-sm text-muted-foreground">
-                선택된 가능 시간이 없습니다.
-              </p>
-            )}
-          </div>
-        </aside>
-      </div>
+        </div>
+      </section>
     </AdminPageShell>
   );
 }

@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@moyeorak/design-system";
-import { X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -87,8 +86,6 @@ export function MvpOrganizationForm() {
   const [businessHours, setBusinessHours] =
     useState<Record<DayOfWeek, BusinessHour>>(DEFAULT_BUSINESS_HOURS);
   const [weeklyClosedDays, setWeeklyClosedDays] = useState<DayOfWeek[]>(["SUN"]);
-  const [specificClosedDate, setSpecificClosedDate] = useState("");
-  const [specificClosedDates, setSpecificClosedDates] = useState<string[]>(["2026-06-29"]);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -114,15 +111,6 @@ export function MvpOrganizationForm() {
         [field]: value,
       },
     }));
-  }
-
-  function addSpecificClosedDate() {
-    if (!specificClosedDate || specificClosedDates.includes(specificClosedDate)) {
-      return;
-    }
-
-    setSpecificClosedDates((currentDates) => [...currentDates, specificClosedDate].sort());
-    setSpecificClosedDate("");
   }
 
   return (
@@ -161,6 +149,36 @@ export function MvpOrganizationForm() {
             <p className="text-sm text-destructive">{errors.name}</p>
           ) : null}
         </div>
+
+        <section className="space-y-4 rounded-lg border border-border p-4">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">매주 휴무</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              매주 반복해서 쉬는 요일을 선택하세요.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {DAYS.map((day) => {
+              const selected = weeklyClosedDays.includes(day.value);
+
+              return (
+                <button
+                  key={day.value}
+                  type="button"
+                  className={cn(
+                    "rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                  onClick={() => toggleWeeklyClosedDay(day.value)}
+                >
+                  {day.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="space-y-4">
           <div>
@@ -217,80 +235,6 @@ export function MvpOrganizationForm() {
                 </div>
               );
             })}
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4 rounded-lg border border-border p-4">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">매주 휴무</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                매주 반복해서 쉬는 요일을 선택하세요.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {DAYS.map((day) => {
-                const selected = weeklyClosedDays.includes(day.value);
-
-                return (
-                  <button
-                    key={day.value}
-                    type="button"
-                    className={cn(
-                      "rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
-                      selected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
-                    )}
-                    onClick={() => toggleWeeklyClosedDay(day.value)}
-                  >
-                    {day.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-4 rounded-lg border border-border p-4">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">특정일 휴무</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                공휴일이나 임시 휴무일을 날짜로 추가하세요.
-              </p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-              <Input
-                type="date"
-                value={specificClosedDate}
-                onChange={(event) => setSpecificClosedDate(event.target.value)}
-              />
-              <Button type="button" variant="outline" onClick={addSpecificClosedDate}>
-                날짜 추가
-              </Button>
-            </div>
-            {specificClosedDates.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {specificClosedDates.map((date) => (
-                  <span
-                    key={date}
-                    className="inline-flex items-center gap-2 rounded-md bg-surface-secondary px-3 py-2 text-sm text-muted-foreground"
-                  >
-                    {date}
-                    <button
-                      type="button"
-                      aria-label={`${date} 휴무일 삭제`}
-                      onClick={() =>
-                        setSpecificClosedDates((currentDates) =>
-                          currentDates.filter((currentDate) => currentDate !== date),
-                        )
-                      }
-                    >
-                      <X className="size-4" aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
           </div>
         </section>
       </div>
