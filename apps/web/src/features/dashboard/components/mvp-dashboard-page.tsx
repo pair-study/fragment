@@ -192,8 +192,6 @@ export function MvpDashboardPage() {
               const dateSchedules = CONFIRMED_SCHEDULES.filter(
                 (schedule) => schedule.date === date,
               );
-              const visibleSchedules = dateSchedules.slice(0, 3);
-              const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
 
               return (
                 <div
@@ -213,16 +211,11 @@ export function MvpDashboardPage() {
                     ) : null}
                   </div>
                   <div className="mt-3 space-y-1">
-                    {visibleSchedules.map((schedule) => (
+                    {dateSchedules.map((schedule) => (
                       <p key={schedule.id} className="truncate text-xs font-medium text-foreground">
                         {schedule.startTime}-{schedule.endTime} {schedule.workerName}
                       </p>
                     ))}
-                    {hiddenScheduleCount > 0 ? (
-                      <p className="text-xs font-medium text-muted-foreground">
-                        +{hiddenScheduleCount}개 더보기
-                      </p>
-                    ) : null}
                   </div>
                 </div>
               );

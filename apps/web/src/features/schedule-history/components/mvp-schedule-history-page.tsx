@@ -5,6 +5,13 @@ import { Badge, Button } from "@moyeorak/design-system";
 import { Download } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type ConfirmedSchedule = {
@@ -123,13 +130,52 @@ const SCHEDULE_HISTORIES: ScheduleHistory[] = [
     scheduleCount: 18,
     schedules: createConfirmedSchedules("2026-06-01", "2026-06-15").slice(0, 18),
   },
+  {
+    id: "history-3",
+    period: "2026-05-16 ~ 2026-05-31",
+    startDate: "2026-05-16",
+    endDate: "2026-05-31",
+    confirmedAt: "2026-05-14",
+    scheduleCount: 16,
+    schedules: createConfirmedSchedules("2026-05-16", "2026-05-31").slice(0, 16),
+  },
+  {
+    id: "history-4",
+    period: "2025-12-16 ~ 2025-12-31",
+    startDate: "2025-12-16",
+    endDate: "2025-12-31",
+    confirmedAt: "2025-12-14",
+    scheduleCount: 15,
+    schedules: createConfirmedSchedules("2025-12-16", "2025-12-31").slice(0, 15),
+  },
 ];
+
+function getHistoryYear(history: ScheduleHistory) {
+  return history.startDate.slice(0, 4);
+}
+
+function getHistoryMonth(history: ScheduleHistory) {
+  return history.startDate.slice(5, 7);
+}
 
 export function MvpScheduleHistoryPage() {
   const [selectedHistoryId, setSelectedHistoryId] = useState(SCHEDULE_HISTORIES[0]?.id ?? "");
+  const [selectedYear, setSelectedYear] = useState(getHistoryYear(SCHEDULE_HISTORIES[0]));
+  const [selectedMonth, setSelectedMonth] = useState("ALL");
   const [exportMessage, setExportMessage] = useState("");
+  const historyYears = Array.from(new Set(SCHEDULE_HISTORIES.map(getHistoryYear)));
+  const selectedYearHistories = SCHEDULE_HISTORIES.filter(
+    (history) => getHistoryYear(history) === selectedYear,
+  );
+  const historyMonths = Array.from(new Set(selectedYearHistories.map(getHistoryMonth)));
+  const filteredHistories = selectedYearHistories.filter(
+    (history) => selectedMonth === "ALL" || getHistoryMonth(history) === selectedMonth,
+  );
   const selectedHistory =
-    SCHEDULE_HISTORIES.find((history) => history.id === selectedHistoryId) ?? SCHEDULE_HISTORIES[0];
+    filteredHistories.find((history) => history.id === selectedHistoryId) ??
+    filteredHistories[0] ??
+    selectedYearHistories[0] ??
+    SCHEDULE_HISTORIES[0];
   const calendarDates = useMemo(
     () => createCalendarDates(selectedHistory.startDate, selectedHistory.endDate),
     [selectedHistory.endDate, selectedHistory.startDate],
@@ -149,8 +195,50 @@ export function MvpScheduleHistoryPage() {
             <p className="mt-1 text-sm text-muted-foreground">확인할 근무 기간을 선택하세요.</p>
           </div>
 
+          <div className="grid gap-3 border-b border-border px-5 py-4 sm:grid-cols-2 xl:grid-cols-1">
+            <Select
+              value={selectedYear}
+              onValueChange={(value) => {
+                setSelectedYear(value);
+                setSelectedMonth("ALL");
+                setExportMessage("");
+              }}
+            >
+              <SelectTrigger aria-label="이력 연도 선택">
+                <SelectValue placeholder="연도 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {historyYears.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}년
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedMonth}
+              onValueChange={(value) => {
+                setSelectedMonth(value);
+                setExportMessage("");
+              }}
+            >
+              <SelectTrigger aria-label="이력 월 선택">
+                <SelectValue placeholder="월 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">전체 월</SelectItem>
+                {historyMonths.map((month) => (
+                  <SelectItem key={month} value={month}>
+                    {Number(month)}월
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="divide-y divide-border">
-            {SCHEDULE_HISTORIES.map((history) => {
+            {filteredHistories.map((history) => {
               const selected = history.id === selectedHistory.id;
 
               return (
@@ -177,6 +265,11 @@ export function MvpScheduleHistoryPage() {
                 </button>
               );
             })}
+            {filteredHistories.length === 0 ? (
+              <p className="px-5 py-8 text-sm text-muted-foreground">
+                선택한 기간에 확정된 스케줄 이력이 없습니다.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -237,8 +330,6 @@ export function MvpScheduleHistoryPage() {
                   const dateSchedules = selectedHistory.schedules.filter(
                     (schedule) => schedule.date === date,
                   );
-                  const visibleSchedules = dateSchedules.slice(0, 3);
-                  const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
 
                   return (
                     <div
@@ -259,7 +350,7 @@ export function MvpScheduleHistoryPage() {
                       </div>
 
                       <div className="mt-3 space-y-1">
-                        {visibleSchedules.map((schedule) => (
+                        {dateSchedules.map((schedule) => (
                           <p
                             key={schedule.id}
                             className="truncate text-xs font-medium text-foreground"
@@ -267,11 +358,6 @@ export function MvpScheduleHistoryPage() {
                             {schedule.startTime}-{schedule.endTime} {schedule.workerName}
                           </p>
                         ))}
-                        {hiddenScheduleCount > 0 ? (
-                          <p className="text-xs font-medium text-muted-foreground">
-                            +{hiddenScheduleCount}개 더보기
-                          </p>
-                        ) : null}
                       </div>
                     </div>
                   );
