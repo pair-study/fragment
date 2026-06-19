@@ -90,20 +90,19 @@ const CONFIRMED_SCHEDULE_DATES = [
   "2026-07-01",
   "2026-07-03",
 ];
-const CONFIRMED_SCHEDULES: ConfirmedSchedule[] = CONFIRMED_WORKER_NAMES.map(
-  (workerName, index) => {
-    const [startTime, endTime] = CONFIRMED_TIME_RANGES[index % CONFIRMED_TIME_RANGES.length];
-    const date = index < 17 ? "2026-06-26" : CONFIRMED_SCHEDULE_DATES[index % CONFIRMED_SCHEDULE_DATES.length];
+const CONFIRMED_SCHEDULES: ConfirmedSchedule[] = CONFIRMED_WORKER_NAMES.map((workerName, index) => {
+  const [startTime, endTime] = CONFIRMED_TIME_RANGES[index % CONFIRMED_TIME_RANGES.length];
+  const date =
+    index < 17 ? "2026-06-26" : CONFIRMED_SCHEDULE_DATES[index % CONFIRMED_SCHEDULE_DATES.length];
 
-    return {
-      id: `confirmed-${index + 1}`,
-      date,
-      startTime,
-      endTime,
-      workerName,
-    };
-  },
-);
+  return {
+    id: `confirmed-${index + 1}`,
+    date,
+    startTime,
+    endTime,
+    workerName,
+  };
+});
 
 function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
@@ -160,7 +159,7 @@ export function MvpDashboardPage() {
           <Button asChild variant="outline">
             <Link href="/schedules">
               <CalendarDays className="size-4" aria-hidden="true" />
-              새 스케줄 생성
+              <span>새 스케줄 생성</span>
             </Link>
           </Button>
         </div>
@@ -238,7 +237,9 @@ export function MvpDashboardPage() {
             ))}
             {calendarDates.map((date) => {
               const inRange = date >= CONFIRMED_START_DATE && date <= CONFIRMED_END_DATE;
-              const dateSchedules = CONFIRMED_SCHEDULES.filter((schedule) => schedule.date === date);
+              const dateSchedules = CONFIRMED_SCHEDULES.filter(
+                (schedule) => schedule.date === date,
+              );
               const visibleSchedules = dateSchedules.slice(0, 3);
               const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
 
@@ -261,10 +262,7 @@ export function MvpDashboardPage() {
                   </div>
                   <div className="mt-3 space-y-1">
                     {visibleSchedules.map((schedule) => (
-                      <p
-                        key={schedule.id}
-                        className="truncate text-xs font-medium text-foreground"
-                      >
+                      <p key={schedule.id} className="truncate text-xs font-medium text-foreground">
                         {schedule.startTime}-{schedule.endTime} {schedule.workerName}
                       </p>
                     ))}
