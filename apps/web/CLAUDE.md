@@ -18,7 +18,7 @@
 | Form          | React Hook Form                 | 7.54.x                  |
 | Validation    | Zod                             | 3.24.x                  |
 | Styling       | Tailwind CSS                    | 4.1.x                   |
-| UI Components | @moyeorak/design-system (1순위) | 0.1.x (npm 패키지)      |
+| UI Components | @moyeorak/design-system (1순위) | 0.2.x (npm 패키지)      |
 | UI Components | shadcn/ui (보조)                | latest (소스 복사 방식) |
 
 ## 디렉터리 구조
