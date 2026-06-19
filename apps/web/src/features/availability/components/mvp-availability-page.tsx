@@ -72,8 +72,8 @@ function minutesToTime(minutes: number) {
 }
 
 function addDays(date: string, days: number) {
-  const nextDate = new Date(`${date}T00:00:00+09:00`);
-  nextDate.setDate(nextDate.getDate() + days);
+  const [year, month, day] = date.split("-").map(Number);
+  const nextDate = new Date(Date.UTC(year, month - 1, day + days));
   return nextDate.toISOString().slice(0, 10);
 }
 
