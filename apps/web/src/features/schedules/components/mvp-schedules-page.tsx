@@ -484,48 +484,48 @@ export function MvpSchedulesPage() {
                         ) : null}
                       </div>
 
-                    <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1">
-                      {dateSchedules.length > 0 ? (
-                        dateSchedules.map((schedule) => (
-                          <div
-                            key={schedule.id}
-                            className="rounded-md border border-border bg-surface-secondary px-2 py-1.5"
-                          >
-                            <div className="flex items-start justify-between gap-1">
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-semibold text-foreground">
-                                  {schedule.startTime}-{schedule.endTime}
-                                </p>
-                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                  {getWorkerName(schedule.workerId)}
-                                </p>
-                              </div>
-                              {isDraft ? (
-                                <div className="flex shrink-0 gap-1">
-                                  <button
-                                    type="button"
-                                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                    aria-label={`${getWorkerName(schedule.workerId)} 스케줄 수정`}
-                                    title="수정"
-                                    onClick={() => openEditForm(schedule)}
-                                  >
-                                    <Pencil className="size-3.5" aria-hidden="true" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                                    aria-label={`${getWorkerName(schedule.workerId)} 스케줄 삭제`}
-                                    title="삭제"
-                                    onClick={() => setDeleteTarget(schedule)}
-                                  >
-                                    <Trash2 className="size-3.5" aria-hidden="true" />
-                                  </button>
+                      <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1">
+                        {dateSchedules.length > 0 ? (
+                          dateSchedules.map((schedule) => (
+                            <div
+                              key={schedule.id}
+                              className="rounded-md border border-border bg-surface-secondary px-2 py-1.5"
+                            >
+                              <div className="flex items-start justify-between gap-1">
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-semibold text-foreground">
+                                    {schedule.startTime}-{schedule.endTime}
+                                  </p>
+                                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                    {getWorkerName(schedule.workerId)}
+                                  </p>
                                 </div>
-                              ) : null}
+                                {isDraft ? (
+                                  <div className="flex shrink-0 gap-1">
+                                    <button
+                                      type="button"
+                                      className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                      aria-label={`${getWorkerName(schedule.workerId)} 스케줄 수정`}
+                                      title="수정"
+                                      onClick={() => openEditForm(schedule)}
+                                    >
+                                      <Pencil className="size-3.5" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                      aria-label={`${getWorkerName(schedule.workerId)} 스케줄 삭제`}
+                                      title="삭제"
+                                      onClick={() => setDeleteTarget(schedule)}
+                                    >
+                                      <Trash2 className="size-3.5" aria-hidden="true" />
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
                             </div>
-                          </div>
-                        ))
-                      ) : !inWorkRange ? null : (
+                          ))
+                        ) : !inWorkRange ? null : (
                           <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
                             배정 없음
                           </p>
