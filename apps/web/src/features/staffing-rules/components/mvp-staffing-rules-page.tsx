@@ -190,7 +190,7 @@ export function MvpStaffingRulesPage() {
   return (
     <AdminPageShell
       title="최소 인원 조건"
-      description="매장 운영에 필요한 요일과 시간대별 최소 근무 인원을 관리합니다."
+      description="조직 운영에 필요한 요일과 시간대별 최소 근무 인원을 관리합니다."
       actions={
         <Button type="button" variant="brand" onClick={openCreateForm}>
           <Plus className="size-4" aria-hidden="true" />

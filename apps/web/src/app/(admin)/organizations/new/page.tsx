@@ -4,8 +4,8 @@ import { OrganizationFormPageShell } from "@/features/organizations/components/o
 export default function NewOrganizationPage() {
   return (
     <OrganizationFormPageShell
-      title="매장 생성"
-      description="스케줄 추천을 시작하기 위해 사용할 단일 매장 정보를 등록하세요."
+      title="조직 생성"
+      description="스케줄 추천을 시작하기 위해 사용할 단일 조직 정보를 등록하세요."
     >
       <MvpOrganizationForm />
     </OrganizationFormPageShell>

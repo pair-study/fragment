@@ -20,7 +20,7 @@ export function AdminTopbar({ hasOrganizations = true }: AdminTopbarProps) {
           </div>
         ) : (
           <Button asChild variant="outline">
-            <Link href="/organizations/new">매장 생성</Link>
+            <Link href="/organizations/new">조직 생성</Link>
           </Button>
         )}
       </div>

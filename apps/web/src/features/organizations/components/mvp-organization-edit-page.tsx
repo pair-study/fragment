@@ -51,7 +51,7 @@ function validateOrganizationForm(
   const businessHourErrors: Partial<Record<DayOfWeek, string>> = {};
 
   if (!name.trim()) {
-    errors.name = "매장명을 입력하세요.";
+    errors.name = "조직명을 입력하세요.";
   }
 
   DAYS.forEach((day) => {
@@ -117,8 +117,8 @@ export function MvpOrganizationEditPage() {
 
   return (
     <AdminPageShell
-      title="매장 수정"
-      description="단일 매장의 이름, 요일별 운영 시간, 매주 휴무일을 수정합니다."
+      title="조직 수정"
+      description="단일 조직의 이름, 요일별 운영 시간, 매주 휴무일을 수정합니다."
       actions={
         <Button asChild variant="outline">
           <Link href="/dashboard">대시보드로 돌아가기</Link>
@@ -141,7 +141,7 @@ export function MvpOrganizationEditPage() {
         }}
       >
         <div>
-          <h2 className="text-lg font-semibold text-foreground">매장 정보</h2>
+          <h2 className="text-lg font-semibold text-foreground">조직 정보</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             휴무일로 지정한 요일은 운영 시간 입력이 비활성화됩니다.
           </p>
@@ -149,7 +149,7 @@ export function MvpOrganizationEditPage() {
 
         <div className="mt-8 space-y-8">
           <div className="space-y-2">
-            <Label htmlFor="organization-name">매장명</Label>
+            <Label htmlFor="organization-name">조직명</Label>
             <Input
               id="organization-name"
               value={name}

@@ -115,7 +115,7 @@ export function MvpDashboardPage() {
   return (
     <AdminPageShell
       title="대시보드"
-      description="현재 매장 정보와 확정된 스케줄을 확인합니다."
+      description="현재 조직 정보와 확정된 스케줄을 확인합니다."
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
@@ -136,7 +136,7 @@ export function MvpDashboardPage() {
             </div>
           </div>
           <Button asChild variant="outline">
-            <Link href="/organizations">매장 수정</Link>
+            <Link href="/organizations">조직 수정</Link>
           </Button>
         </div>
       </section>
