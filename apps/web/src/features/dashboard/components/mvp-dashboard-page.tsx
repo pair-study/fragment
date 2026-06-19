@@ -141,15 +141,21 @@ export function MvpDashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {exportMessage ? (
+        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
+          {exportMessage}
+        </div>
+      ) : null}
+
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+        <div className="flex flex-col gap-4 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-base font-semibold text-foreground">확정 스케줄</h2>
+              <h2 className="text-base font-semibold text-foreground">확정 스케줄 달력</h2>
               <Badge variant="neutral-weak">{dashboardSummary.scheduleStatus}</Badge>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{dashboardSummary.scheduleRange}</p>
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-muted-foreground">
               총 {dashboardSummary.confirmedScheduleCount}개 배정이 확정되었습니다.
             </p>
           </div>
@@ -161,21 +167,6 @@ export function MvpDashboardPage() {
             <Download className="size-4" aria-hidden="true" />
             CSV export
           </Button>
-        </div>
-      </section>
-
-      {exportMessage ? (
-        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
-          {exportMessage}
-        </div>
-      ) : null}
-
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-        <div className="border-b border-border px-6 py-4">
-          <h2 className="text-base font-semibold text-foreground">확정 스케줄 달력</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            확정된 스케줄은 읽기 모드로만 확인합니다.
-          </p>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-7 border-l border-t border-border">
