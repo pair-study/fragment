@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, LogOut, UserCircle } from "lucide-react";
+import { Building2, UserCircle } from "lucide-react";
 
 import { Button } from "@moyeorak/design-system";
 
@@ -30,12 +30,6 @@ export function AdminTopbar({ hasOrganizations = true }: AdminTopbarProps) {
           <UserCircle className="size-5 text-muted-foreground" aria-hidden="true" />
           관리자
         </div>
-        <Button asChild variant="ghost">
-          <Link href="/login">
-            <LogOut className="size-4" aria-hidden="true" />
-            로그아웃
-          </Link>
-        </Button>
       </div>
     </header>
   );

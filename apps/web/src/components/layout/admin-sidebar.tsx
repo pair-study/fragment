@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Clock3, History, Home, ListChecks, Users } from "lucide-react";
+import { Archive, CalendarDays, Clock3, Home, ListChecks, LogOut, Users } from "lucide-react";
 
 import {
   Sidebar,
@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 const primaryNavigationItems = [
   { title: "대시보드", href: "/dashboard", icon: Home, requiresOrg: true },
   { title: "스케줄", href: "/schedules", icon: CalendarDays, requiresOrg: true },
-  { title: "스케줄 이력", href: "/schedule-history", icon: History, requiresOrg: true },
+  { title: "보관함", href: "/schedule-history", icon: Archive, requiresOrg: true },
 ];
 
 const operationsNavigationItems = [
@@ -84,7 +84,18 @@ export function AdminSidebar({ hasOrganizations = true }: AdminSidebarProps) {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter />
+      <SidebarFooter className="border-t border-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link href="/login" title="로그아웃">
+                <LogOut aria-hidden="true" />
+                <span>로그아웃</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

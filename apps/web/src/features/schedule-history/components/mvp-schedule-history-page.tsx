@@ -183,7 +183,7 @@ export function MvpScheduleHistoryPage() {
 
   return (
     <AdminPageShell
-      title="스케줄 이력"
+      title="보관함"
       description="확정된 스케줄을 기간별로 조회하고 CSV로 내보냅니다."
       containerClassName="max-w-none"
       contentClassName="space-y-6"
