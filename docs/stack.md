@@ -18,7 +18,8 @@
   - Tailwind CSS `4.1.x` (유틸리티 클래스 기반)
 
 - **UI Components:**
-  - shadcn/ui `latest` (소스 복사 방식 — Radix UI primitives + Tailwind 기반)
+  - `@moyeorak/design-system` `0.2.x` (1순위 — npm 패키지 방식, Panda CSS 기반 자체 디자인 토큰)
+  - shadcn/ui `latest` (보조 — `@moyeorak/design-system`에 없는 컴포넌트에 한해 사용, 소스 복사 방식)
 
 ---
 
