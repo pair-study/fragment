@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
-import { CalendarDays, Download, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { CalendarDays, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import {
@@ -59,6 +60,13 @@ type UnfilledCondition = {
   assignedWorkers: number;
 };
 
+type ScheduleHistory = {
+  id: string;
+  period: string;
+  confirmedAt: string;
+  scheduleCount: number;
+};
+
 const WORKERS: Worker[] = [
   { id: "worker-1", name: "김민지" },
   { id: "worker-2", name: "박준호" },
@@ -96,6 +104,14 @@ const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const RECOMMENDATION_WORK_START_DATE = "2026-06-20";
 const RECOMMENDATION_WORK_END_DATE = "2026-07-05";
+const INITIAL_SCHEDULE_HISTORY: ScheduleHistory[] = [
+  {
+    id: "history-1",
+    period: "2026-06-01 ~ 2026-06-15",
+    confirmedAt: "2026-05-30",
+    scheduleCount: 18,
+  },
+];
 
 const EMPTY_DRAFT: ScheduleDraft = {
   date: "",
@@ -235,6 +251,8 @@ export function MvpSchedulesPage() {
   const [status, setStatus] = useState<ScheduleStatus>("NONE");
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [unfilledConditions, setUnfilledConditions] = useState<UnfilledCondition[]>([]);
+  const [scheduleHistory, setScheduleHistory] =
+    useState<ScheduleHistory[]>(INITIAL_SCHEDULE_HISTORY);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<ScheduleFormMode>("create");
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
@@ -243,7 +261,6 @@ export function MvpSchedulesPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [draft, setDraft] = useState<ScheduleDraft>(EMPTY_DRAFT);
   const [submitted, setSubmitted] = useState(false);
-  const [exportMessage, setExportMessage] = useState("");
 
   const errors = useMemo(
     () =>
@@ -257,8 +274,6 @@ export function MvpSchedulesPage() {
   const hasErrors = Object.values(errors).some(Boolean);
   const canGenerate = status === "NONE";
   const isDraft = status === "DRAFT";
-  const isConfirmed = status === "CONFIRMED";
-  const canExport = isConfirmed && schedules.length > 0;
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
   const selectedDateSchedules = schedules.filter((schedule) => schedule.date === selectedDate);
   const selectedDateUnfilledConditions = unfilledConditions.filter(
@@ -301,7 +316,6 @@ export function MvpSchedulesPage() {
     );
     setUnfilledConditions(INITIAL_UNFILLED_CONDITIONS);
     setSelectedDate(INITIAL_UNFILLED_CONDITIONS[0]?.date ?? RECOMMENDATION_WORK_START_DATE);
-    setExportMessage("");
   }
 
   function saveSchedule() {
@@ -366,17 +380,6 @@ export function MvpSchedulesPage() {
               스케줄 확정
             </Button>
           ) : null}
-          {isConfirmed ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!canExport}
-              onClick={() => setExportMessage("확정 스케줄 CSV export가 준비되었습니다.")}
-            >
-              <Download className="size-4" aria-hidden="true" />
-              CSV export
-            </Button>
-          ) : null}
         </div>
       }
       containerClassName="max-w-none"
@@ -401,11 +404,38 @@ export function MvpSchedulesPage() {
         </section>
       ) : null}
 
-      {exportMessage ? (
-        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
-          {exportMessage}
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold text-foreground">스케줄 이력</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            확정된 스케줄은 대시보드에서 읽기 모드로 확인하고 CSV로 내보냅니다.
+          </p>
         </div>
-      ) : null}
+        <div className="divide-y divide-border">
+          {scheduleHistory.length > 0 ? (
+            scheduleHistory.map((history) => (
+              <div
+                key={history.id}
+                className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{history.period}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    확정일 {history.confirmedAt} · {history.scheduleCount}개 배정
+                  </p>
+                </div>
+                <Button asChild variant="outline">
+                  <Link href="/dashboard">대시보드에서 보기</Link>
+                </Button>
+              </div>
+            ))
+          ) : (
+            <p className="px-6 py-8 text-sm text-muted-foreground">
+              아직 확정된 스케줄 이력이 없습니다.
+            </p>
+          )}
+        </div>
+      </section>
 
       {unfilledConditions.length > 0 && status === "DRAFT" ? (
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
@@ -802,8 +832,20 @@ export function MvpSchedulesPage() {
             <AlertDialogCancel>취소</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setStatus("CONFIRMED");
+                setScheduleHistory((currentHistory) => [
+                  {
+                    id: `history-${Date.now()}`,
+                    period: `${RECOMMENDATION_WORK_START_DATE} ~ ${RECOMMENDATION_WORK_END_DATE}`,
+                    confirmedAt: "2026-06-20",
+                    scheduleCount: schedules.length,
+                  },
+                  ...currentHistory,
+                ]);
+                setStatus("NONE");
+                setSchedules([]);
                 setUnfilledConditions([]);
+                setSelectedDate("");
+                closeForm();
                 setConfirmOpen(false);
               }}
             >
