@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type ScheduleStatus = "NONE" | "DRAFT" | "CONFIRMED";
+type ScheduleStatus = "DRAFT" | "CONFIRMED";
 
 type Worker = {
   id: string;
@@ -186,7 +186,7 @@ function validateScheduleDraft(draft: ScheduleDraft, workStartDate: string, work
   };
 }
 
-function getStatusLabel(status: ScheduleStatus) {
+function getStatusLabel(status: ScheduleStatus | null) {
   if (status === "DRAFT") {
     return "DRAFT";
   }
@@ -232,7 +232,7 @@ function createRecommendedSchedules(workStartDate: string, workEndDate: string) 
 }
 
 export function MvpSchedulesPage() {
-  const [status, setStatus] = useState<ScheduleStatus>("NONE");
+  const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatus | null>(null);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [unfilledConditions, setUnfilledConditions] = useState<UnfilledCondition[]>([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -254,8 +254,8 @@ export function MvpSchedulesPage() {
     [],
   );
   const hasErrors = Object.values(errors).some(Boolean);
-  const canGenerate = status === "NONE";
-  const isDraft = status === "DRAFT";
+  const canGenerate = scheduleStatus === null;
+  const isDraft = scheduleStatus === "DRAFT";
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
   const selectedDateSchedules = schedules.filter((schedule) => schedule.date === selectedDate);
   const selectedDateUnfilledConditions = unfilledConditions.filter(
@@ -292,7 +292,7 @@ export function MvpSchedulesPage() {
       return;
     }
 
-    setStatus("DRAFT");
+    setScheduleStatus("DRAFT");
     setSchedules(
       createRecommendedSchedules(RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
     );
@@ -323,7 +323,7 @@ export function MvpSchedulesPage() {
           ...nextSchedule,
         },
       ]);
-      setStatus("DRAFT");
+      setScheduleStatus("DRAFT");
     } else if (editingScheduleId) {
       setSchedules((currentSchedules) =>
         currentSchedules.map((schedule) =>
@@ -341,7 +341,7 @@ export function MvpSchedulesPage() {
       description="근무자, 가능 시간, 최소 인원 조건을 기준으로 추천 결과를 생성하고 확정합니다."
       actions={
         <div className="flex flex-wrap justify-end gap-2">
-          {status === "NONE" ? (
+          {scheduleStatus === null ? (
             <Button
               type="button"
               variant="brand"
@@ -367,7 +367,7 @@ export function MvpSchedulesPage() {
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
-      {status === "NONE" ? (
+      {scheduleStatus === null ? (
         <section className="rounded-xl border border-border bg-card p-6 shadow-card">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -381,12 +381,12 @@ export function MvpSchedulesPage() {
                 기간 중 하나가 변경되면 다시 추천 생성할 수 있습니다.
               </p>
             </div>
-            <Badge variant="neutral-weak">{getStatusLabel(status)}</Badge>
+            <Badge variant="neutral-weak">{getStatusLabel(scheduleStatus)}</Badge>
           </div>
         </section>
       ) : null}
 
-      {unfilledConditions.length > 0 && status === "DRAFT" ? (
+      {unfilledConditions.length > 0 && scheduleStatus === "DRAFT" ? (
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-4">
             <h2 className="text-base font-semibold text-foreground">미충족 조건</h2>
@@ -420,7 +420,7 @@ export function MvpSchedulesPage() {
         </section>
       ) : null}
 
-      {status !== "NONE" ? (
+      {scheduleStatus !== null ? (
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -428,8 +428,10 @@ export function MvpSchedulesPage() {
                 <div className="flex items-center gap-2">
                   <CalendarDays className="size-5 text-muted-foreground" aria-hidden="true" />
                   <h2 className="text-base font-semibold text-foreground">근무 기간 달력</h2>
-                  <Badge variant={status === "CONFIRMED" ? "brand-weak" : "neutral-weak"}>
-                    {getStatusLabel(status)}
+                  <Badge
+                    variant={scheduleStatus === "CONFIRMED" ? "brand-weak" : "neutral-weak"}
+                  >
+                    {getStatusLabel(scheduleStatus)}
                   </Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -540,7 +542,7 @@ export function MvpSchedulesPage() {
         </section>
       ) : null}
 
-      {selectedDate && status !== "NONE" ? (
+      {selectedDate && scheduleStatus !== null ? (
         <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-border bg-card shadow-modal">
           <div className="border-b border-border px-6 py-5">
             <div className="flex items-start justify-between gap-4">
@@ -781,7 +783,7 @@ export function MvpSchedulesPage() {
             <AlertDialogCancel>취소</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setStatus("NONE");
+                setScheduleStatus(null);
                 setSchedules([]);
                 setUnfilledConditions([]);
                 setSelectedDate("");
