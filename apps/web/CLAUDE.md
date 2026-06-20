@@ -125,16 +125,11 @@ shadcn/ui (보조):
 
 ## 테스트
 
-```bash
-pnpm --filter @ilgam/web test          # 단위 테스트 (Vitest)
-pnpm --filter @ilgam/web test:coverage # 커버리지 리포트
-```
+테스트 설정과 첫 테스트 코드를 추가하는 작업에서 Vitest + React Testing Library를 `apps/web/package.json`에 함께 추가합니다.
 
-- **Vitest + React Testing Library**를 사용합니다.
 - 테스트 파일은 별도 `test/` 디렉터리 없이 대상 파일 옆에 코로케이션합니다. (`ScheduleCard.tsx` → `ScheduleCard.test.tsx`)
 - 커스텀 훅은 `renderHook`으로 단독 테스트합니다.
-- API 호출은 `msw`로 모킹합니다.
-- 커버리지 목표: 비즈니스 로직 훅·유틸 80% 이상.
+- API mocking은 필요해지는 테스트 범위가 확정될 때 MSW 도입 여부와 버전을 함께 결정합니다.
 
 ## 개발 서버
 
