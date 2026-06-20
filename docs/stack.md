@@ -1,101 +1,122 @@
 # 기술 스택 정의서
 
-### 1. Frontend (사용자 인터페이스 및 클라이언트 로직)
+이 문서는 MVP 구현에서 사용하는 기술 스택의 기준 문서입니다. 각 작업 영역의 `CLAUDE.md`는 이 문서를 참조하고, 상세 버전 변경이 생기면 이 문서를 함께 갱신합니다.
 
-- **Core:**
-  - React `19.1.x`
-  - Next.js `15.3.x` (TypeScript, App Router 기반)
+## 1. 공통
 
-- **State Management (상태 관리):**
-  - **Global State:** Zustand `5.0.x` (필터 조건 등 전역 UI 상태 관리)
-  - **Server State:** TanStack Query (React Query) `5.74.x` (API 데이터 캐싱, 동기화 및 상태 관리)
+| 항목 | 선택 |
+| --- | --- |
+| Monorepo | pnpm Workspaces `10.x` |
+| Runtime | Node.js `22.x` LTS |
+| Language | TypeScript `5.x` |
+| Formatter | Prettier `3.x` |
+| Git Hooks | Husky `9.x`, commitlint `21.x` |
 
-- **Form & Validation:**
-  - React Hook Form `7.54.x`
-  - Zod `3.24.x` (복잡한 폼 상태 및 데이터 유효성 검증, 스키마는 `packages/shared`에서 중앙 관리)
+## 2. Frontend
 
-- **Styling:**
-  - Tailwind CSS `4.1.x` (유틸리티 클래스 기반)
+| 항목 | 선택 |
+| --- | --- |
+| Framework | Next.js `15.3.x` |
+| UI Library | React `19.1.x` |
+| Styling | Tailwind CSS `4.1.x` |
+| Design System | `@moyeorak/design-system` `0.2.x` |
+| UI 보조 | shadcn/ui, Radix UI |
+| Icon | lucide-react |
 
-- **UI Components:**
-  - `@moyeorak/design-system` `0.2.x` (1순위 — npm 패키지 방식, Panda CSS 기반 자체 디자인 토큰)
-  - shadcn/ui `latest` (보조 — `@moyeorak/design-system`에 없는 컴포넌트에 한해 사용, 소스 복사 방식)
+### 적용 기준
 
----
+- 운영 웹은 반응형으로 구현합니다.
+- 컴포넌트는 `@moyeorak/design-system`을 우선 사용합니다.
+- 디자인 시스템에 없는 컴포넌트만 shadcn/ui 또는 Radix UI 기반으로 보완합니다.
+- 화면 상태는 서버 상태, 전역 UI 상태, 로컬 UI 상태, 폼 상태를 구분합니다.
 
-### 2. Backend (서버 로직 및 데이터베이스)
+### 상태와 폼 적용 기준
 
-- **Core:**
-  - Express `5.x` (TypeScript)
-  - Node.js `22.x` LTS
+| 구분 | 선택 | 사용 기준 |
+| --- | --- | --- |
+| Server State | TanStack Query `5.x` | API 조회, 캐싱, 재요청, mutation |
+| Form | React Hook Form `7.x` | 입력 폼 상태 관리 |
+| Form Resolver | `@hookform/resolvers` `5.x` | React Hook Form과 Zod 연결 |
+| Validation | Zod `3.25.x` | 폼/API schema 검증 |
+| Global UI State | Zustand `5.x` | 화면 간 공유가 필요한 UI 상태가 생길 때만 사용 |
 
-- **Database:** PostgreSQL `17.x` (RDBMS)
+상태/폼 라이브러리는 해당 기능 구현 코드와 함께 `apps/web/package.json`에 추가합니다.
 
-- **ORM:** Prisma `6.8.x` (타입 안정성을 보장하는 데이터베이스 통신 및 스키마 관리)
-  - schema, migrations, seed, Prisma client helper는 `packages/database` 패키지에서 전담 관리
-  - `apps/api`는 `packages/database`가 export하는 `prisma` 또는 `createPrismaClient`를 사용
+## 3. Backend
 
-- **Auth:**
-  - jsonwebtoken 또는 jose 기반 JWT 인증
-  - passport-jwt `4.x`
+| 항목 | 선택 |
+| --- | --- |
+| API Server | Express `5.x` |
+| Runtime | Node.js `22.x` LTS |
+| Language | TypeScript `5.x` |
+| Database | PostgreSQL `17.x` |
+| ORM | Prisma `6.8.x` |
+| Auth | JWT 기반 인증 |
+| Validation | Zod `3.25.x` |
 
-- **Validation:**
-  - Zod `3.24.x` (`packages/shared`의 스키마 우선 활용)
+### 적용 기준
 
-- **API Docs:** OpenAPI 문서 또는 Notion (MVP 단계에서는 엔드포인트 계약 우선 정리)
+- `apps/api`는 HTTP API와 인증, 요청 검증, 서비스 호출을 담당합니다.
+- Prisma schema, migration, seed, Prisma client helper는 `packages/database`에서 관리합니다.
+- 공통 타입과 Zod schema는 필요할 때 `packages/shared`에 둡니다.
+- 인증 라이브러리는 인증 구현 코드와 함께 `apps/api/package.json`에 추가합니다.
+- 스케줄 추천은 MVP에서 동기 API로 처리합니다. 별도 worker나 queue는 도입하지 않습니다.
 
-- **Task Scheduling:** node-cron 또는 별도 worker 프로세스 (cron 기반 자동화, 퇴근 미처리 처리 등)
+## 4. Testing
 
-- **Queue (선택적):** BullMQ 또는 bull `4.x` (급여 계산·알림 대량 발송 비동기화 시 도입)
+| 영역 | 선택 | MVP 적용 범위 |
+| --- | --- | --- |
+| Frontend | Vitest `4.x`, React Testing Library `16.x`, jest-dom `6.x`, jsdom `29.x` | 폼 검증, 주요 컴포넌트 렌더링, 사용자 액션 |
+| API | Jest `29.x`, Supertest `7.x` | 주요 엔드포인트 요청/응답, 인증, 검증 실패 |
 
----
+테스트 라이브러리는 테스트 설정 파일과 첫 테스트 코드가 들어가는 작업에서 `package.json`에 함께 추가합니다.
+프론트 API mocking은 필요해지는 테스트 범위가 확정될 때 MSW 도입 여부와 버전을 함께 결정합니다.
 
-### 3. Testing (품질 보증 및 회귀 방지)
+### 테스트 우선순위
 
-- **Frontend Testing:**
-  - Vitest `3.x`
-  - React Testing Library `16.x` (단위 테스트, 커스텀 훅 및 컴포넌트 렌더링 테스트)
-  - MSW (Mock Service Worker) `2.x` (API 모킹)
+1. 스케줄 추천 입력 조건 검증
+2. DRAFT/CONFIRMED 상태 전환
+3. 인력 삭제 후 남은 인력 기준의 추천 생성
+4. 가능 시간 저장/수정/삭제
+5. 최소 인원 조건 검증
+6. 인증 후 조직 존재 여부에 따른 라우팅
 
-- **Backend Testing:**
-  - Jest `29.x`
-  - Supertest `7.x` (Express API 통합/E2E 테스트)
+## 5. Infrastructure
 
----
+### 1차 MVP 배포
 
-### 4. Infrastructure & DevOps (배포 및 인프라 구성)
+| 영역 | 선택 |
+| --- | --- |
+| Web | Vercel |
+| API | Railway |
+| Database | Railway PostgreSQL |
+| CI | GitHub Actions |
 
-- **Cloud Computing:** AWS
-  - EC2 — 백엔드 서버(Node.js 22.x LTS) 및 Next.js SSR 서버
-  - S3 + CloudFront — 정적 에셋 CDN 배포 (Next.js는 EC2에서 SSR로 서빙)
+MVP에서는 Railway 안에서 API와 PostgreSQL을 함께 운영해 배포 복잡도를 낮춥니다.
 
-- **CI/CD:** GitHub Actions (테스트 자동화 및 자동 배포 파이프라인 구축)
-  - Node.js `22.x` runner
-  - pnpm `10.x` 캐싱 적용
+## 6. API Documentation
 
-- **Monorepo Management:** pnpm Workspaces `10.x` (프론트엔드와 백엔드 코드의 통합 관리)
-  - 주요 패키지: `packages/shared` (공유 타입·Zod 스키마·유틸), `packages/database` (Prisma 전담)
+| 단계 | 선택 |
+| --- | --- |
+| MVP 개발 중 | Notion 또는 Markdown 기반 API 명세 |
+| 엔드포인트 안정 후 | OpenAPI/Swagger 문서화 |
 
----
+MVP에서는 프론트와 API 작업자가 먼저 요청/응답 계약을 빠르게 맞추는 것이 우선입니다. OpenAPI/Swagger는 엔드포인트 구조가 안정된 뒤 도입합니다.
 
-### 5. Collaboration & Documentation (협업 및 문서화)
+## 7. Workspace Structure
 
-- **API Docs:** OpenAPI 문서 또는 Notion (명확한 책임 경계와 응답 포맷 사전 조율)
-- **Version Control:** Git `2.x`, GitHub (체계적인 브랜치 전략 및 코드 리뷰)
-- **Git Hooks:** Husky `9.x` + commitlint `21.x` (커밋 메시지 컨벤션 강제, main·develop 직접 push 차단)
-- **Code Formatter:** Prettier `3.8.x` (코드 스타일 일관성 유지)
+```txt
+apps/
+  api/          Express API
+  web/          Next.js 운영 웹
 
----
+packages/
+  database/     Prisma schema, migrations, seed, Prisma client helper
+  shared/       공유 타입, Zod schema, 유틸
 
-### 버전 선택 기준 및 주요 호환성 메모
-
-| 항목 | 비고 |
-|------|------|
-| Node.js 22.x LTS | 2026년 현재 Active LTS. Express 5, Prisma 6 지원 버전 |
-| Next.js 15.3.x | React 19 정식 지원, App Router 안정화, Turbopack 기본 활성화 |
-| React 19.1.x | Next.js 15와 호환 |
-| TanStack Query 5.74.x | React 19 concurrent 기능 완전 지원 |
-| Prisma 6.8.x | PostgreSQL 17 지원, TypeScript 5.x 최적화 |
-| Tailwind CSS 4.1.x | Oxide 엔진, CSS-first 설정 방식 (tailwind.config.ts 유지 가능) |
-| shadcn/ui | 소스 복사 방식으로 버전 고정 불필요. Tailwind 4.x + Next.js 15 공식 지원 |
-| Zustand 5.0.x | React 19 호환, 내장 TypeScript 타입 개선 |
+docs/
+  PRD.md
+  SPEC.md
+  stack.md
+  adr/
+```
