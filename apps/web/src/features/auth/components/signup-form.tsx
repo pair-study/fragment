@@ -48,13 +48,13 @@ export function SignupForm() {
         }
 
         setIsSubmitting(true);
-        router.push("/organizations/new");
+        router.push("/organization/new");
       }}
     >
       <div>
         <h1 className="text-balance text-2xl font-bold text-foreground">회원가입</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          스케줄 운영 대시보드를 사용할 관리자 계정을 만듭니다.
+          스케줄 운영 대시보드를 사용할 계정을 만듭니다.
         </p>
       </div>
 
