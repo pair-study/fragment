@@ -3,37 +3,34 @@
 ## 역할 및 범위
 
 **Express 기반 REST API 서버**입니다.
-인증, 조직 관리, 스케줄 엔진, 근태 처리, 급여 계산, Push 알림 발송을 담당합니다.
-모든 비즈니스 로직의 원천이며, 웹·앱 양쪽에서 소비합니다.
+MVP에서는 운영 웹이 소비하는 인증, 단일 조직 관리, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·조정·확정·보관함 조회 API를 담당합니다.
 
 ## 기술 스택
 
-| 항목           | 기술                  | 버전                                      |
-| -------------- | --------------------- | ----------------------------------------- |
-| Framework      | Express               | 5.x                                       |
-| Language       | TypeScript            | 5.8.x                                     |
-| Runtime        | Node.js               | 22.x LTS                                  |
-| Database       | PostgreSQL            | 17.x                                      |
-| ORM            | Prisma                | 6.8.x (`packages/database`에서 관리)      |
-| Validation     | Zod                   | 3.24.x (`packages/shared` 우선 활용)      |
-| Auth           | JWT                   | jsonwebtoken 또는 jose                    |
-| API Docs       | OpenAPI 또는 Notion   | MVP 단계에서는 계약 문서 우선             |
-| Task Scheduler | node-cron 또는 worker | cron 기반 자동화 도입 시 선택             |
-| Queue (선택적) | BullMQ 또는 bull      | 급여 계산·알림 대량 발송 비동기화 시 도입 |
-| Testing (Unit) | Jest                  | 29.x                                      |
-| Testing (E2E)  | Supertest             | 7.x                                       |
+기술 스택과 버전은 루트 `docs/stack.md`를 단일 출처로 따른다. 이 문서에는 API 서버에서 사용하는 기술의 역할과 적용 규칙만 기록한다.
+
+- Framework: Express
+- Language: TypeScript
+- Runtime: Node.js
+- Database: PostgreSQL
+- ORM: Prisma (`packages/database`에서 관리)
+- Validation: Zod (`packages/shared` 우선 활용)
+- Auth: JWT
+- API Docs: OpenAPI 또는 Notion
+- Testing: Jest + Supertest
 
 ## 디렉터리 구조
 
 ```
 # apps/api/
 ├── src/
-│   ├── auth/             # JWT 발급, 소셜 OAuth, 가드
-│   ├── organizations/    # 조직 CRUD (FR-1.3~1.6)
-│   ├── members/          # 근로자 초대·등록·퇴사 (FR-5)
-│   ├── schedules/        # 스케줄 생성·확정·교환 (FR-2)
-│   ├── attendance/       # 출퇴근 체크, 근태 수정 (FR-3)
-│   ├── payroll/          # 급여 계산 엔진, 명세서 발급 (FR-4)
+│   ├── auth/             # 회원가입, 로그인, JWT 발급/검증
+│   ├── organization/    # 단일 조직 생성·조회·수정
+│   ├── workers/          # 인력 생성·수정·소프트 삭제
+│   ├── availability/     # 인력별 가능 시간 저장·조회
+│   ├── staffing-rules/   # 요일·시간대별 최소 인원 조건
+│   ├── schedules/        # DRAFT 추천 생성, 수동 조정, 확정
+│   ├── schedule-history/ # 확정 스케줄 조회, CSV export
 │   └── common/           # 공통 미들웨어, 에러 핸들러, 유틸
 └── test/                 # E2E 테스트
 
@@ -67,25 +64,22 @@
 ### 인증 및 인가
 
 - **JWT Access Token** (유효기간 15분) + **Refresh Token** (7일, HTTP-only 쿠키) 방식을 사용합니다.
-- 관리자 전용 엔드포인트에는 role 확인 미들웨어를 적용합니다.
-- 근로자 전용 엔드포인트에는 role 확인 미들웨어를 적용합니다.
+- MVP에서는 단일 사용자 계정만 사용합니다.
+- 운영 화면 엔드포인트에는 인증 확인 미들웨어를 적용합니다.
+- 단일 조직 생성 전에는 조직 생성 API만 허용하고, 운영 화면 API는 조직 존재 여부를 확인합니다.
 
 ### 유효성 검증
 
 - 요청 body, params, query는 **Zod schema**로 검증합니다.
 - 공유 가능한 입력/응답 스키마는 `packages/shared`에 정의하고 API와 클라이언트에서 함께 사용합니다.
 
-### 급여 계산 엔진 (FR-4)
+### 스케줄 추천 및 확정
 
-- 급여 계산 로직은 `payroll/` 도메인의 service 함수에 순수 함수로 구현합니다.
-- 계산 결과는 항상 **감사 로그**(`PayrollAuditLog`)에 스냅샷(임금명세서 템플릿 포함)과 함께 저장합니다.
-- 성능 목표: 1초 이하 응답 (FR-4.1). 계산이 복잡한 경우 Bull Queue로 비동기 처리합니다.
-
-### 스케줄 자동화 (FR-2.2, FR-3.3)
-
-- cron 기반 작업은 node-cron 또는 별도 worker 프로세스로 구현합니다.
-- Cron 표현식은 상수로 분리하여 관리합니다.
-- 퇴근 미처리 자동화 타임라인(예정 퇴근 +30분, +2시간, +12시간)은 attendance 도메인의 scheduler/worker에서 처리합니다.
+- 추천 생성 API는 조직의 인력, 가능 시간, 최소 인원 조건, 근무 시작/종료 날짜를 기준으로 `DRAFT` 스케줄을 생성합니다.
+- 같은 입력 조건의 DRAFT가 이미 있으면 중복 생성하지 않습니다.
+- 사용자는 DRAFT 스케줄을 직접 추가·수정·삭제할 수 있습니다.
+- 확정 API는 DRAFT를 `CONFIRMED`로 변경하고, 이후 보관함 조회/export 대상으로 사용합니다.
+- 확정된 스케줄은 읽기 모드로 조회하며, 수정은 새 DRAFT 생성 흐름에서 처리합니다.
 
 ### API 문서화
 
@@ -108,8 +102,8 @@
 
 ### 데이터 보존 정책
 
-- 근태·급여 이력은 **3년 보존** (근로기준법 제42조)합니다. 실제 삭제 로직을 구현하지 않습니다.
-- 탈퇴 근로자 데이터는 익명화(`anonymize()`) 처리 후 보존합니다.
+- 스케줄 이력이 있는 인력은 실제 삭제하지 않고 `deletedAt` 기반 소프트 딜리트로 처리합니다.
+- 목록, 추천, 가능 시간 조회에서는 `deletedAt: null` 인력만 기본 조회합니다.
 
 ## 테스트
 

@@ -2,9 +2,10 @@
 
 ## 프로젝트 개요
 
-소·중형 단일 매장부터 다점포 사업장까지, 근무 스케줄 편성과 급여 계산을 자동화하는 SaaS
+단일 조직의 인력 정보, 가능 시간, 최소 인원 조건을 기반으로 스케줄 초안을 추천하고, 조정·확정·보관까지 지원하는 스케줄 운영 SaaS MVP입니다.
 
-- **관리자(웹)**: 스케줄 편성, 근태 관리, 급여 정산
+- **운영 웹 (`apps/web`)**: 회원가입/로그인, 단일 조직 생성·수정, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·조정·확정, 확정 스케줄 보관함 조회/export. MVP에서는 별도 앱 없이 웹이 전체 사용자 화면을 담당하므로 반응형으로 구현한다.
+- **백엔드 API (`apps/api`)**: 인증, 단일 조직 관리, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·확정·조회 API
 
 ---
 
@@ -14,13 +15,13 @@
 `docs/stack.md`에 명시된 라이브러리 버전을 임의로 변경하거나 업그레이드하지 않는다. 버전 변경이 필요한 경우 반드시 팀과 협의 후 `docs/stack.md`를 먼저 업데이트한다.
 앱별 상세 규칙은 각 앱의 `CLAUDE.md`를 참조한다.
 
-| 영역                   | 핵심 기술                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 관리자 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, @moyeorak/design-system(1순위) + shadcn/ui(보조)      |
-| 백엔드 (`apps/api`)    | Express, TypeScript, PostgreSQL, Prisma                                                                      |
-| 공통                   | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                                  |
-| 테스트                 | Vitest + React Testing Library + MSW (Frontend), Jest + Supertest (Backend)                                  |
-| 인프라                 | AWS EC2 (백엔드 API + Next.js SSR), S3 + CloudFront (정적 에셋 CDN), GitHub Actions (CI/CD), pnpm Workspaces |
+| 영역                 | 핵심 기술                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 운영 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, @moyeorak/design-system(1순위) + shadcn/ui(보조)      |
+| 백엔드 (`apps/api`)  | Express, TypeScript, PostgreSQL, Prisma                                                                      |
+| 공통                 | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                                  |
+| 테스트               | Web: Vitest + React Testing Library + MSW, API: Jest + Supertest                                             |
+| 인프라               | MVP: Vercel(Next.js 운영 웹) + Railway(Express API + PostgreSQL), 추후 DB 운영 분리 시 Neon(PostgreSQL) 검토 |
 
 **상태 분류 원칙**: 서버 데이터 → TanStack Query / UI 전역 상태 → Zustand / 폼 상태 → React Hook Form / 컴포넌트 로컬 상태 → useState
 
@@ -31,7 +32,7 @@
 ```
 final-project/
 ├── apps/
-│   ├── web/          # Next.js — 관리자 웹 (데스크탑 전용)
+│   ├── web/          # Next.js — 운영 웹 (반응형)
 │   └── api/          # Express — 백엔드 API 서버
 ├── packages/
 │   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
@@ -114,7 +115,7 @@ type(scope): 한 줄 설명 (50자 이내)
 
 - `feat(web): 조직 생성 페이지 UI 구현`
 - `feat(api): 조직 생성 API 구현`
-- `fix(db): 근로자 테이블 상태 컬럼명 수정`
+- `fix(db): 인력 테이블 상태 컬럼명 수정`
 - `chore(repo): pnpm 의존성 업데이트`
 - `feat: 회원가입 기능 및 DB 스키마 연동` ← 여러 패키지 복합 변경 시 스코프 생략
 
@@ -130,12 +131,12 @@ type(scope): 한 줄 설명 (50자 이내)
 
 **1 이슈 = 1 PR** 원칙. 레이어(DB / API / UI)가 다르면 이슈를 분리한다.
 
-| 레이어       | 스코프   | 이슈 제목 예시                          |
-| ------------ | -------- | --------------------------------------- |
-| DB 스키마    | `db`     | `feat(db): 조직·근로자 테이블 설계`     |
-| 공유 타입    | `shared` | `feat(shared): 조직 API 응답 타입 정의` |
-| 백엔드 API   | `api`    | `feat(api): 조직 생성 API 구현`         |
-| 관리자 웹 UI | `web`    | `feat(web): 조직 생성 페이지 UI 구현`   |
+| 레이어     | 스코프   | 이슈 제목 예시                          |
+| ---------- | -------- | --------------------------------------- |
+| DB 스키마  | `db`     | `feat(db): 조직·인력 테이블 설계`       |
+| 공유 타입  | `shared` | `feat(shared): 조직 API 응답 타입 정의` |
+| 백엔드 API | `api`    | `feat(api): 조직 생성 API 구현`         |
+| 운영 웹 UI | `web`    | `feat(web): 조직 생성 페이지 UI 구현`   |
 
 이슈 제목 형식은 커밋 컨벤션과 동일하다(`type(scope): 설명`).
 이슈 본문 작성 형식 → `.github/ISSUE_TEMPLATE/feature_request.md`
@@ -221,6 +222,6 @@ git push origin feature/fr-1-org-management
 - 기술 스택 정의 (버전·호환성) → `docs/stack.md`
 - 검증 계획 및 기술 리스크 → `docs/TEST_PLAN.md`
 - API 서버 개발 규칙 → `apps/api/CLAUDE.md`
-- 관리자 웹 개발 규칙 → `apps/web/CLAUDE.md`
+- 운영 웹 개발 규칙 → `apps/web/CLAUDE.md`
 - PR 작성 형식 → `.github/pull_request_template.md`
 - 이슈 작성 형식 → `.github/ISSUE_TEMPLATE/feature_request.md`
