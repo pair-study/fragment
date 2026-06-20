@@ -136,7 +136,7 @@ export function MvpDashboardPage() {
             </div>
           </div>
           <Button asChild variant="outline">
-            <Link href="/organizations">조직 수정</Link>
+            <Link href="/organization">조직 수정</Link>
           </Button>
         </div>
       </section>

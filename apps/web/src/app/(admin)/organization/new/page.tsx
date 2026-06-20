@@ -1,5 +1,5 @@
-import { MvpOrganizationForm } from "@/features/organizations/components/mvp-organization-form";
-import { OrganizationFormPageShell } from "@/features/organizations/components/organization-form-page-shell";
+import { MvpOrganizationForm } from "@/features/organization/components/mvp-organization-form";
+import { OrganizationFormPageShell } from "@/features/organization/components/organization-form-page-shell";
 
 export default function NewOrganizationPage() {
   return (

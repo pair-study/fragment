@@ -42,7 +42,7 @@ export function LoginForm() {
       <div>
         <h1 className="text-balance text-2xl font-bold text-foreground">로그인</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          관리자 계정으로 스케줄 운영 대시보드에 접속합니다.
+          가입한 계정으로 스케줄 운영 대시보드에 접속합니다.
         </p>
       </div>
 
