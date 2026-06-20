@@ -64,7 +64,6 @@ src/
 - `apps/api`에서는 `packages/database`가 export하는 `prisma` 또는 `createPrismaClient`를 사용합니다.
 - 쿼리 결과 타입은 Prisma가 생성하는 타입을 활용합니다. 별도로 타입을 재정의하지 않습니다.
 - 마이그레이션은 `packages/database`에서 `prisma migrate dev`로 생성하고, 파일명에 목적을 명확히 기재합니다.
-- **소프트 딜리트**(FR-1.5, FR-5.2)는 `deletedAt` 필드로 구현합니다. 모든 조회 쿼리에서 `deletedAt: null` 필터를 기본으로 포함합니다.
 
 ### 인증 및 인가
 
@@ -84,7 +83,7 @@ src/
 - 같은 입력 조건의 DRAFT가 이미 있으면 중복 생성하지 않습니다.
 - 사용자는 DRAFT 스케줄을 직접 추가·수정·삭제할 수 있습니다.
 - 확정 API는 DRAFT를 `CONFIRMED`로 변경하고, 이후 보관함 조회/export 대상으로 사용합니다.
-- 확정된 스케줄은 읽기 모드로 조회하며, 수정은 새 DRAFT 생성 흐름에서 처리합니다.
+- 확정된 스케줄은 조회/export 대상으로 사용합니다.
 
 ### API 문서화
 
@@ -105,22 +104,13 @@ src/
 
 - `errorCode`는 `common/constants/error-codes.ts`에서 상수로 관리합니다.
 
-### 데이터 보존 정책
-
-- 스케줄 이력이 있는 인력은 실제 삭제하지 않고 `deletedAt` 기반 소프트 딜리트로 처리합니다.
-- 목록, 추천, 가능 시간 조회에서는 `deletedAt: null` 인력만 기본 조회합니다.
-
 ## 테스트
 
-```bash
-pnpm --filter @ilgam/api test        # 단위 테스트 (Jest)
-pnpm --filter @ilgam/api test:e2e    # E2E 테스트 (Supertest)
-pnpm --filter @ilgam/api test:cov    # 커버리지
-```
+테스트 설정과 첫 테스트 코드를 추가하는 작업에서 Jest + Supertest를 `apps/api/package.json`에 함께 추가합니다.
 
-- **Service 단위 테스트**: 의존성은 Jest mock으로 처리합니다. Prisma는 필요 시 `mockDeep<PrismaClient>()`로 모킹합니다.
-- **E2E 테스트**: 테스트 전용 PostgreSQL DB(`DATABASE_URL_TEST`)를 사용합니다. 각 테스트 전후로 DB를 초기화합니다.
-- 커버리지 목표: 핵심 service 레이어 80% 이상.
+- **Service 단위 테스트**: 의존성은 Jest mock으로 처리합니다.
+- **API 통합 테스트**: Supertest로 Express app의 요청/응답을 검증합니다.
+- 테스트 전용 DB가 필요한 시점에 `DATABASE_URL_TEST`와 초기화 전략을 함께 정의합니다.
 
 ## 개발 실행
 
@@ -137,18 +127,14 @@ pnpm --filter @ilgam/database db:seed     # 시드 데이터 삽입
 
 ## 환경 변수 (.env.example)
 
-`DATABASE_URL`, `DATABASE_URL_TEST`는 `packages/database/.env`에서 관리합니다.
+`DATABASE_URL`은 `packages/database/.env`에서 관리합니다.
 나머지 변수는 `apps/api/.env`에서 관리합니다.
 
 ```
 # packages/database/.env
 DATABASE_URL=postgresql://user:password@localhost:5432/ilgam
-DATABASE_URL_TEST=postgresql://user:password@localhost:5432/ilgam_test
 
 # apps/api/.env
 JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
-KAKAO_CLIENT_ID=
-NAVER_CLIENT_ID=
-NAVER_CLIENT_SECRET=
 ```

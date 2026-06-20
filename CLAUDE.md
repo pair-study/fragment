@@ -15,15 +15,17 @@
 `docs/stack.md`에 명시된 라이브러리 버전을 임의로 변경하거나 업그레이드하지 않는다. 버전 변경이 필요한 경우 반드시 팀과 협의 후 `docs/stack.md`를 먼저 업데이트한다.
 앱별 상세 규칙은 각 앱의 `CLAUDE.md`를 참조한다.
 
-| 영역                 | 핵심 기술                                                                                                    |
-| -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 운영 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, @moyeorak/design-system(1순위) + shadcn/ui(보조)      |
-| 백엔드 (`apps/api`)  | Express, TypeScript, PostgreSQL, Prisma                                                                      |
-| 공통                 | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                                  |
-| 테스트               | Web: Vitest + React Testing Library + MSW, API: Jest + Supertest                                             |
-| 인프라               | MVP: Vercel(Next.js 운영 웹) + Railway(Express API + PostgreSQL), 추후 DB 운영 분리 시 Neon(PostgreSQL) 검토 |
+| 영역                 | 핵심 기술                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| 운영 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, @moyeorak/design-system(1순위) + shadcn/ui(보조) |
+| 백엔드 (`apps/api`)  | Express, TypeScript, PostgreSQL, Prisma                                                                 |
+| 공통                 | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                             |
+| 테스트               | Web: Vitest + React Testing Library, API: Jest + Supertest                                              |
+| 인프라               | MVP: Vercel(Next.js 운영 웹) + Railway(Express API + PostgreSQL)                                        |
 
 **상태 분류 원칙**: 서버 데이터 → TanStack Query / UI 전역 상태 → Zustand / 폼 상태 → React Hook Form / 컴포넌트 로컬 상태 → useState
+
+상태/폼/인증/테스트 라이브러리는 해당 기능 구현 코드 또는 테스트 설정 파일과 함께 `package.json`에 추가한다.
 
 ---
 
@@ -220,7 +222,6 @@ git push origin feature/fr-1-org-management
 - 제품 요구사항 → `docs/PRD.md`
 - 기능 명세 → `docs/SPEC.md`
 - 기술 스택 정의 (버전·호환성) → `docs/stack.md`
-- 검증 계획 및 기술 리스크 → `docs/TEST_PLAN.md`
 - API 서버 개발 규칙 → `apps/api/CLAUDE.md`
 - 운영 웹 개발 규칙 → `apps/web/CLAUDE.md`
 - PR 작성 형식 → `.github/pull_request_template.md`
