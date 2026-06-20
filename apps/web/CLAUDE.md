@@ -30,24 +30,30 @@ apps/web/
     │   ├── (auth)/           # 로그인·회원가입 (비인증 레이아웃)
     │   ├── (admin)/          # 인증 후 운영 레이아웃
     │   │   ├── dashboard/        # 조직 정보, 확정 스케줄 달력
-    │   │   ├── organization/    # 단일 조직 생성·수정
+    │   │   ├── organization/     # 단일 조직 생성·수정
     │   │   ├── workers/          # 인력 관리
     │   │   ├── availability/     # 가능 시간 관리
     │   │   ├── staffing-rules/   # 최소 인원 조건
     │   │   ├── schedules/        # 스케줄 추천·조정·확정
     │   │   └── schedule-history/ # 보관함
+    │   ├── moyeorak-test/    # 디자인 시스템 확인용 임시 페이지
     │   ├── globals.css
     │   └── layout.tsx
     ├── components/
     │   ├── ui/               # shadcn/ui 소스 복사 컴포넌트 (@moyeorak/design-system에 없는 것만)
     │   ├── layout/           # AdminShell, Sidebar 등
     │   └── common/           # 폼 필드, 상태 배지 등 공통 조합 컴포넌트
-    ├── features/             # 도메인별 컴포넌트 (organizations/, schedules/, workers/ 등)
-    ├── hooks/                # 커스텀 훅
-    ├── lib/
-    │   ├── api/              # API 클라이언트 함수
-    │   └── utils/            # 순수 유틸 함수
-    └── stores/               # Zustand 스토어
+    ├── features/
+    │   ├── auth/             # 로그인·회원가입 폼
+    │   ├── dashboard/        # 대시보드
+    │   ├── organization/     # 조직 생성·수정
+    │   ├── workers/          # 인력 관리
+    │   ├── availability/     # 가능 시간 관리
+    │   ├── staffing-rules/   # 최소 인원 조건
+    │   ├── schedules/        # 스케줄 추천·조정·확정
+    │   └── schedule-history/ # 보관함
+    ├── lib/                  # 공통 유틸
+    └── global.d.ts
 ```
 
 ## 주요 규칙

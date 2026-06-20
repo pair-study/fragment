@@ -24,25 +24,30 @@ MVP에서는 운영 웹이 소비하는 인증, 단일 조직 관리, 인력 관
 ```
 # apps/api/
 ├── src/
-│   ├── auth/             # 회원가입, 로그인, JWT 발급/검증
-│   ├── organization/    # 단일 조직 생성·조회·수정
-│   ├── workers/          # 인력 생성·수정·소프트 삭제
-│   ├── availability/     # 인력별 가능 시간 저장·조회
-│   ├── staffing-rules/   # 요일·시간대별 최소 인원 조건
-│   ├── schedules/        # DRAFT 추천 생성, 수동 조정, 확정
-│   ├── schedule-history/ # 확정 스케줄 조회, CSV export
-│   └── common/           # 공통 미들웨어, 에러 핸들러, 유틸
-└── test/                 # E2E 테스트
+│   ├── app.ts            # Express 앱 설정
+│   └── main.ts           # 서버 엔트리포인트
 
 # packages/database/       ← apps/api와 동일 레벨, 별도 패키지
 ├── prisma/
-│   ├── schema.prisma
-│   ├── migrations/
-│   └── seed.ts
+│   └── schema.prisma
 ├── src/
 │   ├── prisma.ts
 │   └── index.ts
 └── package.json
+```
+
+API 도메인 구현이 추가되면 `src/` 아래에 도메인 단위 디렉터리를 생성합니다.
+
+```txt
+src/
+├── auth/
+├── organization/
+├── workers/
+├── availability/
+├── staffing-rules/
+├── schedules/
+├── schedule-history/
+└── common/
 ```
 
 ## 주요 규칙

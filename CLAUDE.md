@@ -37,7 +37,7 @@ final-project/
 ├── packages/
 │   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
 │   └── database/     # Prisma 스키마·마이그레이션·클라이언트 헬퍼 (@ilgam/database)
-└── docs/             # PRD, 기능 명세, 기술 스택 정의서, 아키텍처 결정 기록 등
+└── docs/             # PRD, 기능 명세, 기술 스택 정의서, 디자인 참고 문서, ADR 등
 ```
 
 **패키지 역할 구분**
