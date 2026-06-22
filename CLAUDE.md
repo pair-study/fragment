@@ -44,7 +44,7 @@ final-project/
 
 **패키지 역할 구분**
 
-- `packages/database` — Prisma schema, migrations, seed, Prisma client helper 전담. `apps/api`는 여기서 export하는 `prisma` 또는 `createPrismaClient`를 사용한다.
+- `packages/database` — Prisma schema, migrations, seed, Prisma client helper 전담. `apps/api`는 여기서 export하는 `createPrismaClient()`로 앱 시작점에서 Prisma client를 생성하고 app/router/service에 주입한다. `prisma` singleton 직접 import는 금지한다.
 - `packages/shared` — 웹·API가 공유하는 Zod 스키마, API 요청·응답 타입, 순수 유틸. 공유가 필요한 타입은 `packages/shared/src/index.ts`에서 export한다.
 
 ---

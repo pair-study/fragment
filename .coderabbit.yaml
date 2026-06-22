@@ -74,7 +74,9 @@ reviews:
 
         [Prisma 사용]
         - apps/api 내부에 Prisma 관련 파일(schema, migration, seed) 직접 생성 금지
-        - packages/database에서 export하는 `prisma` 또는 `createPrismaClient` 사용
+        - apps/api에서는 packages/database에서 export하는 `createPrismaClient()`만 사용
+        - `prisma` singleton 직접 import/use 금지
+        - 앱 시작점에서 `createPrismaClient()`로 client를 생성하고 app/router/service에 주입
         - Prisma 생성 타입을 그대로 사용; 별도 타입 재정의 금지
         - 스키마/마이그레이션 변경은 packages/database에서 관리
 
