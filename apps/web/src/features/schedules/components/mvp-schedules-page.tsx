@@ -428,9 +428,6 @@ export function MvpSchedulesPage() {
                 <div className="flex items-center gap-2">
                   <CalendarDays className="size-5 text-muted-foreground" aria-hidden="true" />
                   <h2 className="text-base font-semibold text-foreground">근무 기간 달력</h2>
-                  <Badge variant={scheduleStatus === "CONFIRMED" ? "brand-weak" : "neutral-weak"}>
-                    {getStatusLabel(scheduleStatus)}
-                  </Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {RECOMMENDATION_WORK_START_DATE}~{RECOMMENDATION_WORK_END_DATE} 추천 결과를
@@ -441,8 +438,8 @@ export function MvpSchedulesPage() {
           </div>
 
           {calendarDates.length > 0 ? (
-            <div className="p-6">
-              <div className="grid grid-cols-7 border-l border-t border-border">
+            <div className="overflow-x-auto p-6">
+              <div className="grid min-w-3xl grid-cols-7 border-l border-t border-border">
                 {WEEKDAY_LABELS.map((weekday) => (
                   <div
                     key={weekday}
