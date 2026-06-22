@@ -1,6 +1,6 @@
 # Swagger / OpenAPI Plan
 
-이 문서는 일감 MVP의 Swagger UI 도입 범위와 작업 규칙을 정의합니다.
+이 문서는 프래그먼트 MVP의 Swagger UI 도입 범위와 작업 규칙을 정의합니다.
 
 ## Decision
 
@@ -56,8 +56,8 @@ feature/api-swagger-docs
 `apps/api`에 추가할 패키지:
 
 ```bash
-pnpm --filter @ilgam/api add swagger-ui-express yaml
-pnpm --filter @ilgam/api add -D @types/swagger-ui-express
+pnpm --filter @fragment/api add swagger-ui-express yaml
+pnpm --filter @fragment/api add -D @types/swagger-ui-express
 ```
 
 역할:

@@ -1,6 +1,6 @@
 # API Contract
 
-이 문서는 일감 MVP 운영 웹이 사용하는 REST API 계약입니다. 상세 구현 전 프론트엔드와 백엔드가 공유하는 기준으로 사용합니다.
+이 문서는 프래그먼트 MVP 운영 웹이 사용하는 REST API 계약입니다. 상세 구현 전 프론트엔드와 백엔드가 공유하는 기준으로 사용합니다.
 
 ## Common
 
@@ -144,7 +144,7 @@ Response `200`:
   },
   "organization": {
     "id": "1",
-    "name": "일감 카페"
+    "name": "프래그먼트 카페"
   }
 }
 ```
@@ -159,7 +159,7 @@ Request:
 
 ```json
 {
-  "name": "일감 카페",
+  "name": "프래그먼트 카페",
   "businessHours": [
     {
       "dayOfWeek": "MONDAY",
@@ -184,7 +184,7 @@ Request:
 
 ```json
 {
-  "name": "일감 본점",
+  "name": "프래그먼트 본점",
   "businessHours": [
     {
       "dayOfWeek": "MONDAY",
@@ -502,7 +502,7 @@ Response `200`:
 {
   "organization": {
     "id": "1",
-    "name": "일감 카페"
+    "name": "프래그먼트 카페"
   },
   "latestConfirmedSchedule": null
 }

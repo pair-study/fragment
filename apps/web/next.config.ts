@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@ilgam/shared"],
+  transpilePackages: ["@fragment/shared"],
 };
 
 export default nextConfig;

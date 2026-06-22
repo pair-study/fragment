@@ -115,14 +115,14 @@ src/
 ## 개발 실행
 
 ```bash
-pnpm --filter @ilgam/api start:dev   # http://localhost:3001 (watch 모드)
-pnpm --filter @ilgam/api build
-pnpm --filter @ilgam/api lint
+pnpm --filter @fragment/api start:dev   # http://localhost:3001 (watch 모드)
+pnpm --filter @fragment/api build
+pnpm --filter @fragment/api lint
 
 # Prisma (packages/database에서 실행)
-pnpm --filter @ilgam/database db:migrate  # prisma migrate dev
-pnpm --filter @ilgam/database db:studio   # Prisma Studio (DB GUI)
-pnpm --filter @ilgam/database db:seed     # 시드 데이터 삽입
+pnpm --filter @fragment/database db:migrate  # prisma migrate dev
+pnpm --filter @fragment/database db:studio   # Prisma Studio (DB GUI)
+pnpm --filter @fragment/database db:seed     # 시드 데이터 삽입
 ```
 
 ## 환경 변수 (.env.example)
@@ -132,7 +132,7 @@ pnpm --filter @ilgam/database db:seed     # 시드 데이터 삽입
 
 ```
 # packages/database/.env
-DATABASE_URL=postgresql://user:password@localhost:5432/ilgam
+DATABASE_URL=postgresql://user:password@localhost:5432/fragment
 
 # apps/api/.env
 JWT_ACCESS_SECRET=

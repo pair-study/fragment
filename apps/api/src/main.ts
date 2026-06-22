@@ -1,4 +1,4 @@
-import { prisma } from "@ilgam/database";
+import { prisma } from "@fragment/database";
 import { createApp } from "./app";
 
 const app = createApp();

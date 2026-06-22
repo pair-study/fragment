@@ -1,6 +1,6 @@
 # ERD
 
-이 문서는 일감 MVP의 데이터 모델 기준입니다. Mermaid ERD는 논리 모델을 표현하고, 실제 구현 제약은 Prisma schema에서 보장합니다.
+이 문서는 프래그먼트 MVP의 데이터 모델 기준입니다. Mermaid ERD는 논리 모델을 표현하고, 실제 구현 제약은 Prisma schema에서 보장합니다.
 
 ## Diagram
 

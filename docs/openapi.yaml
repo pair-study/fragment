@@ -1,7 +1,7 @@
 openapi: 3.1.0
 
 info:
-  title: 일감 API
+  title: 프래그먼트 API
   version: 0.1.0
   description: 단일 조직 스케줄 운영 SaaS MVP API
 
@@ -382,7 +382,7 @@ components:
           example: "1"
         name:
           type: string
-          example: 일감 카페
+          example: 프래그먼트 카페
 
     OrganizationBusinessHour:
       type: object
@@ -437,7 +437,7 @@ components:
       properties:
         name:
           type: string
-          example: 일감 카페
+          example: 프래그먼트 카페
         businessHours:
           type: array
           minItems: 1
@@ -449,7 +449,7 @@ components:
       properties:
         name:
           type: string
-          example: 일감 본점
+          example: 프래그먼트 본점
         businessHours:
           type: array
           minItems: 1

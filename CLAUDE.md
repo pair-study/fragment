@@ -37,8 +37,8 @@ final-project/
 │   ├── web/          # Next.js — 운영 웹 (반응형)
 │   └── api/          # Express — 백엔드 API 서버
 ├── packages/
-│   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
-│   └── database/     # Prisma 스키마·마이그레이션·클라이언트 헬퍼 (@ilgam/database)
+│   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@fragment/shared)
+│   └── database/     # Prisma 스키마·마이그레이션·클라이언트 헬퍼 (@fragment/database)
 └── docs/             # PRD, 기능 명세, 기술 스택 정의서, 디자인 참고 문서, ADR 등
 ```
 
