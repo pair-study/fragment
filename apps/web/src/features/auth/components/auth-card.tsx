@@ -14,7 +14,7 @@ export function AuthCard({ children, className }: AuthCardProps) {
   return (
     <Card className={cn("w-full max-w-lg", className)}>
       <CardContent className="p-8 sm:p-10">
-        <AuthBrand className="mb-8" />
+        <AuthBrand className="mb-8 lg:hidden" />
         {children}
       </CardContent>
     </Card>
