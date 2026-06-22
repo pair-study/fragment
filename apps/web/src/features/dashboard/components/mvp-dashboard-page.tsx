@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Badge, Button } from "@moyeorak/design-system";
+import { Button } from "@moyeorak/design-system";
 import { Download, Store } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
@@ -20,7 +20,6 @@ const dashboardSummary = {
   operationHours: "09:00 - 22:00",
   closedDays: "매주 일요일",
   scheduleRange: "2026-06-20 ~ 2026-07-05",
-  scheduleStatus: "CONFIRMED",
   confirmedScheduleCount: 20,
 };
 
@@ -152,7 +151,6 @@ export function MvpDashboardPage() {
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-base font-semibold text-foreground">확정 스케줄 달력</h2>
-              <Badge variant="neutral-weak">{dashboardSummary.scheduleStatus}</Badge>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{dashboardSummary.scheduleRange}</p>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -168,8 +166,8 @@ export function MvpDashboardPage() {
             CSV export
           </Button>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-7 border-l border-t border-border">
+        <div className="overflow-x-auto p-6">
+          <div className="grid min-w-3xl grid-cols-7 border-l border-t border-border">
             {WEEKDAY_LABELS.map((weekday) => (
               <div
                 key={weekday}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, Button } from "@moyeorak/design-system";
+import { Button } from "@moyeorak/design-system";
 import { Download } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 type ConfirmedSchedule = {
   id: string;
@@ -188,110 +187,83 @@ export function MvpScheduleHistoryPage() {
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
-      <section className="grid gap-6 xl:grid-cols-[320px_1fr]">
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-          <div className="border-b border-border px-5 py-4">
-            <h2 className="text-base font-semibold text-foreground">확정 이력</h2>
-            <p className="mt-1 text-sm text-muted-foreground">확인할 근무 기간을 선택하세요.</p>
+      <section className="space-y-6">
+        {exportMessage ? (
+          <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
+            {exportMessage}
           </div>
+        ) : null}
 
-          <div className="grid gap-3 border-b border-border px-5 py-4 sm:grid-cols-2 xl:grid-cols-1">
-            <Select
-              value={selectedYear}
-              onValueChange={(value) => {
-                setSelectedYear(value);
-                setSelectedMonth("ALL");
-                setExportMessage("");
-              }}
-            >
-              <SelectTrigger aria-label="이력 연도 선택">
-                <SelectValue placeholder="연도 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {historyYears.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}년
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={selectedMonth}
-              onValueChange={(value) => {
-                setSelectedMonth(value);
-                setExportMessage("");
-              }}
-            >
-              <SelectTrigger aria-label="이력 월 선택">
-                <SelectValue placeholder="월 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">전체 월</SelectItem>
-                {historyMonths.map((month) => (
-                  <SelectItem key={month} value={month}>
-                    {Number(month)}월
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="divide-y divide-border">
-            {filteredHistories.map((history) => {
-              const selected = history.id === selectedHistory.id;
-
-              return (
-                <button
-                  key={history.id}
-                  type="button"
-                  className={cn(
-                    "block w-full px-5 py-4 text-left transition-colors",
-                    selected ? "bg-accent" : "bg-card hover:bg-accent/60",
-                  )}
-                  onClick={() => {
-                    setSelectedHistoryId(history.id);
-                    setExportMessage("");
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-foreground">{history.period}</p>
-                    {selected ? <Badge variant="neutral-weak">선택됨</Badge> : null}
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">확정일 {history.confirmedAt}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {history.scheduleCount}개 배정
-                  </p>
-                </button>
-              );
-            })}
-            {filteredHistories.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-muted-foreground">
-                선택한 기간에 확정된 스케줄 이력이 없습니다.
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {exportMessage ? (
-            <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
-              {exportMessage}
-            </div>
-          ) : null}
-
-          <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-            <div className="flex flex-col gap-4 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-base font-semibold text-foreground">읽기 모드 달력</h2>
-                  <Badge variant="neutral-weak">CONFIRMED</Badge>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">{selectedHistory.period}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  확정일 {selectedHistory.confirmedAt} · 총 {selectedHistory.scheduleCount}개 배정
-                </p>
+        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+          <div className="flex flex-col gap-4 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-base font-semibold text-foreground">읽기 모드 달력</h2>
               </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                확정일 {selectedHistory.confirmedAt} · 총 {selectedHistory.scheduleCount}개 배정
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[7rem_7rem_15rem_auto]">
+              <Select
+                value={selectedYear}
+                onValueChange={(value) => {
+                  setSelectedYear(value);
+                  setSelectedMonth("ALL");
+                  setExportMessage("");
+                }}
+              >
+                <SelectTrigger aria-label="이력 연도 선택">
+                  <SelectValue placeholder="연도 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {historyYears.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}년
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedMonth}
+                onValueChange={(value) => {
+                  setSelectedMonth(value);
+                  setExportMessage("");
+                }}
+              >
+                <SelectTrigger aria-label="이력 월 선택">
+                  <SelectValue placeholder="월 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">전체 월</SelectItem>
+                  {historyMonths.map((month) => (
+                    <SelectItem key={month} value={month}>
+                      {Number(month)}월
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedHistory.id}
+                onValueChange={(value) => {
+                  setSelectedHistoryId(value);
+                  setExportMessage("");
+                }}
+              >
+                <SelectTrigger aria-label="확정 이력 선택">
+                  <SelectValue placeholder="확정 이력 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredHistories.map((history) => (
+                    <SelectItem key={history.id} value={history.id}>
+                      {history.period}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Button
                 type="button"
                 variant="brand"
@@ -303,59 +275,59 @@ export function MvpScheduleHistoryPage() {
                 CSV export
               </Button>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-7 border-l border-t border-border">
-                {WEEKDAY_LABELS.map((weekday) => (
+          </div>
+          <div className="overflow-x-auto p-6">
+            <div className="grid min-w-3xl grid-cols-7 border-l border-t border-border">
+              {WEEKDAY_LABELS.map((weekday) => (
+                <div
+                  key={weekday}
+                  className="border-b border-r border-border bg-surface-secondary px-3 py-2 text-center text-xs font-semibold text-muted-foreground"
+                >
+                  {weekday}
+                </div>
+              ))}
+
+              {calendarDates.map((date) => {
+                const inRange =
+                  date >= selectedHistory.startDate && date <= selectedHistory.endDate;
+                const dateSchedules = selectedHistory.schedules.filter(
+                  (schedule) => schedule.date === date,
+                );
+
+                return (
                   <div
-                    key={weekday}
-                    className="border-b border-r border-border bg-surface-secondary px-3 py-2 text-center text-xs font-semibold text-muted-foreground"
+                    key={date}
+                    className={
+                      inRange
+                        ? "min-h-36 border-b border-r border-border bg-card p-3"
+                        : "min-h-36 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
+                    }
                   >
-                    {weekday}
-                  </div>
-                ))}
-
-                {calendarDates.map((date) => {
-                  const inRange =
-                    date >= selectedHistory.startDate && date <= selectedHistory.endDate;
-                  const dateSchedules = selectedHistory.schedules.filter(
-                    (schedule) => schedule.date === date,
-                  );
-
-                  return (
-                    <div
-                      key={date}
-                      className={
-                        inRange
-                          ? "min-h-36 border-b border-r border-border bg-card p-3"
-                          : "min-h-36 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
-                      }
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
-                        {inRange ? (
-                          <span className="text-xs text-muted-foreground">
-                            {dateSchedules.length}명
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-3 space-y-1">
-                        {dateSchedules.map((schedule) => (
-                          <p
-                            key={schedule.id}
-                            className="truncate text-xs font-medium text-foreground"
-                          >
-                            {schedule.startTime}-{schedule.endTime} {schedule.workerName}
-                          </p>
-                        ))}
-                      </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
+                      {inRange ? (
+                        <span className="text-xs text-muted-foreground">
+                          {dateSchedules.length}명
+                        </span>
+                      ) : null}
                     </div>
-                  );
-                })}
-              </div>
+
+                    <div className="mt-3 space-y-1">
+                      {dateSchedules.map((schedule) => (
+                        <p
+                          key={schedule.id}
+                          className="truncate text-xs font-medium text-foreground"
+                        >
+                          {schedule.startTime}-{schedule.endTime} {schedule.workerName}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </section>
     </AdminPageShell>
   );
