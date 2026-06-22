@@ -61,7 +61,10 @@ src/
 ### Prisma 사용 규칙
 
 - Prisma schema, migrations, client helper, `seed.ts`는 모두 **`packages/database`에서 관리**합니다. `apps/api`에 Prisma 관련 파일을 직접 두지 않습니다.
-- `apps/api`에서는 `packages/database`가 export하는 `prisma` 또는 `createPrismaClient`를 사용합니다.
+- `apps/api`에서는 `packages/database`가 export하는 `createPrismaClient()`만 사용합니다.
+- `prisma` singleton 직접 import/use는 금지합니다.
+- 앱 시작점에서 `createPrismaClient()`로 Prisma client를 한 번 생성하고, `createApp({ prisma })` 형태로 app/router/service에 주입합니다.
+- 테스트에서는 실제 client 대신 mock/fake Prisma client를 주입할 수 있게 구현합니다.
 - 쿼리 결과 타입은 Prisma가 생성하는 타입을 활용합니다. 별도로 타입을 재정의하지 않습니다.
 - 마이그레이션은 `packages/database`에서 `prisma migrate dev`로 생성하고, 파일명에 목적을 명확히 기재합니다.
 
@@ -115,14 +118,14 @@ src/
 ## 개발 실행
 
 ```bash
-pnpm --filter @ilgam/api start:dev   # http://localhost:3001 (watch 모드)
-pnpm --filter @ilgam/api build
-pnpm --filter @ilgam/api lint
+pnpm --filter @fragment/api start:dev   # http://localhost:3001 (watch 모드)
+pnpm --filter @fragment/api build
+pnpm --filter @fragment/api lint
 
 # Prisma (packages/database에서 실행)
-pnpm --filter @ilgam/database db:migrate  # prisma migrate dev
-pnpm --filter @ilgam/database db:studio   # Prisma Studio (DB GUI)
-pnpm --filter @ilgam/database db:seed     # 시드 데이터 삽입
+pnpm --filter @fragment/database db:migrate  # prisma migrate dev
+pnpm --filter @fragment/database db:studio   # Prisma Studio (DB GUI)
+pnpm --filter @fragment/database db:seed     # 시드 데이터 삽입
 ```
 
 ## 환경 변수 (.env.example)
@@ -132,7 +135,7 @@ pnpm --filter @ilgam/database db:seed     # 시드 데이터 삽입
 
 ```
 # packages/database/.env
-DATABASE_URL=postgresql://user:password@localhost:5432/ilgam
+DATABASE_URL=postgresql://user:password@localhost:5432/fragment
 
 # apps/api/.env
 JWT_ACCESS_SECRET=

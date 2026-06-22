@@ -88,12 +88,12 @@
   --status-unprocessed-subtle: #f3f4f6;
 
   --radius: 0.5rem;
-  --ilgam-radius-xs: 0.25rem;
-  --ilgam-radius-sm: 0.375rem;
-  --ilgam-radius-md: 0.5rem;
-  --ilgam-radius-lg: 0.75rem;
-  --ilgam-radius-xl: 1rem;
-  --ilgam-radius-2xl: 1.25rem;
+  --fragment-radius-xs: 0.25rem;
+  --fragment-radius-sm: 0.375rem;
+  --fragment-radius-md: 0.5rem;
+  --fragment-radius-lg: 0.75rem;
+  --fragment-radius-xl: 1rem;
+  --fragment-radius-2xl: 1.25rem;
 
   --elev-card: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.06);
   --elev-dropdown: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
@@ -155,12 +155,12 @@
   --color-status-unprocessed: var(--status-unprocessed);
   --color-status-unprocessed-subtle: var(--status-unprocessed-subtle);
 
-  --radius-xs: var(--ilgam-radius-xs);
-  --radius-sm: var(--ilgam-radius-sm);
-  --radius-md: var(--ilgam-radius-md);
-  --radius-lg: var(--ilgam-radius-lg);
-  --radius-xl: var(--ilgam-radius-xl);
-  --radius-2xl: var(--ilgam-radius-2xl);
+  --radius-xs: var(--fragment-radius-xs);
+  --radius-sm: var(--fragment-radius-sm);
+  --radius-md: var(--fragment-radius-md);
+  --radius-lg: var(--fragment-radius-lg);
+  --radius-xl: var(--fragment-radius-xl);
+  --radius-2xl: var(--fragment-radius-2xl);
 
   --shadow-card: var(--elev-card);
   --shadow-dropdown: var(--elev-dropdown);

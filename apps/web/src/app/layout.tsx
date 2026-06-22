@@ -3,8 +3,8 @@ import "./globals.css";
 import "@moyeorak/design-system/dist/style.css";
 
 export const metadata: Metadata = {
-  title: "일감 관리자",
-  description: "근무 스케줄 편성과 급여 정산을 자동화하는 관리자 웹",
+  title: "프래그먼트",
+  description: "근무 스케줄 편성과 확정 이력 관리를 돕는 도구",
 };
 
 export default function RootLayout({

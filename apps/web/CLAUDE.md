@@ -2,7 +2,7 @@
 
 ## 역할 및 범위
 
-**스케줄 운영 전용 웹 애플리케이션**입니다.
+**근무 스케줄 관리 전용 웹 애플리케이션**입니다.
 MVP에서는 회원가입/로그인, 단일 조직 생성·수정, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·조정·확정, 확정 스케줄 보관함 조회/export를 담당합니다.
 
 MVP 범위에서는 별도 앱을 제공하지 않으므로, 운영 웹은 모바일·태블릿·데스크탑에서 사용할 수 있는 반응형 화면으로 구현합니다.
@@ -100,7 +100,7 @@ MVP 화면은 아래 우선순위를 적용합니다.
 
 `@moyeorak/design-system`:
 
-- npm 패키지로 설치합니다(`pnpm add @moyeorak/design-system --filter @ilgam/web`). 소스를 복사하지 않습니다.
+- npm 패키지로 설치합니다(`pnpm add @moyeorak/design-system --filter @fragment/web`). 소스를 복사하지 않습니다.
 - 컴포넌트는 패키지에서 직접 import합니다. 커스터마이징이 필요하면 패키지 자체를 수정(별도 레포)하거나, 불가피한 경우에만 `components/common/`에서 한 번 감쌉니다.
 - 루트 레이아웃(`src/app/layout.tsx`)에서 `@moyeorak/design-system/dist/style.css`를 전역 import합니다.
 - 패키지의 CSS는 Panda CSS 기반 자체 디자인 토큰을 쓰므로, shadcn/Tailwind 토큰(`--primary`, `--foreground` 등)과 색상·spacing이 동일하지 않습니다. 한 화면에 섞어 쓸 때 시각적으로 어긋나지 않는지 확인합니다.
@@ -134,7 +134,7 @@ shadcn/ui (보조):
 ## 개발 서버
 
 ```bash
-pnpm --filter @ilgam/web dev    # http://localhost:3000
-pnpm --filter @ilgam/web build
-pnpm --filter @ilgam/web lint
+pnpm --filter @fragment/web dev    # http://localhost:3000
+pnpm --filter @fragment/web build
+pnpm --filter @fragment/web lint
 ```

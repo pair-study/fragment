@@ -1,5 +1,5 @@
 {
-  "name": "final-project",
+  "name": "fragment",
   "private": true,
   "packageManager": "pnpm@10.34.1",
   "engines": {
@@ -14,16 +14,16 @@
     ]
   },
   "scripts": {
-    "dev": "pnpm --filter @ilgam/web dev",
-    "dev:api": "pnpm --filter @ilgam/database build && pnpm --filter @ilgam/api dev",
-    "dev:all": "pnpm --filter @ilgam/database build && pnpm --parallel --filter @ilgam/web --filter @ilgam/api dev",
-    "build": "pnpm --filter @ilgam/web build",
-    "build:api": "pnpm --filter @ilgam/api build",
-    "db:generate": "pnpm --filter @ilgam/database db:generate",
-    "db:migrate": "pnpm --filter @ilgam/database db:migrate",
-    "db:push": "pnpm --filter @ilgam/database db:push",
-    "db:studio": "pnpm --filter @ilgam/database db:studio",
-    "db:reset": "pnpm --filter @ilgam/database db:reset",
+    "dev": "pnpm --filter @fragment/web dev",
+    "dev:api": "pnpm --filter @fragment/database build && pnpm --filter @fragment/api dev",
+    "dev:all": "pnpm --filter @fragment/database build && pnpm --parallel --filter @fragment/web --filter @fragment/api dev",
+    "build": "pnpm --filter @fragment/web build",
+    "build:api": "pnpm --filter @fragment/api build",
+    "db:generate": "pnpm --filter @fragment/database db:generate",
+    "db:migrate": "pnpm --filter @fragment/database db:migrate",
+    "db:push": "pnpm --filter @fragment/database db:push",
+    "db:studio": "pnpm --filter @fragment/database db:studio",
+    "db:reset": "pnpm --filter @fragment/database db:reset",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "prepare": "husky"

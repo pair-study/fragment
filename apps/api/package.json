@@ -1,5 +1,5 @@
 {
-  "name": "@ilgam/api",
+  "name": "@fragment/api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ilgam/database": "workspace:*",
+    "@fragment/database": "workspace:*",
     "cors": "^2.8.5",
     "express": "^5.1.0"
   },

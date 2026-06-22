@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-단일 조직의 인력 정보, 가능 시간, 최소 인원 조건을 기반으로 스케줄 초안을 추천하고, 조정·확정·보관까지 지원하는 스케줄 운영 SaaS MVP입니다.
+단일 조직의 인력 정보, 가능 시간, 최소 인원 조건을 기반으로 스케줄 초안을 추천하고, 조정·확정·보관까지 지원하는 근무 스케줄 관리 도구 MVP입니다.
 
 - **운영 웹 (`apps/web`)**: 회원가입/로그인, 단일 조직 생성·수정, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·조정·확정, 확정 스케줄 보관함 조회/export. MVP에서는 별도 앱 없이 웹이 전체 사용자 화면을 담당하므로 반응형으로 구현한다.
 - **백엔드 API (`apps/api`)**: 인증, 단일 조직 관리, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·확정·조회 API
@@ -37,14 +37,14 @@ final-project/
 │   ├── web/          # Next.js — 운영 웹 (반응형)
 │   └── api/          # Express — 백엔드 API 서버
 ├── packages/
-│   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
-│   └── database/     # Prisma 스키마·마이그레이션·클라이언트 헬퍼 (@ilgam/database)
+│   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@fragment/shared)
+│   └── database/     # Prisma 스키마·마이그레이션·클라이언트 헬퍼 (@fragment/database)
 └── docs/             # PRD, 기능 명세, 기술 스택 정의서, 디자인 참고 문서, ADR 등
 ```
 
 **패키지 역할 구분**
 
-- `packages/database` — Prisma schema, migrations, seed, Prisma client helper 전담. `apps/api`는 여기서 export하는 `prisma` 또는 `createPrismaClient`를 사용한다.
+- `packages/database` — Prisma schema, migrations, seed, Prisma client helper 전담. `apps/api`는 여기서 export하는 `createPrismaClient()`로 앱 시작점에서 Prisma client를 생성하고 app/router/service에 주입한다. `prisma` singleton 직접 import는 금지한다.
 - `packages/shared` — 웹·API가 공유하는 Zod 스키마, API 요청·응답 타입, 순수 유틸. 공유가 필요한 타입은 `packages/shared/src/index.ts`에서 export한다.
 
 ---
