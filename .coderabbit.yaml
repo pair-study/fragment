@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 language: "ko-KR"
-tone_instructions: "일감 MVP의 PRD/SPEC/stack 문서를 기준으로 구체적이고 실행 가능한 피드백을 제공하세요. 제품 범위 밖 확장 요구는 지양하고, 단일 조직 스케줄 운영 흐름과 프로젝트 컨벤션 위반을 명확하게 지적하세요."
+tone_instructions: "프래그먼트 MVP의 PRD/SPEC/stack 문서를 기준으로 구체적이고 실행 가능한 피드백을 제공하세요. 제품 범위 밖 확장 요구는 지양하고, 단일 조직 근무 스케줄 관리 흐름과 프로젝트 컨벤션 위반을 명확하게 지적하세요."
 early_access: false
 
 reviews:
@@ -212,7 +212,7 @@ reviews:
       instructions: |
         시드 파일 리뷰 기준:
         - 개발/테스트 전용 데이터만 포함; 실제 사용자 데이터 포함 금지
-        - 일감 MVP의 단일 조직/인력/가능 시간/최소 인원 조건/샘플 스케줄 도메인과 맞는 데이터만 포함
+        - 프래그먼트 MVP의 단일 조직/인력/가능 시간/최소 인원 조건/샘플 스케줄 도메인과 맞는 데이터만 포함
         - upsert 사용으로 멱등성 보장 여부 확인 (중복 실행 안전)
 
   tools:

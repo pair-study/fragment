@@ -3,7 +3,7 @@ openapi: 3.1.0
 info:
   title: 프래그먼트 API
   version: 0.1.0
-  description: 단일 조직 스케줄 운영 SaaS MVP API
+  description: 단일 조직 근무 스케줄 관리 도구 MVP API
 
 servers:
   - url: http://localhost:3001/api
