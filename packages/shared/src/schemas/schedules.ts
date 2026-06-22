@@ -13,7 +13,7 @@ import {
 export const scheduleAssignmentSchema = z.object({
   id: idSchema,
   scheduleId: idSchema,
-  workerId: idSchema,
+  workerId: idSchema.nullable(),
   workDate: dateSchema,
   startsAt: dateTimeSchema,
   endsAt: dateTimeSchema,
