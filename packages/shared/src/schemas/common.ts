@@ -30,6 +30,12 @@ export const dateTimeSchema = z.string().datetime({ offset: true });
 export const isDateTimeBefore = (startDateTime: string, endDateTime: string) =>
   Date.parse(startDateTime) < Date.parse(endDateTime);
 
+export const isDateTimeOnThirtyMinuteBoundary = (dateTime: string) => {
+  const minute = Number(dateTime.match(/T\d{2}:(\d{2})/)?.[1]);
+
+  return minute === 0 || minute === 30;
+};
+
 export const dayOfWeekSchema = z.enum(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]);
 
 export const scheduleStatusSchema = z.enum(["DRAFT", "CONFIRMED"]);

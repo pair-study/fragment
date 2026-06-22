@@ -6,6 +6,7 @@ import {
   dateTimeSchema,
   idSchema,
   isDateTimeBefore,
+  isDateTimeOnThirtyMinuteBoundary,
 } from "./common";
 
 export const availabilitySchema = z.object({
@@ -21,6 +22,23 @@ export const availabilityInputSchema = availabilitySchema
   .refine((value) => isDateTimeBefore(value.startsAt, value.endsAt), {
     message: "종료 시각은 시작 시각보다 늦어야 합니다.",
     path: ["endsAt"],
+  })
+  .superRefine((value, context) => {
+    if (!isDateTimeOnThirtyMinuteBoundary(value.startsAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "시작 시각은 30분 단위여야 합니다.",
+        path: ["startsAt"],
+      });
+    }
+
+    if (!isDateTimeOnThirtyMinuteBoundary(value.endsAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "종료 시각은 30분 단위여야 합니다.",
+        path: ["endsAt"],
+      });
+    }
   });
 
 export const availabilityQuerySchema = dateRangeBaseSchema
