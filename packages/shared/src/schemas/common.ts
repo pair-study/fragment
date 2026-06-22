@@ -2,11 +2,28 @@ import { z } from "zod";
 
 export const idSchema = z.string().regex(/^\d+$/, "ID는 숫자 문자열이어야 합니다.");
 
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const isValidDate = (value: string) => {
+  if (!datePattern.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+};
+
 export const dateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "날짜는 YYYY-MM-DD 형식이어야 합니다.");
+  .regex(datePattern, "날짜는 YYYY-MM-DD 형식이어야 합니다.")
+  .refine(isValidDate, "유효한 날짜여야 합니다.");
 
-export const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "시간은 HH:mm 형식이어야 합니다.");
+export const timeSchema = z.string().regex(timePattern, "시간은 HH:mm 형식이어야 합니다.");
 
 export const dateTimeSchema = z.string().datetime({ offset: true });
 
