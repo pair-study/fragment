@@ -10,6 +10,9 @@ export const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "시간은 HH:mm 형
 
 export const dateTimeSchema = z.string().datetime({ offset: true });
 
+export const isDateTimeBefore = (startDateTime: string, endDateTime: string) =>
+  Date.parse(startDateTime) < Date.parse(endDateTime);
+
 export const dayOfWeekSchema = z.enum(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]);
 
 export const scheduleStatusSchema = z.enum(["DRAFT", "CONFIRMED"]);

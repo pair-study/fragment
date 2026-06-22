@@ -5,6 +5,7 @@ import {
   dateTimeSchema,
   dayOfWeekSchema,
   idSchema,
+  isDateTimeBefore,
   scheduleStatusSchema,
   timeSchema,
 } from "./common";
@@ -27,7 +28,7 @@ const scheduleAssignmentInputBaseSchema = z.object({
   endsAt: dateTimeSchema,
 });
 export const scheduleAssignmentInputSchema = scheduleAssignmentInputBaseSchema.refine(
-  (value) => value.startsAt < value.endsAt,
+  (value) => isDateTimeBefore(value.startsAt, value.endsAt),
   {
     message: "종료 시각은 시작 시각보다 늦어야 합니다.",
     path: ["endsAt"],

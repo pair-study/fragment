@@ -5,6 +5,7 @@ import {
   dateSchema,
   dateTimeSchema,
   idSchema,
+  isDateTimeBefore,
 } from "./common";
 
 export const availabilitySchema = z.object({
@@ -17,7 +18,7 @@ export const availabilitySchema = z.object({
 
 export const availabilityInputSchema = availabilitySchema
   .omit({ id: true, workerId: true })
-  .refine((value) => value.startsAt < value.endsAt, {
+  .refine((value) => isDateTimeBefore(value.startsAt, value.endsAt), {
     message: "종료 시각은 시작 시각보다 늦어야 합니다.",
     path: ["endsAt"],
   });
