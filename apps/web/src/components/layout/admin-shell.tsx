@@ -13,7 +13,7 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     <SidebarProvider>
       <AdminSidebar />
-      <SidebarInset className="flex min-h-dvh flex-col">
+      <SidebarInset className="flex min-h-dvh flex-col max-lg:pl-16">
         <div className="min-w-0 flex-1 bg-background">{children}</div>
       </SidebarInset>
     </SidebarProvider>

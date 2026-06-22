@@ -35,6 +35,18 @@ function SidebarProvider({
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
 
+  React.useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    const syncSidebar = () => {
+      setOpen(desktopQuery.matches ? defaultOpen : false);
+    };
+
+    syncSidebar();
+    desktopQuery.addEventListener("change", syncSidebar);
+
+    return () => desktopQuery.removeEventListener("change", syncSidebar);
+  }, [defaultOpen]);
+
   const toggleSidebar = React.useCallback(() => {
     setOpen((value) => !value);
   }, []);
@@ -71,6 +83,7 @@ function Sidebar({ className, ...props }: React.ComponentProps<"aside">) {
       data-state={open ? "expanded" : "collapsed"}
       className={cn(
         "group/sidebar sticky top-0 flex h-dvh w-(--layout-sidebar-width) shrink-0 flex-col border-r border-border bg-card text-foreground transition-[width] duration-200 ease-out",
+        "max-lg:fixed max-lg:left-0 max-lg:z-50 max-lg:shadow-modal",
         "data-[state=collapsed]:w-16",
         className,
       )}
