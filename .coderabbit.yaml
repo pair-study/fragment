@@ -303,7 +303,7 @@ reviews:
 
   finishing_touches:
     docstrings:
-      enabled: true
+      enabled: false
     unit_tests:
       enabled: true
 
@@ -332,10 +332,7 @@ knowledge_base:
 
 code_generation:
   docstrings:
-    language: "ko-KR"
-    path_instructions:
-      - path: "apps/api/src/**/*.ts"
-        instructions: "JSDoc 형식으로 작성. @param, @returns 태그 포함. 한국어로 작성."
+    enabled: false
   unit_tests:
     path_instructions:
       - path: "apps/api/src/**/*.ts"
