@@ -64,13 +64,13 @@ export const dateRangeBaseSchema = z.object({
   endDate: dateSchema,
 });
 
-export const dateRangeSchema = dateRangeBaseSchema.refine(
-  (value) => value.startDate <= value.endDate,
-  {
-    message: "종료 날짜는 시작 날짜보다 빠를 수 없습니다.",
-    path: ["endDate"],
-  },
-);
+export const isDateRangeOrdered = (value: { startDate: string; endDate: string }) =>
+  value.startDate <= value.endDate;
+
+export const dateRangeSchema = dateRangeBaseSchema.refine(isDateRangeOrdered, {
+  message: "종료 날짜는 시작 날짜보다 빠를 수 없습니다.",
+  path: ["endDate"],
+});
 
 export const idParamsSchema = z.object({
   id: idSchema,
