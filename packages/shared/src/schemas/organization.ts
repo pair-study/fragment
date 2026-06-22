@@ -102,9 +102,21 @@ export const organizationDetailSchema = organizationSummarySchema.extend({
   businessHours: z.array(organizationBusinessHourSchema),
 });
 
+const organizationBusinessHoursInputSchema = z
+  .array(organizationBusinessHourInputSchema)
+  .min(1)
+  .refine(
+    (businessHours) =>
+      new Set(businessHours.map((businessHour) => businessHour.dayOfWeek)).size ===
+      businessHours.length,
+    {
+      message: "요일별 운영 시간은 같은 요일을 중복 입력할 수 없습니다.",
+    },
+  );
+
 export const createOrganizationRequestSchema = z.object({
   name: z.string().min(1),
-  businessHours: z.array(organizationBusinessHourInputSchema).min(1),
+  businessHours: organizationBusinessHoursInputSchema,
 });
 
 export const updateOrganizationRequestSchema = createOrganizationRequestSchema
