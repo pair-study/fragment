@@ -42,6 +42,7 @@ model RefreshToken {
   expiresAt DateTime  @map("expires_at")
   revokedAt DateTime? @map("revoked_at")
   createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -195,6 +196,7 @@ model ScheduleWorkerShortage {
   assignedCount Int       @map("assigned_count")
   schedule      Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@index([scheduleId, workDate])
   @@map("schedule_worker_shortages")

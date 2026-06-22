@@ -38,6 +38,7 @@ erDiagram
         datetime expires_at
         datetime revoked_at
         datetime created_at
+        datetime updated_at
     }
 
     ORGANIZATIONS {
@@ -139,6 +140,7 @@ erDiagram
         int required_count
         int assigned_count
         datetime created_at
+        datetime updated_at
     }
 ```
 
