@@ -166,7 +166,7 @@ export function MvpWorkersPage() {
                   <th className="px-6 py-3">이름</th>
                   <th className="px-6 py-3">사번</th>
                   <th className="px-6 py-3">주간 계약 시간</th>
-                  <th className="px-6 py-3 text-right">액션</th>
+                  <th className="px-6 py-3 text-right"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

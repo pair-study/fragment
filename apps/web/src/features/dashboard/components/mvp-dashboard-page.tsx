@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@moyeorak/design-system";
-import { Download, Store } from "lucide-react";
+import { Download } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 
@@ -122,9 +122,6 @@ export function MvpDashboardPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-lg bg-surface-secondary text-muted-foreground">
-                <Store className="size-5" aria-hidden="true" />
-              </span>
               <h2 className="text-xl font-semibold text-foreground">
                 {dashboardSummary.organizationName}
               </h2>

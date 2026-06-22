@@ -480,9 +480,7 @@ export function MvpAvailabilityPage() {
                                 : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
                           )}
                           onClick={() => toggleSlot(date, time)}
-                        >
-                          {selected ? "가능" : ""}
-                        </button>
+                        ></button>
                       );
                     })}
                   </div>

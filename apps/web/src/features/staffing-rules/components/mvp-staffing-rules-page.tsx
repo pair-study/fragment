@@ -214,7 +214,7 @@ export function MvpStaffingRulesPage() {
                   <th className="px-6 py-3">시작 시간</th>
                   <th className="px-6 py-3">종료 시간</th>
                   <th className="px-6 py-3">최소 인원</th>
-                  <th className="px-6 py-3 text-right">액션</th>
+                  <th className="px-6 py-3 text-right"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
