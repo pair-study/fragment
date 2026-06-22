@@ -58,6 +58,8 @@ DB의 PK는 `bigint`이지만 JSON 응답에서는 모든 ID를 문자열로 전
 
 ### POST /auth/signup
 
+**Auth:** None
+
 회원가입 후 로그인 상태로 전환합니다.
 
 Request:
@@ -86,6 +88,8 @@ Response `201`:
 
 ### POST /auth/login
 
+**Auth:** None
+
 Request:
 
 ```json
@@ -110,11 +114,15 @@ Response `200`:
 
 ### POST /auth/logout
 
+**Auth:** Refresh cookie
+
 현재 refresh token을 폐기합니다.
 
 Response `204`: body 없음
 
 ### POST /auth/refresh
+
+**Auth:** Refresh cookie
 
 Refresh token cookie로 access token과 refresh token을 갱신합니다.
 
@@ -132,6 +140,8 @@ Response `200`:
 ```
 
 ### GET /auth/me
+
+**Auth:** Bearer token
 
 Response `200`:
 
@@ -152,6 +162,8 @@ Response `200`:
 ## Organization
 
 ### POST /organization
+
+**Auth:** Bearer token
 
 단일 조직을 생성합니다. 이미 조직이 있으면 `ORGANIZATION_ALREADY_EXISTS`를 반환합니다.
 
@@ -176,9 +188,13 @@ Response `201`: `OrganizationDetail`
 
 ### GET /organization
 
+**Auth:** Bearer token
+
 Response `200`: `OrganizationDetail`
 
 ### PATCH /organization
+
+**Auth:** Bearer token
 
 Request:
 
@@ -203,6 +219,8 @@ Response `200`: `OrganizationDetail`
 
 ### GET /organization/active-schedule-planning-period
 
+**Auth:** Bearer token
+
 현재 진행 중인 스케줄링 기간을 조회합니다.
 
 Response `200`:
@@ -221,6 +239,8 @@ Response `200`:
 
 ### PUT /organization/active-schedule-planning-period
 
+**Auth:** Bearer token
+
 조직의 현재 진행 중인 스케줄링 기간을 생성하거나 교체합니다.
 
 Request:
@@ -236,11 +256,15 @@ Response `200`: `ActiveSchedulePlanningPeriod`
 
 ### DELETE /organization/active-schedule-planning-period
 
+**Auth:** Bearer token
+
 Response `204`: body 없음
 
 ## Workers
 
 ### GET /workers
+
+**Auth:** Bearer token
 
 Response `200`:
 
@@ -259,6 +283,8 @@ Response `200`:
 
 ### POST /workers
 
+**Auth:** Bearer token
+
 사번은 서버가 자동 생성합니다.
 
 Request:
@@ -274,6 +300,8 @@ Response `201`: `Worker`
 
 ### PATCH /workers/:workerId
 
+**Auth:** Bearer token
+
 Request:
 
 ```json
@@ -287,6 +315,8 @@ Response `200`: `Worker`
 
 ### DELETE /workers/:workerId
 
+**Auth:** Bearer token
+
 인력을 삭제합니다. 과거 스케줄 배정 기록의 `worker_id`는 `null`로 처리되며 배정 기록 자체는 보존됩니다.
 
 Response `204`: body 없음
@@ -294,6 +324,8 @@ Response `204`: body 없음
 ## Availability
 
 ### GET /availability
+
+**Auth:** Bearer token
 
 Query:
 
@@ -318,6 +350,8 @@ Response `200`:
 ```
 
 ### PUT /availability/bulk
+
+**Auth:** Bearer token
 
 선택 범위의 특정 인력 가능 시간을 전체 교체합니다.
 
@@ -350,6 +384,8 @@ Response `200`:
 
 ### GET /staffing-rules
 
+**Auth:** Bearer token
+
 Response `200`:
 
 ```json
@@ -369,6 +405,8 @@ Response `200`:
 
 ### POST /staffing-rules
 
+**Auth:** Bearer token
+
 Request:
 
 ```json
@@ -385,15 +423,21 @@ Response `201`: `MinimumStaffingRule`
 
 ### PATCH /staffing-rules/:ruleId
 
+**Auth:** Bearer token
+
 Response `200`: `MinimumStaffingRule`
 
 ### DELETE /staffing-rules/:ruleId
+
+**Auth:** Bearer token
 
 Response `204`: body 없음
 
 ## Schedules
 
 ### POST /schedules/recommend
+
+**Auth:** Bearer token
 
 현재 active planning period, 인력, 가능 시간, 최소 인원 조건을 기준으로 DRAFT 스케줄을 생성합니다. 같은 입력 조건의 DRAFT가 있으면 `DRAFT_ALREADY_EXISTS`를 반환합니다.
 
@@ -409,6 +453,8 @@ Request:
 Response `201`: `ScheduleDetail`
 
 ### GET /schedules/draft
+
+**Auth:** Bearer token
 
 Query:
 
@@ -428,6 +474,8 @@ Response `200`:
 
 ### POST /schedules/:scheduleId/assignments
 
+**Auth:** Bearer token
+
 Request:
 
 ```json
@@ -443,15 +491,21 @@ Response `201`: `ScheduleAssignment`
 
 ### PATCH /schedules/:scheduleId/assignments/:assignmentId
 
+**Auth:** Bearer token
+
 Request: assignment 생성과 동일한 필드의 부분 업데이트
 
 Response `200`: `ScheduleAssignment`
 
 ### DELETE /schedules/:scheduleId/assignments/:assignmentId
 
+**Auth:** Bearer token
+
 Response `204`: body 없음
 
 ### POST /schedules/:scheduleId/confirm
+
+**Auth:** Bearer token
 
 DRAFT 스케줄을 CONFIRMED로 변경합니다.
 
@@ -460,6 +514,8 @@ Response `200`: `ScheduleDetail`
 ## Schedule History
 
 ### GET /schedule-history
+
+**Auth:** Bearer token
 
 Query:
 
@@ -486,15 +542,21 @@ Response `200`:
 
 ### GET /schedule-history/:scheduleId
 
-Response `200`: `ScheduleDetail`
+**Auth:** Bearer token
+
+Response `200`: `ScheduleHistoryDetailResponse`
 
 ### GET /schedule-history/:scheduleId/export.csv
+
+**Auth:** Bearer token
 
 Response `200`: `text/csv`
 
 ## Dashboard
 
 ### GET /dashboard
+
+**Auth:** Bearer token
 
 Response `200`:
 
@@ -509,5 +571,7 @@ Response `200`:
 ```
 
 ### GET /dashboard/latest-confirmed-schedule/export.csv
+
+**Auth:** Bearer token
 
 Response `200`: `text/csv`

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { dayOfWeekSchema, idSchema, timeSchema } from "./common";
 
 export const organizationBusinessHourSchema = z.object({
-  id: idSchema.optional(),
+  id: idSchema,
   dayOfWeek: dayOfWeekSchema,
   isClosed: z.boolean(),
   openTime: timeSchema.nullable(),
@@ -10,9 +10,12 @@ export const organizationBusinessHourSchema = z.object({
   closesNextDay: z.boolean(),
 });
 
-export const organizationBusinessHourInputSchema = organizationBusinessHourSchema
+const organizationBusinessHourInputBaseSchema = organizationBusinessHourSchema
   .omit({ id: true })
-  .superRefine((value, context) => {
+  .strict();
+
+export const organizationBusinessHourInputSchema =
+  organizationBusinessHourInputBaseSchema.superRefine((value, context) => {
     if (value.isClosed) {
       if (value.openTime !== null) {
         context.addIssue({

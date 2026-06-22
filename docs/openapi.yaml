@@ -387,6 +387,7 @@ components:
     OrganizationBusinessHour:
       type: object
       required:
+        - id
         - dayOfWeek
         - isClosed
         - openTime
@@ -396,6 +397,37 @@ components:
         id:
           type: string
           example: "1"
+        dayOfWeek:
+          $ref: "#/components/schemas/DayOfWeek"
+        isClosed:
+          type: boolean
+          example: false
+        openTime:
+          type:
+            - string
+            - "null"
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "09:00"
+        closeTime:
+          type:
+            - string
+            - "null"
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "18:00"
+        closesNextDay:
+          type: boolean
+          example: false
+
+    OrganizationBusinessHourInput:
+      type: object
+      additionalProperties: false
+      required:
+        - dayOfWeek
+        - isClosed
+        - openTime
+        - closeTime
+        - closesNextDay
+      properties:
         dayOfWeek:
           $ref: "#/components/schemas/DayOfWeek"
         isClosed:
@@ -442,7 +474,7 @@ components:
           type: array
           minItems: 1
           items:
-            $ref: "#/components/schemas/OrganizationBusinessHour"
+            $ref: "#/components/schemas/OrganizationBusinessHourInput"
 
     UpdateOrganizationRequest:
       type: object
@@ -454,4 +486,4 @@ components:
           type: array
           minItems: 1
           items:
-            $ref: "#/components/schemas/OrganizationBusinessHour"
+            $ref: "#/components/schemas/OrganizationBusinessHourInput"
