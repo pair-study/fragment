@@ -13,7 +13,7 @@ import {
 export const scheduleAssignmentSchema = z.object({
   id: idSchema,
   scheduleId: idSchema,
-  workerId: idSchema,
+  workerId: idSchema.nullable(),
   workDate: dateSchema,
   startsAt: dateTimeSchema,
   endsAt: dateTimeSchema,
@@ -39,7 +39,17 @@ export const updateScheduleAssignmentRequestSchema = scheduleAssignmentInputBase
   .partial()
   .refine((value) => Object.keys(value).length > 0, {
     message: "수정할 값을 하나 이상 입력해야 합니다.",
-  });
+  })
+  .refine(
+    (value) =>
+      value.startsAt === undefined ||
+      value.endsAt === undefined ||
+      isDateTimeBefore(value.startsAt, value.endsAt),
+    {
+      message: "종료 시각은 시작 시각보다 늦어야 합니다.",
+      path: ["endsAt"],
+    },
+  );
 
 export const scheduleWorkerShortageSchema = z.object({
   id: idSchema,

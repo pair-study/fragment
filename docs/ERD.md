@@ -177,7 +177,11 @@ erDiagram
 
 ### Zod / API Service Validation
 
-- `SCHEDULES.input_hash`는 같은 입력 조건의 DRAFT 중복 판단에 사용하는 값입니다. MVP에서는 `organization_id + status(DRAFT) + start_date + end_date + input_hash` 중복 여부를 API service에서 확인합니다.
+- `SCHEDULES.input_hash`는 같은 입력 조건의 DRAFT 중복 판단에 사용하는 값입니다.
+- 추천 생성 API는 Prisma transaction 안에서 `organization_id + status(DRAFT) + start_date + end_date + input_hash` 조건 조회와 생성을 원자적으로 처리해야 합니다.
+- 같은 입력 조건의 DRAFT가 이미 있으면 생성하지 않고 `DRAFT_ALREADY_EXISTS`를 반환합니다.
+- 현재 PR은 ERD/shared/API 계약을 정리하는 범위이며, `/schedules/recommend` service transaction 구현은 후속 API 구현 브랜치에서 완료합니다.
+- PostgreSQL partial unique index를 도입할 경우 Prisma schema만으로 표현하지 않고 별도 SQL migration으로 `status = 'DRAFT'` 조건을 명시합니다.
 - `start_date <= end_date`여야 합니다.
 - `starts_at < ends_at`이어야 합니다.
 - `weekly_contract_hours >= 1`이어야 합니다.
