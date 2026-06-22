@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 language: "ko-KR"
-tone_instructions: "구체적이고 실행 가능한 피드백을 제공하세요. 프로젝트 컨벤션 위반 시 명확하게 지적하고 올바른 패턴을 제시하세요."
+tone_instructions: "일감 MVP의 PRD/SPEC/stack 문서를 기준으로 구체적이고 실행 가능한 피드백을 제공하세요. 제품 범위 밖 확장 요구는 지양하고, 단일 조직 스케줄 운영 흐름과 프로젝트 컨벤션 위반을 명확하게 지적하세요."
 early_access: false
 
 reviews:
@@ -59,63 +59,72 @@ reviews:
   path_instructions:
     - path: "apps/api/src/**/*.ts"
       instructions: |
-        NestJS 백엔드 코드 리뷰 기준:
+        Express 백엔드 코드 리뷰 기준:
 
-        [모듈 구조]
-        - Controller → Service → PrismaService 계층을 엄격히 준수하는지 확인
-        - 별도 Repository 클래스 생성 금지: Service가 PrismaService를 직접 주입받아야 함
-        - Controller는 요청/응답 처리만 담당; 비즈니스 로직은 반드시 Service에 위치
-        - 다른 모듈의 Service를 직접 import 금지; 해당 Module을 exports에 노출한 뒤 Module 단위로 import
+        [제품 범위]
+        - PRD/SPEC의 MVP 범위(회원가입/로그인, 단일 조직, 인력, 가능 시간, 최소 인원 조건, 스케줄 추천/조정/확정, 보관함/export)와 맞는지 확인
+        - MVP는 계정 1개당 조직 1개만 허용하며, 조직이 없는 계정은 조직 생성 외 운영 API에 접근할 수 없어야 함
+        - 운영 화면 API는 인증 및 조직 존재 여부를 확인해야 함
+
+        [라우터 구조]
+        - Express Router → Service → Prisma 계층을 기본으로 하는지 확인
+        - Router는 요청/응답 처리와 미들웨어 연결만 담당하고, 도메인 로직은 service 함수에 위치해야 함
+        - 별도 Repository 추상화는 중복 제거 필요성이 명확할 때만 허용
+        - 공통 미들웨어, 에러 핸들러, 에러 코드 상수는 common/ 아래에 모아 재사용
 
         [Prisma 사용]
         - apps/api 내부에 Prisma 관련 파일(schema, migration, seed) 직접 생성 금지
-        - packages/database에서 export하는 DatabaseModule만 AppModule에 import
-        - 모든 조회 쿼리에 `deletedAt: null` 필터 기본 포함 (소프트 딜리트 원칙)
+        - packages/database에서 export하는 `prisma` 또는 `createPrismaClient` 사용
         - Prisma 생성 타입을 그대로 사용; 별도 타입 재정의 금지
+        - 스키마/마이그레이션 변경은 packages/database에서 관리
 
         [인증 및 인가]
-        - 관리자 전용 엔드포인트: @Roles('ADMIN') 가드 적용 여부 확인
-        - 근로자 전용 엔드포인트: @Roles('WORKER') 가드 적용 여부 확인
         - JWT Access Token 유효기간 15분, Refresh Token 7일 HTTP-only 쿠키 방식 준수 확인
+        - 브라우저 저장소(localStorage/sessionStorage)에 토큰 저장 금지
+        - 단일 조직 범위를 벗어난 데이터 접근이 불가능한지 확인
 
         [유효성 검증]
-        - 모든 DTO에 class-validator + class-transformer 데코레이터 사용
-        - 전역 ValidationPipe: whitelist: true, forbidNonWhitelisted: true 옵션 설정 확인
+        - 요청 body, params, query는 Zod schema로 검증
+        - 공유 가능한 입력/응답 schema는 packages/shared에서 정의하고 웹/API가 함께 사용
+        - 날짜, 시간, 인원 수, 이메일, 비밀번호 확인 등 SPEC의 필수 검증 누락 여부 확인
 
         [에러 응답]
         - 에러 응답 형식 준수 여부 확인: { statusCode, errorCode, message }
         - errorCode는 반드시 common/constants/error-codes.ts 상수 사용; 하드코딩 금지
 
-        [API 문서화]
-        - 모든 Controller에 @ApiTags, @ApiOperation, @ApiResponse 데코레이터 필수
-        - 모든 DTO 필드에 @ApiProperty 데코레이터 필수
-
-        [데이터 보존]
-        - 근태·급여 데이터 실제 삭제 로직 구현 금지 (근로기준법 3년 보존 원칙)
-        - 탈퇴 처리는 anonymize() 방식으로만 구현
-
-        [스케줄 자동화]
-        - Cron 표현식은 상수로 분리하여 관리 (인라인 하드코딩 금지)
-        - 퇴근 미처리 자동화는 AttendanceScheduler에서만 처리
+        [스케줄 도메인]
+        - 스케줄 상태는 DB에 `DRAFT`, `CONFIRMED`만 저장; `스케줄 없음`은 UI 표시값으로만 사용
+        - 추천 생성 전 조직, 인력 1명 이상, 선택 기간의 가능 시간 1개 이상, 최소 인원 조건 1개 이상을 검증
+        - 같은 입력 조건으로 이미 생성된 DRAFT가 있으면 중복 생성하지 않아야 함
+        - 추천 생성은 미충족 조건(날짜/시간대)을 기록할 수 있어야 함
+        - DRAFT는 추가/수정/삭제 가능, CONFIRMED는 대시보드/보관함 조회 및 CSV export 대상
+        - 종료 시간이 시작 시간보다 빠르면 익일 종료로 처리하고, 같으면 저장 차단
+        - 가능 시간은 조직 운영 시간 기준 30분 단위이며, 휴무일에는 입력/저장할 수 없어야 함
 
     - path: "apps/api/src/**/*.spec.ts"
       instructions: |
-        NestJS 단위 테스트 리뷰 기준:
-        - PrismaService는 반드시 mockDeep<PrismaClient>()로 모킹
-        - NestJS TestingModule을 통한 의존성 주입 방식 사용 확인
+        Express/Jest 단위 테스트 리뷰 기준:
+        - Service 단위 테스트는 Prisma 등 외부 의존성을 Jest mock으로 격리
         - describe/it 블록 명칭이 테스트 의도를 명확히 표현하는지 확인
-        - Service 레이어 커버리지 목표 80% 이상 달성 가능한 구조인지 확인
+        - 스케줄 추천 조건 검증, DRAFT/CONFIRMED 상태 전환, 가능 시간/최소 인원 조건 검증을 우선 커버
+        - 날짜/시간 경계(익일 종료, 30분 단위, 휴무일)를 테스트하는지 확인
 
     - path: "apps/api/test/**/*.ts"
       instructions: |
         E2E 테스트 리뷰 기준:
         - DATABASE_URL_TEST 환경 변수 사용 확인 (프로덕션 DB 사용 금지)
         - 각 테스트 전후 DB 초기화 로직 포함 여부 확인
-        - Supertest를 이용한 HTTP 요청 방식 사용 확인
+        - Supertest를 이용해 Express app의 HTTP 요청/응답 검증
+        - 인증 후 조직 존재 여부에 따른 접근 제어와 리다이렉트/오류 흐름 확인
 
     - path: "apps/web/**/*.tsx"
       instructions: |
-        Next.js 관리자 웹 컴포넌트 리뷰 기준:
+        Next.js 운영 웹 컴포넌트 리뷰 기준:
+
+        [제품 범위]
+        - PRD/SPEC의 화면 범위(`/signup`, `/login`, `/organization/new`, `/dashboard`, `/organization`, `/workers`, `/availability`, `/staffing-rules`, `/schedules`, `/schedule-history`)와 흐름을 준수하는지 확인
+        - MVP에서는 웹이 전체 사용자 화면을 담당하므로 모바일/태블릿/데스크톱에서 핵심 기능이 가능해야 함
+        - 데스크톱 전용 액션이나 모바일에서 가로로 깨지는 달력/타임테이블/테이블 UI를 지적
 
         [라우팅 및 렌더링]
         - pages/ 디렉터리 사용 금지; App Router(app/)만 허용
@@ -123,40 +132,51 @@ reviews:
         - 초기 데이터 로드는 서버 컴포넌트(RSC)에서 처리; 이후 인터랙션은 TanStack Query
 
         [상태 관리]
-        - 서버 데이터는 반드시 TanStack Query 사용 (Zustand에 서버 데이터 저장 금지)
+        - 서버 데이터(조직, 인력, 가능 시간, 최소 인원 조건, 스케줄)는 TanStack Query 사용
         - UI 전역 상태(필터 조건, 선택된 조직 ID, 모달 상태 등)만 Zustand 사용
-        - 두 상태 혼용 즉시 지적
+        - 서버 데이터를 Zustand에 저장하거나 폼 상태를 전역 store에 두는 패턴 지적
 
         [폼 및 유효성 검증]
         - 모든 폼은 React Hook Form + Zod 조합 사용
         - Zod 스키마는 packages/shared에서 import; 웹 내부 별도 정의 금지
+        - SPEC의 입력 검증(필수값, 이메일 형식, 비밀번호 확인, 날짜 범위, 시작/종료 시간, 1명 이상/1 이상의 숫자)을 UI와 schema가 함께 처리하는지 확인
 
         [스타일링]
         - Tailwind CSS 유틸리티 클래스만 사용; 인라인 style 속성 금지
-        - StyleSheet 사용 금지 (React Native 전용 API)
+        - @moyeorak/design-system을 1순위로 사용하고, 없는 컴포넌트만 shadcn/ui/Radix로 보완
+        - 반복되는 arbitrary pixel value는 globals.css token 승격을 권장
+        - 같은 역할의 버튼/입력 컴포넌트를 한 화면에서 디자인 시스템과 shadcn으로 중복 혼용하지 않도록 확인
 
         [인증]
         - JWT는 HTTP-only 쿠키에 저장; localStorage 저장 절대 금지
         - 미인증 접근 처리는 Next.js middleware에서 처리
+        - 조직이 없는 로그인 사용자는 `/organization/new` 흐름으로 보내야 함
 
         [UI 컴포넌트]
-        - shadcn/ui 소스 복사(components/ui/) 방식 사용; npm 패키지 직접 import 금지
-        - shadcn/ui 컴포넌트는 components/ui/ 내에서 직접 수정하여 커스터마이징
-        - 도메인 특화 컴포넌트(스케줄 캘린더, 근태 타임라인 등)는 components/features/ 위치
+        - shadcn/ui는 components/ui/ 소스 복사 방식만 사용; npm 패키지 직접 import 금지
+        - 도메인 특화 컴포넌트(스케줄 달력, 가능 시간 타임테이블, 최소 인원 조건 폼)는 features/ 아래 위치
+        - 가능 시간 UI는 조직 운영 시간 기준 30분 단위와 휴무일 비활성화를 표현해야 함
+        - 보관함과 대시보드의 확정 스케줄은 조회/export 중심이며 CONFIRMED 최종본임을 흐름에서 보장
 
         [에러 처리]
         - API 에러는 TanStack Query onError 또는 error boundary에서 처리
+        - 사용자에게 보이는 검증/예외 메시지는 SPEC의 예외 처리 의미와 어긋나지 않아야 함
 
     - path: "apps/web/**/*.ts"
       instructions: |
         Next.js 웹 TypeScript 코드 리뷰 기준:
         - any 타입 사용 자제; 구체적인 타입 또는 packages/shared 타입 사용
         - API 요청/응답 타입은 packages/shared/src/types/api/에서 import
+        - 날짜/시간 계산은 시작/종료 경계, 익일 종료, 30분 단위, 휴무일 처리를 명시적으로 다룰 것
+        - 서버 데이터 캐시/Mutation 로직은 TanStack Query 패턴을 따를 것
 
     - path: "packages/database/prisma/schema.prisma"
       instructions: |
         Prisma 스키마 리뷰 기준:
-        - 소프트 딜리트 대상 모델에 deletedAt DateTime? 필드 포함 여부 확인
+        - 단일 조직 MVP에 필요한 계정, 조직, 운영 시간/휴무일, 인력, 가능 시간, 최소 인원 조건, 스케줄/DRAFT/CONFIRMED 모델 관계 확인
+        - 스케줄 상태는 `DRAFT`, `CONFIRMED`만 저장하고 UI 표시값인 `스케줄 없음`을 enum/model에 추가하지 않도록 확인
+        - 인력 사번은 시스템 자동 생성 기준으로 설계되어야 하며 사용자 직접 입력 의존 금지
+        - 가능 시간/스케줄/최소 인원 조건은 시작 시간이 종료 시간과 같을 수 없고, 익일 종료 표현이 가능한 datetime 구조인지 확인
         - 마이그레이션 안전성: 기존 데이터 손실 위험이 없는지 확인
         - 인덱스: 자주 조회되는 필드(외래키, 복합 조건)에 @@index 적용 여부
         - 관계 정합성: 올바른 onDelete/onUpdate 정책 적용 여부
@@ -177,6 +197,8 @@ reviews:
         - Zod 스키마에서 타입을 z.infer<>로 추출; 별도 interface/type 선언 금지
         - 순수 함수로만 구현 (사이드 이펙트 없음, 외부 의존성 없음)
         - 웹·API 모두에서 사용 가능한 범용적 구현인지 확인
+        - PRD/SPEC의 공통 입력 검증(회원가입, 조직 운영 시간, 인력, 가능 시간, 최소 인원 조건, 스케줄 수정)을 schema로 재사용 가능하게 정의
+        - 날짜/시간 유틸은 timezone/익일 종료/30분 단위 경계를 호출자가 오해하지 않도록 명확한 이름과 테스트를 둘 것
 
     - path: ".github/workflows/**/*.yml"
       instructions: |
@@ -190,6 +212,7 @@ reviews:
       instructions: |
         시드 파일 리뷰 기준:
         - 개발/테스트 전용 데이터만 포함; 실제 사용자 데이터 포함 금지
+        - 일감 MVP의 단일 조직/인력/가능 시간/최소 인원 조건/샘플 스케줄 도메인과 맞는 데이터만 포함
         - upsert 사용으로 멱등성 보장 여부 확인 (중복 실행 안전)
 
   tools:
@@ -298,6 +321,7 @@ knowledge_base:
       - "apps/api/CLAUDE.md"
       - "apps/web/CLAUDE.md"
       - "docs/stack.md"
+      - "docs/PRD.md"
       - "docs/SPEC.md"
   learnings:
     scope: local
@@ -315,6 +339,6 @@ code_generation:
   unit_tests:
     path_instructions:
       - path: "apps/api/src/**/*.ts"
-        instructions: "Jest와 NestJS TestingModule 사용. PrismaService는 mockDeep<PrismaClient>()로 모킹."
+        instructions: "Jest와 Supertest 사용. Service 단위 테스트는 Prisma 등 외부 의존성을 Jest mock으로 격리하고, API 통합 테스트는 Express app의 요청/응답을 검증."
       - path: "apps/web/**/*.tsx"
-        instructions: "Vitest와 React Testing Library 사용. API 호출은 msw로 모킹. 테스트 파일은 대상 파일 옆에 코로케이션."
+        instructions: "Vitest와 React Testing Library 사용. 테스트 파일은 대상 파일 옆에 코로케이션하고, API mocking은 테스트 범위가 확정된 경우 MSW 도입 여부를 함께 판단."
