@@ -1,7 +1,8 @@
-import { prisma } from "@fragment/database";
+import { createPrismaClient } from "@fragment/database";
 import { createApp } from "./app";
 
-const app = createApp();
+const prisma = createPrismaClient();
+const app = createApp({ prisma });
 const port = Number(process.env.PORT ?? 3001);
 
 const server = app.listen(port, () => {
