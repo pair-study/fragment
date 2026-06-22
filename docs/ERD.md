@@ -148,13 +148,13 @@ erDiagram
 
 ### DayOfWeek
 
-- `MONDAY`
-- `TUESDAY`
-- `WEDNESDAY`
-- `THURSDAY`
-- `FRIDAY`
-- `SATURDAY`
-- `SUNDAY`
+- `MON`
+- `TUE`
+- `WED`
+- `THU`
+- `FRI`
+- `SAT`
+- `SUN`
 
 ### ScheduleStatus
 

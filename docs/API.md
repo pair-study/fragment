@@ -162,7 +162,7 @@ Request:
   "name": "프래그먼트 카페",
   "businessHours": [
     {
-      "dayOfWeek": "MONDAY",
+      "dayOfWeek": "MON",
       "isClosed": false,
       "openTime": "09:00",
       "closeTime": "18:00",
@@ -187,7 +187,7 @@ Request:
   "name": "프래그먼트 본점",
   "businessHours": [
     {
-      "dayOfWeek": "MONDAY",
+      "dayOfWeek": "MON",
       "isClosed": false,
       "openTime": "10:00",
       "closeTime": "19:00",
@@ -357,7 +357,7 @@ Response `200`:
   "items": [
     {
       "id": "1",
-      "dayOfWeek": "MONDAY",
+      "dayOfWeek": "MON",
       "startTime": "10:00",
       "endTime": "14:00",
       "endsNextDay": false,
@@ -373,7 +373,7 @@ Request:
 
 ```json
 {
-  "dayOfWeek": "MONDAY",
+  "dayOfWeek": "MON",
   "startTime": "10:00",
   "endTime": "14:00",
   "endsNextDay": false,
