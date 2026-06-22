@@ -68,7 +68,6 @@ erDiagram
         int weekly_contract_hours
         datetime created_at
         datetime updated_at
-        datetime deleted_at
     }
 
     MINIMUM_STAFFING_RULES {
@@ -118,7 +117,7 @@ erDiagram
     SCHEDULE_ASSIGNMENTS {
         bigint id PK
         bigint schedule_id FK
-        bigint worker_id FK
+        bigint worker_id FK "nullable"
         date work_date
         datetime starts_at
         datetime ends_at
@@ -175,5 +174,6 @@ erDiagram
 - `starts_at`과 `ends_at`은 실제 시간 범위입니다.
 - 운영 시간과 최소 인원 조건에서 종료 시간이 다음 날로 넘어가면 `closes_next_day` 또는 `ends_next_day`가 `true`입니다.
 - `is_closed = true`인 운영 요일은 `open_time`, `close_time`을 비워둘 수 있습니다.
-- 삭제된 인력은 `deleted_at`으로 표시하며, 이후 추천 생성 기준에서 제외합니다.
-- 확정 스케줄 export와 보관함 조회는 `worker_name_snapshot`, `employee_code_snapshot`을 우선 사용합니다.
+- 인력 삭제 시 `WORKER_AVAILABLE_TIMES`는 함께 삭제됩니다.
+- 인력 삭제 시 `SCHEDULE_ASSIGNMENTS.worker_id`는 `NULL`로 처리됩니다. 배정 기록 자체는 보존됩니다.
+- 확정 스케줄 export와 보관함 조회는 `worker_name_snapshot`, `employee_code_snapshot`을 사용합니다.

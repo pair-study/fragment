@@ -94,10 +94,9 @@ model Worker {
   scheduleAssignments ScheduleAssignment[]
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @updatedAt @map("updated_at")
-  deletedAt           DateTime?             @map("deleted_at")
 
   @@unique([organizationId, employeeCode])
-  @@index([organizationId, deletedAt])
+  @@index([organizationId])
   @@map("workers")
 }
 
@@ -167,14 +166,14 @@ model Schedule {
 model ScheduleAssignment {
   id                   BigInt   @id @default(autoincrement())
   scheduleId           BigInt   @map("schedule_id")
-  workerId             BigInt   @map("worker_id")
+  workerId             BigInt?  @map("worker_id")
   workDate             DateTime @map("work_date") @db.Date
   startsAt             DateTime @map("starts_at")
   endsAt               DateTime @map("ends_at")
   workerNameSnapshot   String   @map("worker_name_snapshot")
   employeeCodeSnapshot String   @map("employee_code_snapshot")
   schedule             Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  worker               Worker   @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  worker               Worker?  @relation(fields: [workerId], references: [id], onDelete: SetNull)
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 

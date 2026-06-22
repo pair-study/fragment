@@ -287,7 +287,7 @@ Response `200`: `Worker`
 
 ### DELETE /workers/:workerId
 
-인력을 soft delete 처리하고 이후 추천 생성에서 제외합니다.
+인력을 삭제합니다. 과거 스케줄 배정 기록의 `worker_id`는 `null`로 처리되며 배정 기록 자체는 보존됩니다.
 
 Response `204`: body 없음
 
