@@ -11,14 +11,14 @@ reviews:
   poem: false
   review_status: true
   collapse_walkthrough: false
-  sequence_diagrams: true
+  sequence_diagrams: false
   estimate_code_review_effort: true
-  assess_linked_issues: true
-  related_issues: true
-  related_prs: true
-  suggested_labels: true
+  assess_linked_issues: false
+  related_issues: false
+  related_prs: false
+  suggested_labels: false
   auto_apply_labels: false
-  suggested_reviewers: true
+  suggested_reviewers: false
 
   auto_review:
     enabled: true
@@ -205,7 +205,7 @@ reviews:
         GitHub Actions 워크플로우 리뷰 기준:
         - 시크릿 하드코딩 금지; secrets.* 또는 vars.* 참조 사용
         - actions/* 버전 고정 (SHA 또는 semver 태그 명시)
-        - pnpm 워크스페이스 명령어 형식 확인: pnpm --filter @ilgam/<app> <command>
+        - pnpm 워크스페이스 명령어 형식 확인: pnpm --filter @fragment/<app> <command>
         - develop 브랜치와 main 브랜치 보호 규칙 일치 여부 확인
 
     - path: "packages/database/prisma/seed.ts"
@@ -221,8 +221,6 @@ reviews:
       enabled: true
     oxc:
       enabled: true
-    biome:
-      enabled: false
 
     # 보안 스캐닝
     gitleaks:
@@ -259,48 +257,6 @@ reviews:
       enabled: true
       timeout_ms: 300000
 
-    # 사용하지 않는 언어/프레임워크 비활성화
-    rubocop:
-      enabled: false
-    phpstan:
-      enabled: false
-    phpmd:
-      enabled: false
-    phpcs:
-      enabled: false
-    brakeman:
-      enabled: false
-    swiftlint:
-      enabled: false
-    clang:
-      enabled: false
-    cppcheck:
-      enabled: false
-    ruff:
-      enabled: false
-    flake8:
-      enabled: false
-    pylint:
-      enabled: false
-    golangci-lint:
-      enabled: false
-    clippy:
-      enabled: false
-    pmd:
-      enabled: false
-    fbinfer:
-      enabled: false
-    detekt:
-      enabled: false
-    buf:
-      enabled: false
-    regal:
-      enabled: false
-    tflint:
-      enabled: false
-    checkov:
-      enabled: false
-
   finishing_touches:
     docstrings:
       enabled: false
@@ -313,7 +269,7 @@ chat:
 knowledge_base:
   opt_out: false
   web_search:
-    enabled: true
+    enabled: false
   code_guidelines:
     enabled: true
     filePatterns:
@@ -323,6 +279,10 @@ knowledge_base:
       - "docs/stack.md"
       - "docs/PRD.md"
       - "docs/SPEC.md"
+      - "docs/API.md"
+      - "docs/ERD.md"
+      - "docs/SWAGGER.md"
+      - "docs/openapi.yaml"
   learnings:
     scope: local
   issues:
