@@ -18,4 +18,9 @@ export const scheduleHistoryListResponseSchema = z.object({
   items: z.array(scheduleHistoryItemSchema),
 });
 
-export const scheduleHistoryDetailResponseSchema = scheduleDetailSchema;
+export const confirmedScheduleDetailSchema = scheduleDetailSchema.extend({
+  status: z.literal("CONFIRMED"),
+  confirmedAt: dateTimeSchema,
+});
+
+export const scheduleHistoryDetailResponseSchema = confirmedScheduleDetailSchema;
