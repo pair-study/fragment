@@ -26,28 +26,28 @@ jobs:
         run: pnpm format:check
 
       - name: Type check — shared
-        run: pnpm --filter @ilgam/shared build
+        run: pnpm --filter @fragment/shared build
 
       - name: Generate Prisma client
-        run: pnpm --filter @ilgam/database db:generate
+        run: pnpm --filter @fragment/database db:generate
 
       - name: Type check — database
-        run: pnpm --filter @ilgam/database build
+        run: pnpm --filter @fragment/database build
 
       - name: Lint — web
-        run: pnpm --filter @ilgam/web lint
+        run: pnpm --filter @fragment/web lint
 
       - name: Type check — web
-        run: pnpm --filter @ilgam/web typecheck
+        run: pnpm --filter @fragment/web typecheck
 
       - name: Lint — api
-        run: pnpm --filter @ilgam/api lint
+        run: pnpm --filter @fragment/api lint
 
       - name: Type check — api
-        run: pnpm --filter @ilgam/api typecheck
+        run: pnpm --filter @fragment/api typecheck
 
       # 테스트 코드 작성 후 아래 step 활성화
       # - name: Test — web
-      #   run: pnpm --filter @ilgam/web test
+      #   run: pnpm --filter @fragment/web test
       # - name: Test — api
-      #   run: pnpm --filter @ilgam/api test
+      #   run: pnpm --filter @fragment/api test
