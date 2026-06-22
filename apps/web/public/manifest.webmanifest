@@ -1,0 +1,23 @@
+{
+  "name": "Fragment 관리자",
+  "short_name": "Fragment",
+  "description": "근무 스케줄 운영을 위한 Fragment 관리자 웹",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#151A2E",
+  "theme_color": "#3C76E9",
+  "icons": [
+    {
+      "src": "/favicons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
