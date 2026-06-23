@@ -8,8 +8,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -17,15 +15,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const primaryNavigationItems = [
+const navigationItems = [
   { title: "대시보드", href: "/dashboard", icon: Home },
   { title: "스케줄", href: "/schedules", icon: CalendarDays },
   { title: "보관함", href: "/schedule-history", icon: Archive },
-];
-
-const operationsNavigationItems = [
-  { title: "근무자", href: "/workers", icon: Users },
-  { title: "가능 시간", href: "/availability", icon: Clock3 },
+  { title: "근무자 관리", href: "/workers", icon: Users },
+  { title: "가능 시간 관리", href: "/availability", icon: Clock3 },
   { title: "최소 인원 조건", href: "/staffing-rules", icon: ListChecks },
 ];
 
@@ -43,23 +38,11 @@ export function AdminSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>메뉴</SidebarGroupLabel>
-          <SidebarMenu>
-            {primaryNavigationItems.map((item) => (
-              <NavigationMenuItem key={item.href} item={item} pathname={pathname} />
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>운영 설정</SidebarGroupLabel>
-          <SidebarMenu>
-            {operationsNavigationItems.map((item) => (
-              <NavigationMenuItem key={item.href} item={item} pathname={pathname} />
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        <SidebarMenu>
+          {navigationItems.map((item) => (
+            <NavigationMenuItem key={item.href} item={item} pathname={pathname} />
+          ))}
+        </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="border-t border-border">
         <SidebarMenu>
