@@ -3,6 +3,7 @@ import { authLoginRequestSchema, authSignupRequestSchema } from "@fragment/share
 import { z } from "zod";
 
 import { createRequireAuth } from "../middlewares/require-auth";
+import { createRequireSameOrigin } from "../middlewares/require-same-origin";
 import { validate } from "../middlewares/validate";
 import {
   loginHandler,
@@ -15,6 +16,7 @@ import { verifyAccessToken } from "../modules/auth/auth.tokens";
 
 export const authRoutes = Router();
 const requireAuth = createRequireAuth({ verifyAccessToken });
+const requireSameOrigin = createRequireSameOrigin(process.env.WEB_APP_ORIGIN);
 
 authRoutes.post(
   "/signup",
@@ -36,6 +38,6 @@ authRoutes.post(
   loginHandler,
 );
 
-authRoutes.post("/logout", logoutHandler);
-authRoutes.post("/refresh", refreshHandler);
+authRoutes.post("/logout", requireSameOrigin, logoutHandler);
+authRoutes.post("/refresh", requireSameOrigin, refreshHandler);
 authRoutes.get("/me", requireAuth, meHandler);
