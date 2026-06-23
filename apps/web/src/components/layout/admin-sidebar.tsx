@@ -39,7 +39,7 @@ export function AdminSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="justify-between gap-3 border-b border-border">
-        <SidebarTrigger className="shrink-0" />
+        <SidebarTrigger className="shrink-0 hover:bg-fill-brand-subtler hover:text-fg-neutral-strong" />
       </SidebarHeader>
 
       <SidebarContent>
@@ -64,7 +64,10 @@ export function AdminSidebar() {
       <SidebarFooter className="border-t border-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton
+              asChild
+              className="hover:bg-fill-brand-subtler hover:text-fg-neutral-strong"
+            >
               <Link href="/login" title="로그아웃">
                 <LogOut aria-hidden="true" />
                 <span>로그아웃</span>
@@ -94,7 +97,11 @@ function NavigationMenuItem({ item, pathname }: NavigationMenuItemProps) {
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive}>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        className="hover:bg-fill-brand-subtler hover:text-fg-neutral-strong"
+      >
         <Link href={item.href} title={item.title} aria-current={isActive ? "page" : undefined}>
           <Icon aria-hidden="true" />
           <span>{item.title}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button } from "@moyeorak/design-system";
+import { Button, IconButton } from "@moyeorak/design-system";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
@@ -227,19 +227,18 @@ export function MvpStaffingRulesPage() {
                     <td className="px-6 py-4 text-muted-foreground">{rule.endTime}</td>
                     <td className="px-6 py-4 text-muted-foreground">{rule.minimumWorkers}명</td>
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" onClick={() => openEditForm(rule)}>
-                          <Pencil className="size-4" aria-hidden="true" />
-                          수정
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
+                      <div className="flex justify-end gap-1">
+                        <IconButton size="sm" aria-label="수정" onClick={() => openEditForm(rule)}>
+                          <Pencil className="size-4" />
+                        </IconButton>
+
+                        <IconButton
+                          size="sm"
+                          aria-label="삭제"
                           onClick={() => setDeleteTarget(rule)}
                         >
-                          <Trash2 className="size-4" aria-hidden="true" />
-                          삭제
-                        </Button>
+                          <Trash2 className="size-4" />
+                        </IconButton>
                       </div>
                     </td>
                   </tr>
