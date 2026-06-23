@@ -33,18 +33,30 @@ async function createAuthSession(prisma: PrismaClient, user: AuthUser) {
   const refreshToken = createRefreshToken();
   const refreshTokenHash = hashRefreshToken(refreshToken);
   const refreshTokenExpiresAt = getRefreshTokenExpiresAt();
+  const revokedAt = new Date();
   const organization = await prisma.organization.findUnique({
     where: { userId: user.id },
     select: { id: true },
   });
 
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      tokenHash: refreshTokenHash,
-      expiresAt: refreshTokenExpiresAt,
-    },
-  });
+  await prisma.$transaction([
+    prisma.refreshToken.updateMany({
+      where: {
+        userId: user.id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt,
+      },
+    }),
+    prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: refreshTokenHash,
+        expiresAt: refreshTokenExpiresAt,
+      },
+    }),
+  ]);
 
   return {
     response: {
