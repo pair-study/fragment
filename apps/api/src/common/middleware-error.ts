@@ -1,4 +1,4 @@
-import type { ErrorCode } from "../errors/error-codes";
+import type { ErrorCode } from "./constants/error-codes";
 
 export type MiddlewareError = Error & {
   statusCode: number;

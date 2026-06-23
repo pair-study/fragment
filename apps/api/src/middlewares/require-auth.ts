@@ -1,6 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import { ERROR_CODES } from "../common/constants/error-codes";
 import { createMiddlewareError } from "../common/middleware-error";
-import { ERROR_CODES } from "../errors/error-codes";
 import type { AuthenticatedUser } from "../types/express";
 import { toApiId, type DatabaseId } from "../utils/mapper";
 

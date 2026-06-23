@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@fragment/database";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import { ERROR_CODES } from "../common/constants/error-codes";
 import { createMiddlewareError } from "../common/middleware-error";
-import { ERROR_CODES } from "../errors/error-codes";
 import { toApiId, toPrismaId } from "../utils/mapper";
 
 export type RequireOrganizationDependencies = {
