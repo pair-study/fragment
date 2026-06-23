@@ -1,5 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { ERROR_CODES, type ErrorCode } from "../errors/error-codes";
+import { createMiddlewareError } from "../common/middleware-error";
+import { ERROR_CODES } from "../errors/error-codes";
 import type { AuthenticatedUser } from "../types/express";
 import { toApiId, type DatabaseId } from "../utils/mapper";
 
@@ -12,21 +13,6 @@ export type VerifyAccessToken = (token: string) => AccessTokenPayload | Promise<
 export type RequireAuthDependencies = {
   verifyAccessToken: VerifyAccessToken;
 };
-
-type MiddlewareError = Error & {
-  statusCode: number;
-  errorCode: ErrorCode;
-};
-
-const createMiddlewareError = (
-  statusCode: number,
-  errorCode: ErrorCode,
-  message: string,
-): MiddlewareError =>
-  Object.assign(new Error(message), {
-    statusCode,
-    errorCode,
-  });
 
 export const extractBearerToken = (authorizationHeader: string | undefined): string | null => {
   if (!authorizationHeader) {

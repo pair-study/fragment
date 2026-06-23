@@ -1,26 +1,12 @@
 import type { PrismaClient } from "@fragment/database";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { ERROR_CODES, type ErrorCode } from "../errors/error-codes";
+import { createMiddlewareError } from "../common/middleware-error";
+import { ERROR_CODES } from "../errors/error-codes";
 import { toApiId, toPrismaId } from "../utils/mapper";
 
 export type RequireOrganizationDependencies = {
   prisma: PrismaClient;
 };
-
-type MiddlewareError = Error & {
-  statusCode: number;
-  errorCode: ErrorCode;
-};
-
-const createMiddlewareError = (
-  statusCode: number,
-  errorCode: ErrorCode,
-  message: string,
-): MiddlewareError =>
-  Object.assign(new Error(message), {
-    statusCode,
-    errorCode,
-  });
 
 export const createRequireOrganization = ({
   prisma,
