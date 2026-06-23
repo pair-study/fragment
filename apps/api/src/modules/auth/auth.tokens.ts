@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 
 const DEFAULT_ACCESS_TOKEN_EXPIRES_IN: SignOptions["expiresIn"] = "15m";
-const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS = 14;
+const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS = 7;
 
 type AccessTokenPayload = {
   sub: string;
@@ -52,7 +52,15 @@ export function hashRefreshToken(token: string) {
 }
 
 export function getRefreshTokenExpiresAt() {
-  const days = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS ?? DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS);
+  const days =
+    process.env.REFRESH_TOKEN_EXPIRES_DAYS === undefined
+      ? DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS
+      : Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS);
+
+  if (!Number.isInteger(days) || days <= 0) {
+    throw new Error("REFRESH_TOKEN_EXPIRES_DAYS must be a positive integer");
+  }
+
   const expiresAt = new Date();
 
   expiresAt.setDate(expiresAt.getDate() + days);

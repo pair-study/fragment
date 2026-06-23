@@ -171,7 +171,7 @@ async function main() {
     ],
   });
 
-  console.info(`Seed completed: ${SEED_USER.email} / ${SEED_USER.password}`);
+  console.info(`Seed completed: ${SEED_USER.email}`);
 }
 
 main()

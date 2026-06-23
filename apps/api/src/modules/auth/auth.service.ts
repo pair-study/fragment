@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@fragment/database";
+import { Prisma, type PrismaClient } from "@fragment/database";
 import { compare, hash } from "bcryptjs";
 
 import { HttpError } from "../../errors/http-error";
@@ -66,18 +66,28 @@ export async function signup(prisma: PrismaClient, input: SignupInput) {
   });
 
   if (existingUser) {
-    throw new HttpError(409, "EMAIL_ALREADY_EXISTS", "이미 사용 중인 이메일입니다.");
+    throw new HttpError(409, "DUPLICATE_EMAIL", "이미 사용 중인 이메일입니다.");
   }
 
   const passwordHash = await hash(input.password, 12);
 
-  const user = await prisma.user.create({
-    data: {
-      name: input.name,
-      email: input.email,
-      passwordHash,
-    },
-  });
+  let user: AuthUser;
+
+  try {
+    user = await prisma.user.create({
+      data: {
+        name: input.name,
+        email: input.email,
+        passwordHash,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new HttpError(409, "DUPLICATE_EMAIL", "이미 사용 중인 이메일입니다.");
+    }
+
+    throw error;
+  }
 
   return createAuthSession(prisma, user);
 }
@@ -88,13 +98,13 @@ export async function login(prisma: PrismaClient, input: LoginInput) {
   });
 
   if (!user) {
-    throw new HttpError(401, "INVALID_CREDENTIALS", "이메일 또는 비밀번호가 올바르지 않습니다.");
+    throw new HttpError(401, "UNAUTHORIZED", "이메일 또는 비밀번호가 올바르지 않습니다.");
   }
 
   const isPasswordValid = await compare(input.password, user.passwordHash);
 
   if (!isPasswordValid) {
-    throw new HttpError(401, "INVALID_CREDENTIALS", "이메일 또는 비밀번호가 올바르지 않습니다.");
+    throw new HttpError(401, "UNAUTHORIZED", "이메일 또는 비밀번호가 올바르지 않습니다.");
   }
 
   return createAuthSession(prisma, user);
@@ -102,7 +112,7 @@ export async function login(prisma: PrismaClient, input: LoginInput) {
 
 export async function logout(prisma: PrismaClient, refreshToken?: string) {
   if (!refreshToken) {
-    throw new HttpError(401, "REFRESH_TOKEN_INVALID", "Refresh token이 유효하지 않습니다.");
+    throw new HttpError(401, "UNAUTHORIZED", "Refresh token이 유효하지 않습니다.");
   }
 
   const tokenHash = hashRefreshToken(refreshToken);
@@ -111,7 +121,7 @@ export async function logout(prisma: PrismaClient, refreshToken?: string) {
   });
 
   if (!storedToken || storedToken.revokedAt || storedToken.expiresAt <= new Date()) {
-    throw new HttpError(401, "REFRESH_TOKEN_INVALID", "Refresh token이 유효하지 않습니다.");
+    throw new HttpError(401, "UNAUTHORIZED", "Refresh token이 유효하지 않습니다.");
   }
 
   await prisma.refreshToken.update({

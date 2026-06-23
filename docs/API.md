@@ -40,6 +40,7 @@ DB의 PK는 `bigint`이지만 JSON 응답에서는 모든 ID를 문자열로 전
 대표 errorCode:
 
 - `VALIDATION_ERROR`
+- `INTERNAL_SERVER_ERROR`
 - `UNAUTHORIZED`
 - `FORBIDDEN`
 - `NOT_FOUND`

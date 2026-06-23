@@ -4,7 +4,7 @@ const REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
 
 const refreshTokenCookieOptions = {
   httpOnly: true,
-  sameSite: "lax",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   secure: process.env.NODE_ENV === "production",
   path: "/",
 } as const;
