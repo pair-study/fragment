@@ -8,7 +8,6 @@ import {
   createRefreshToken,
   getRefreshTokenExpiresAt,
   hashRefreshToken,
-  verifyAccessToken,
 } from "./auth.tokens";
 
 type SignupInput = {
@@ -143,21 +142,9 @@ export async function logout(prisma: PrismaClient, refreshToken?: string) {
   });
 }
 
-export async function getMe(prisma: PrismaClient, accessToken?: string) {
-  if (!accessToken) {
-    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다.");
-  }
-
-  let userId: bigint;
-
-  try {
-    userId = verifyAccessToken(accessToken).userId;
-  } catch {
-    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다.");
-  }
-
+export async function getMe(prisma: PrismaClient, userId: string) {
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: BigInt(userId) },
     include: {
       organization: {
         select: {

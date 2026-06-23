@@ -1,16 +1,10 @@
 import type { PrismaClient } from "@fragment/database";
 import type { RequestHandler } from "express";
 
+import { ERROR_CODES } from "../../common/constants/error-codes";
+import { HttpError } from "../../errors/http-error";
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from "./auth.cookies";
 import { getMe, login, logout, signup } from "./auth.service";
-
-function getBearerToken(authorizationHeader: string | undefined) {
-  if (!authorizationHeader?.startsWith("Bearer ")) {
-    return undefined;
-  }
-
-  return authorizationHeader.slice("Bearer ".length);
-}
 
 export const signupHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -53,8 +47,12 @@ export const logoutHandler: RequestHandler = async (req, res, next) => {
 export const meHandler: RequestHandler = async (req, res, next) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
-    const accessToken = getBearerToken(req.headers.authorization);
-    const result = await getMe(prisma, accessToken);
+
+    if (!req.user) {
+      throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다.");
+    }
+
+    const result = await getMe(prisma, req.user.id);
 
     res.status(200).json(result);
   } catch (error) {
