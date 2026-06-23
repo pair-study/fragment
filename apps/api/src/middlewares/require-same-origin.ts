@@ -16,8 +16,14 @@ const getHeaderOrigin = (value: string | undefined): string | null => {
 };
 
 export const createRequireSameOrigin = (allowedOrigin?: string): RequestHandler => {
+  const normalizedAllowedOrigin = getHeaderOrigin(allowedOrigin);
+
+  if (allowedOrigin && !normalizedAllowedOrigin) {
+    throw new Error("WEB_APP_ORIGIN must be a valid URL origin");
+  }
+
   return (req: Request, _res: Response, next: NextFunction) => {
-    if (!allowedOrigin) {
+    if (!normalizedAllowedOrigin) {
       next();
       return;
     }
@@ -25,7 +31,8 @@ export const createRequireSameOrigin = (allowedOrigin?: string): RequestHandler 
     const requestOrigin =
       getHeaderOrigin(req.headers.origin) ?? getHeaderOrigin(req.headers.referer);
 
-    if (!requestOrigin || requestOrigin === allowedOrigin) {
+    // Allow manual API clients such as Postman/curl, which often omit Origin/Referer.
+    if (!requestOrigin || requestOrigin === normalizedAllowedOrigin) {
       next();
       return;
     }
