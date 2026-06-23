@@ -27,35 +27,28 @@ type AuthUser = {
   name: string;
 };
 
-async function createAuthSession(prisma: PrismaClient, user: AuthUser) {
+type AuthDatabaseClient = PrismaClient | Prisma.TransactionClient;
+
+const createInvalidRefreshTokenError = () =>
+  new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
+
+async function issueAuthSession(client: AuthDatabaseClient, user: AuthUser) {
   const accessToken = createAccessToken(user.id);
   const refreshToken = createRefreshToken();
   const refreshTokenHash = hashRefreshToken(refreshToken);
   const refreshTokenExpiresAt = getRefreshTokenExpiresAt();
-  const revokedAt = new Date();
-  const organization = await prisma.organization.findUnique({
+  const organization = await client.organization.findUnique({
     where: { userId: user.id },
     select: { id: true },
   });
 
-  await prisma.$transaction([
-    prisma.refreshToken.updateMany({
-      where: {
-        userId: user.id,
-        revokedAt: null,
-      },
-      data: {
-        revokedAt,
-      },
-    }),
-    prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: refreshTokenHash,
-        expiresAt: refreshTokenExpiresAt,
-      },
-    }),
-  ]);
+  await client.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: refreshTokenHash,
+      expiresAt: refreshTokenExpiresAt,
+    },
+  });
 
   return {
     response: {
@@ -70,6 +63,48 @@ async function createAuthSession(prisma: PrismaClient, user: AuthUser) {
     refreshToken,
     refreshTokenExpiresAt,
   };
+}
+
+async function revokeActiveRefreshTokens(
+  client: AuthDatabaseClient,
+  userId: bigint,
+  revokedAt: Date,
+) {
+  await client.refreshToken.updateMany({
+    where: {
+      userId,
+      revokedAt: null,
+    },
+    data: {
+      revokedAt,
+    },
+  });
+}
+
+async function createAuthSession(prisma: PrismaClient, user: AuthUser) {
+  return prisma.$transaction(async (transaction) => {
+    await revokeActiveRefreshTokens(transaction, user.id, new Date());
+    return issueAuthSession(transaction, user);
+  });
+}
+
+async function consumeRefreshToken(client: AuthDatabaseClient, tokenId: bigint, consumedAt: Date) {
+  const { count } = await client.refreshToken.updateMany({
+    where: {
+      id: tokenId,
+      revokedAt: null,
+      expiresAt: {
+        gt: consumedAt,
+      },
+    },
+    data: {
+      revokedAt: consumedAt,
+    },
+  });
+
+  if (count !== 1) {
+    throw createInvalidRefreshTokenError();
+  }
 }
 
 export async function signup(prisma: PrismaClient, input: SignupInput) {
@@ -124,7 +159,7 @@ export async function login(prisma: PrismaClient, input: LoginInput) {
 
 export async function logout(prisma: PrismaClient, refreshToken?: string) {
   if (!refreshToken) {
-    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
+    throw createInvalidRefreshTokenError();
   }
 
   const tokenHash = hashRefreshToken(refreshToken);
@@ -132,32 +167,42 @@ export async function logout(prisma: PrismaClient, refreshToken?: string) {
     where: { tokenHash },
   });
 
-  if (!storedToken || storedToken.revokedAt || storedToken.expiresAt <= new Date()) {
-    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
+  if (!storedToken) {
+    throw createInvalidRefreshTokenError();
   }
 
-  await prisma.refreshToken.update({
-    where: { id: storedToken.id },
-    data: { revokedAt: new Date() },
-  });
+  await consumeRefreshToken(prisma, storedToken.id, new Date());
 }
 
 export async function refreshSession(prisma: PrismaClient, refreshToken?: string) {
   if (!refreshToken) {
-    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
+    throw createInvalidRefreshTokenError();
   }
 
   const tokenHash = hashRefreshToken(refreshToken);
-  const storedToken = await prisma.refreshToken.findUnique({
-    where: { tokenHash },
-    include: { user: true },
+
+  return prisma.$transaction(async (transaction) => {
+    const now = new Date();
+    const storedToken = await transaction.refreshToken.findUnique({
+      where: { tokenHash },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!storedToken) {
+      throw createInvalidRefreshTokenError();
+    }
+
+    await consumeRefreshToken(transaction, storedToken.id, now);
+    return issueAuthSession(transaction, storedToken.user);
   });
-
-  if (!storedToken || storedToken.revokedAt || storedToken.expiresAt <= new Date()) {
-    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
-  }
-
-  return createAuthSession(prisma, storedToken.user);
 }
 
 export async function getMe(prisma: PrismaClient, userId: string) {
