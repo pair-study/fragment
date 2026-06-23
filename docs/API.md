@@ -77,6 +77,7 @@ Response `201`:
 
 ```json
 {
+  "accessToken": "eyJhbGciOi...",
   "user": {
     "id": "1",
     "email": "owner@example.com",
@@ -103,6 +104,7 @@ Response `200`:
 
 ```json
 {
+  "accessToken": "eyJhbGciOi...",
   "user": {
     "id": "1",
     "email": "owner@example.com",
@@ -130,6 +132,7 @@ Response `200`:
 
 ```json
 {
+  "accessToken": "eyJhbGciOi...",
   "user": {
     "id": "1",
     "email": "owner@example.com",
