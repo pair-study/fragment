@@ -6,7 +6,7 @@ import type { PrismaClient } from "@fragment/database";
 import { ERROR_CODES } from "./common/constants/error-codes";
 import { HttpError } from "./errors/http-error";
 import { errorHandler } from "./middlewares/error-handler";
-import { authRoutes } from "./routes/auth.routes";
+import { apiRoutes } from "./routes";
 
 type AppDependencies = {
   prisma: PrismaClient;
@@ -31,7 +31,7 @@ export const createApp = ({ prisma }: AppDependencies) => {
   app.use(express.json());
   app.use(cookieParser());
 
-  app.use("/auth", authRoutes);
+  app.use("/api", apiRoutes);
 
   app.use((_req, _res, next) => {
     next(new HttpError(404, ERROR_CODES.NOT_FOUND, "요청한 API를 찾을 수 없습니다."));
