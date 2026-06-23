@@ -1,8 +1,8 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { ERROR_CODES } from "../common/constants/error-codes";
-import { HttpError } from "../errors/http-error";
-import type { AuthenticatedUser } from "../types/express";
-import { toApiId, type DatabaseId } from "../utils/mapper";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { HttpError } from "@/errors/http-error";
+import type { AuthenticatedUser } from "@/types/express";
+import { toApiId, type DatabaseId } from "@/utils/mapper";
 
 export type AccessTokenPayload = {
   userId: DatabaseId;

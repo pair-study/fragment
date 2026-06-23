@@ -1,5 +1,5 @@
 import { createPrismaClient } from "@fragment/database";
-import { createApp } from "./app";
+import { createApp } from "@/app";
 
 const prisma = createPrismaClient();
 const app = createApp({ prisma });

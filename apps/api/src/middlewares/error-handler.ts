@@ -1,7 +1,7 @@
 import type { ErrorRequestHandler } from "express";
 
-import { ERROR_CODES } from "../common/constants/error-codes";
-import { isHttpError } from "../errors/http-error";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { isHttpError } from "@/errors/http-error";
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   void _next;

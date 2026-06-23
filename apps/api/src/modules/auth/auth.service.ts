@@ -1,8 +1,8 @@
 import { Prisma, type PrismaClient } from "@fragment/database";
 import { compare, hash } from "bcryptjs";
 
-import { ERROR_CODES } from "../../common/constants/error-codes";
-import { HttpError } from "../../errors/http-error";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { HttpError } from "@/errors/http-error";
 import {
   createAccessToken,
   createRefreshToken,

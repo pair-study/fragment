@@ -1,7 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
-import { ERROR_CODES } from "../common/constants/error-codes";
-import { HttpError } from "../errors/http-error";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { HttpError } from "@/errors/http-error";
 
 const getHeaderOrigin = (value: string | undefined): string | null => {
   if (!value) {
