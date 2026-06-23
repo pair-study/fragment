@@ -1,4 +1,4 @@
-import type { ErrorResponse } from "@fragment/shared";
+import { errorResponseSchema, type ErrorResponse } from "@fragment/shared";
 
 const DEFAULT_API_BASE_URL = "/api";
 
@@ -6,9 +6,7 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
 
-type ApiErrorResponse = Partial<ErrorResponse> & {
-  message?: string;
-};
+type ApiErrorResponse = Partial<ErrorResponse>;
 
 export class ApiError extends Error {
   readonly statusCode: number;
@@ -55,6 +53,13 @@ async function parseJsonResponse(response: Response) {
   return response.json();
 }
 
+async function parseErrorResponse(response: Response) {
+  const parsedResponse = await parseJsonResponse(response);
+  const result = errorResponseSchema.safeParse(parsedResponse);
+
+  return result.success ? result.data : undefined;
+}
+
 export async function apiClient<TResponse>(
   path: string,
   { body, headers, ...init }: ApiRequestOptions = {},
@@ -70,15 +75,27 @@ export async function apiClient<TResponse>(
     requestHeaders.set("accept", "application/json");
   }
 
-  const response = await fetch(createApiUrl(path), {
-    ...init,
-    body: hasBody && isJsonBody(body) ? JSON.stringify(body) : (body as BodyInit | undefined),
-    credentials: init.credentials ?? "include",
-    headers: requestHeaders,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(createApiUrl(path), {
+      ...init,
+      body: hasBody && isJsonBody(body) ? JSON.stringify(body) : (body as BodyInit | undefined),
+      credentials: init.credentials ?? "include",
+      headers: requestHeaders,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error;
+    }
+
+    throw new ApiError(0, {
+      message: "네트워크 연결 상태를 확인한 뒤 다시 시도해 주세요.",
+    });
+  }
 
   if (!response.ok) {
-    const errorResponse = (await parseJsonResponse(response)) as ApiErrorResponse | undefined;
+    const errorResponse = await parseErrorResponse(response);
 
     throw new ApiError(response.status, errorResponse);
   }
