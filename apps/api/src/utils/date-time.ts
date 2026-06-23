@@ -24,8 +24,19 @@ export const assertDateTimeRange = (startsAt: Date, endsAt: Date): void => {
   }
 };
 
-export const assertTimeRange = (startTime: string, endTime: string): void => {
-  if (parseTimeToMinutes(startTime) >= parseTimeToMinutes(endTime)) {
-    throw new RangeError("Start time must be before end time.");
+export const getTimeRangeDurationMinutes = (startTime: string, endTime: string): number => {
+  const startMinutes = parseTimeToMinutes(startTime);
+  const endMinutes = parseTimeToMinutes(endTime);
+
+  if (startMinutes === endMinutes) {
+    throw new RangeError("Start time and end time must be different.");
   }
+
+  return endMinutes > startMinutes
+    ? endMinutes - startMinutes
+    : endMinutes + 24 * 60 - startMinutes;
+};
+
+export const assertTimeRange = (startTime: string, endTime: string): void => {
+  getTimeRangeDurationMinutes(startTime, endTime);
 };
