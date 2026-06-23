@@ -3,6 +3,10 @@ export type DatabaseId = string | number | bigint;
 
 export const toApiId = (id: DatabaseId): ApiId => {
   if (typeof id === "bigint") {
+    if (id < BigInt(0)) {
+      throw new RangeError("ID must be a non-negative integer.");
+    }
+
     return id.toString();
   }
 
@@ -11,14 +15,14 @@ export const toApiId = (id: DatabaseId): ApiId => {
       throw new RangeError("ID must be a non-negative safe integer.");
     }
 
-    return id.toString();
+    return BigInt(id).toString();
   }
 
   if (!/^\d+$/.test(id)) {
     throw new RangeError("ID must be a numeric string.");
   }
 
-  return id;
+  return BigInt(id).toString();
 };
 
 export const toNullableApiId = (id: DatabaseId | null | undefined): ApiId | null =>
