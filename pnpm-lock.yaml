@@ -63,6 +63,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@fragment/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@moyeorak/design-system':
         specifier: ^0.2.0
         version: 0.2.0(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(react-dom@19.1.8(react@19.1.8))(react@19.1.8)(tailwindcss@4.1.18)
