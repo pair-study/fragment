@@ -6,6 +6,14 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
 
+type ApiJsonRequestOptions = ApiRequestOptions & {
+  responseType?: "json";
+};
+
+type ApiVoidRequestOptions = ApiRequestOptions & {
+  responseType: "void";
+};
+
 type ApiErrorResponse = Partial<ErrorResponse>;
 
 export class ApiError extends Error {
@@ -60,10 +68,20 @@ async function parseErrorResponse(response: Response) {
   return result.success ? result.data : undefined;
 }
 
+export function apiClient(path: string, options: ApiVoidRequestOptions): Promise<void>;
+export function apiClient<TResponse>(
+  path: string,
+  options?: ApiJsonRequestOptions,
+): Promise<TResponse>;
 export async function apiClient<TResponse>(
   path: string,
-  { body, headers, ...init }: ApiRequestOptions = {},
-): Promise<TResponse> {
+  {
+    body,
+    headers,
+    responseType = "json",
+    ...init
+  }: ApiJsonRequestOptions | ApiVoidRequestOptions = {},
+): Promise<TResponse | void> {
   const requestHeaders = new Headers(headers);
   const hasBody = body !== undefined;
 
@@ -100,8 +118,14 @@ export async function apiClient<TResponse>(
     throw new ApiError(response.status, errorResponse);
   }
 
+  if (responseType === "void") {
+    return;
+  }
+
   if (response.status === 204) {
-    return undefined as TResponse;
+    throw new ApiError(response.status, {
+      message: "응답 본문이 비어 있습니다.",
+    });
   }
 
   return (await parseJsonResponse(response)) as TResponse;

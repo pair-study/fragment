@@ -22,8 +22,9 @@ export function login(request: AuthLoginRequest) {
 }
 
 export function logout() {
-  return apiClient<void>("/auth/logout", {
+  return apiClient("/auth/logout", {
     method: "POST",
+    responseType: "void",
   });
 }
 
