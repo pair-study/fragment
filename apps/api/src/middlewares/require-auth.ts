@@ -1,6 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { ERROR_CODES } from "../common/constants/error-codes";
-import { createMiddlewareError } from "../common/middleware-error";
+import { HttpError } from "../errors/http-error";
 import type { AuthenticatedUser } from "../types/express";
 import { toApiId, type DatabaseId } from "../utils/mapper";
 
@@ -39,7 +39,7 @@ export const createRequireAuth = ({
     const token = extractBearerToken(req.headers.authorization);
 
     if (!token) {
-      next(createMiddlewareError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다."));
+      next(new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다."));
       return;
     }
 
@@ -48,7 +48,7 @@ export const createRequireAuth = ({
       req.user = toAuthenticatedUser(payload);
       next();
     } catch {
-      next(createMiddlewareError(401, ERROR_CODES.UNAUTHORIZED, "유효하지 않은 인증 토큰입니다."));
+      next(new HttpError(401, ERROR_CODES.UNAUTHORIZED, "유효하지 않은 인증 토큰입니다."));
     }
   };
 };

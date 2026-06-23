@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@fragment/database";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { ERROR_CODES } from "../common/constants/error-codes";
-import { createMiddlewareError } from "../common/middleware-error";
+import { HttpError } from "../errors/http-error";
 import { toApiId, toPrismaId } from "../utils/mapper";
 
 export type RequireOrganizationDependencies = {
@@ -13,7 +13,7 @@ export const createRequireOrganization = ({
 }: RequireOrganizationDependencies): RequestHandler => {
   return async (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) {
-      next(createMiddlewareError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다."));
+      next(new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다."));
       return;
     }
 
@@ -29,11 +29,7 @@ export const createRequireOrganization = ({
 
       if (!organization) {
         next(
-          createMiddlewareError(
-            403,
-            ERROR_CODES.ORGANIZATION_REQUIRED,
-            "조직 생성 후 이용할 수 있습니다.",
-          ),
+          new HttpError(403, ERROR_CODES.ORGANIZATION_REQUIRED, "조직 생성 후 이용할 수 있습니다."),
         );
         return;
       }
