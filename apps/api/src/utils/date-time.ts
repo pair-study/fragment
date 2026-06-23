@@ -29,7 +29,7 @@ export const getTimeRangeDurationMinutes = (startTime: string, endTime: string):
   const endMinutes = parseTimeToMinutes(endTime);
 
   if (startMinutes === endMinutes) {
-    throw new RangeError("Start time and end time must be different.");
+    throw new RangeError("시작 시간과 종료 시간은 같을 수 없습니다.");
   }
 
   return endMinutes > startMinutes
