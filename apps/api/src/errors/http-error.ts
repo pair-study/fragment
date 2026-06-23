@@ -1,4 +1,4 @@
-import type { ErrorCode } from "../common/constants/error-codes";
+import type { ErrorCode } from "@/common/constants/error-codes";
 
 export class HttpError extends Error {
   constructor(

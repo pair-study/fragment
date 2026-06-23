@@ -3,10 +3,10 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import type { PrismaClient } from "@fragment/database";
 
-import { ERROR_CODES } from "./common/constants/error-codes";
-import { HttpError } from "./errors/http-error";
-import { errorHandler } from "./middlewares/error-handler";
-import { apiRoutes } from "./routes";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { HttpError } from "@/errors/http-error";
+import { errorHandler } from "@/middlewares/error-handler";
+import { apiRoutes } from "@/routes";
 
 type AppDependencies = {
   prisma: PrismaClient;

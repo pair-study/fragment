@@ -1,8 +1,8 @@
 import type { RequestHandler } from "express";
 import type { z } from "zod";
 
-import { ERROR_CODES } from "../common/constants/error-codes";
-import { HttpError } from "../errors/http-error";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { HttpError } from "@/errors/http-error";
 
 type RequestSchema = z.ZodType<{
   body?: unknown;

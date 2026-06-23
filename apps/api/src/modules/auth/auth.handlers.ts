@@ -1,8 +1,8 @@
 import type { PrismaClient } from "@fragment/database";
 import type { RequestHandler } from "express";
 
-import { ERROR_CODES } from "../../common/constants/error-codes";
-import { HttpError } from "../../errors/http-error";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { HttpError } from "@/errors/http-error";
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from "./auth.cookies";
 import { getMe, login, logout, refreshSession, signup } from "./auth.service";
 

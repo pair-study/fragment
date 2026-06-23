@@ -2,17 +2,17 @@ import { Router } from "express";
 import { authLoginRequestSchema, authSignupRequestSchema } from "@fragment/shared";
 import { z } from "zod";
 
-import { createRequireAuth } from "../middlewares/require-auth";
-import { createRequireSameOrigin } from "../middlewares/require-same-origin";
-import { validate } from "../middlewares/validate";
+import { createRequireAuth } from "@/middlewares/require-auth";
+import { createRequireSameOrigin } from "@/middlewares/require-same-origin";
+import { validate } from "@/middlewares/validate";
 import {
   loginHandler,
   logoutHandler,
   meHandler,
   refreshHandler,
   signupHandler,
-} from "../modules/auth/auth.handlers";
-import { verifyAccessToken } from "../modules/auth/auth.tokens";
+} from "@/modules/auth/auth.handlers";
+import { verifyAccessToken } from "@/modules/auth/auth.tokens";
 
 export const authRoutes = Router();
 const requireAuth = createRequireAuth({ verifyAccessToken });

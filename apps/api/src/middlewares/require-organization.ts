@@ -1,8 +1,8 @@
 import type { PrismaClient } from "@fragment/database";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { ERROR_CODES } from "../common/constants/error-codes";
-import { HttpError } from "../errors/http-error";
-import { toApiId, toPrismaId } from "../utils/mapper";
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { HttpError } from "@/errors/http-error";
+import { toApiId, toPrismaId } from "@/utils/mapper";
 
 export type RequireOrganizationDependencies = {
   prisma: PrismaClient;
