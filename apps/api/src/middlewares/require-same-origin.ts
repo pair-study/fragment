@@ -30,9 +30,11 @@ export const createRequireSameOrigin = (allowedOrigin?: string): RequestHandler 
 
     const requestOrigin =
       getHeaderOrigin(req.headers.origin) ?? getHeaderOrigin(req.headers.referer);
+    const hasOriginHeader = Boolean(req.headers.origin || req.headers.referer);
 
-    // Allow manual API clients such as Postman/curl, which often omit Origin/Referer.
-    if (!requestOrigin || requestOrigin === normalizedAllowedOrigin) {
+    // TODO: Before production, reject requests that omit both Origin and Referer.
+    // This temporary allowance keeps local Postman/curl auth testing usable.
+    if (!hasOriginHeader || requestOrigin === normalizedAllowedOrigin) {
       next();
       return;
     }

@@ -167,11 +167,14 @@ export async function logout(prisma: PrismaClient, refreshToken?: string) {
     where: { tokenHash },
   });
 
-  if (!storedToken) {
+  if (!storedToken || storedToken.revokedAt || storedToken.expiresAt <= new Date()) {
     throw createInvalidRefreshTokenError();
   }
 
-  await consumeRefreshToken(prisma, storedToken.id, new Date());
+  await prisma.refreshToken.update({
+    where: { id: storedToken.id },
+    data: { revokedAt: new Date() },
+  });
 }
 
 export async function refreshSession(prisma: PrismaClient, refreshToken?: string) {
