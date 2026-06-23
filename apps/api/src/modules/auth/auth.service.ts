@@ -142,6 +142,24 @@ export async function logout(prisma: PrismaClient, refreshToken?: string) {
   });
 }
 
+export async function refreshSession(prisma: PrismaClient, refreshToken?: string) {
+  if (!refreshToken) {
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
+  }
+
+  const tokenHash = hashRefreshToken(refreshToken);
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+
+  if (!storedToken || storedToken.revokedAt || storedToken.expiresAt <= new Date()) {
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
+  }
+
+  return createAuthSession(prisma, storedToken.user);
+}
+
 export async function getMe(prisma: PrismaClient, userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: BigInt(userId) },

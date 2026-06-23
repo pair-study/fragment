@@ -4,7 +4,7 @@ import type { RequestHandler } from "express";
 import { ERROR_CODES } from "../../common/constants/error-codes";
 import { HttpError } from "../../errors/http-error";
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from "./auth.cookies";
-import { getMe, login, logout, signup } from "./auth.service";
+import { getMe, login, logout, refreshSession, signup } from "./auth.service";
 
 export const signupHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -39,6 +39,20 @@ export const logoutHandler: RequestHandler = async (req, res, next) => {
     await logout(prisma, refreshToken);
     clearRefreshTokenCookie(res);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const refreshHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const prisma = req.app.locals.prisma as PrismaClient;
+    const refreshToken =
+      typeof req.cookies?.refreshToken === "string" ? req.cookies.refreshToken : undefined;
+    const result = await refreshSession(prisma, refreshToken);
+
+    setRefreshTokenCookie(res, result.refreshToken, result.refreshTokenExpiresAt);
+    res.status(200).json(result.response);
   } catch (error) {
     next(error);
   }

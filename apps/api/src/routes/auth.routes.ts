@@ -8,6 +8,7 @@ import {
   loginHandler,
   logoutHandler,
   meHandler,
+  refreshHandler,
   signupHandler,
 } from "../modules/auth/auth.handlers";
 import { verifyAccessToken } from "../modules/auth/auth.tokens";
@@ -36,4 +37,5 @@ authRoutes.post(
 );
 
 authRoutes.post("/logout", logoutHandler);
+authRoutes.post("/refresh", refreshHandler);
 authRoutes.get("/me", requireAuth, meHandler);
