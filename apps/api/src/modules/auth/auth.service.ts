@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@fragment/database";
 import { compare, hash } from "bcryptjs";
 
+import { ERROR_CODES } from "../../common/constants/error-codes";
 import { HttpError } from "../../errors/http-error";
 import {
   createAccessToken,
@@ -66,7 +67,7 @@ export async function signup(prisma: PrismaClient, input: SignupInput) {
   });
 
   if (existingUser) {
-    throw new HttpError(409, "DUPLICATE_EMAIL", "이미 사용 중인 이메일입니다.");
+    throw new HttpError(409, ERROR_CODES.DUPLICATE_EMAIL, "이미 사용 중인 이메일입니다.");
   }
 
   const passwordHash = await hash(input.password, 12);
@@ -83,7 +84,7 @@ export async function signup(prisma: PrismaClient, input: SignupInput) {
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new HttpError(409, "DUPLICATE_EMAIL", "이미 사용 중인 이메일입니다.");
+      throw new HttpError(409, ERROR_CODES.DUPLICATE_EMAIL, "이미 사용 중인 이메일입니다.");
     }
 
     throw error;
@@ -98,13 +99,13 @@ export async function login(prisma: PrismaClient, input: LoginInput) {
   });
 
   if (!user) {
-    throw new HttpError(401, "UNAUTHORIZED", "이메일 또는 비밀번호가 올바르지 않습니다.");
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
   }
 
   const isPasswordValid = await compare(input.password, user.passwordHash);
 
   if (!isPasswordValid) {
-    throw new HttpError(401, "UNAUTHORIZED", "이메일 또는 비밀번호가 올바르지 않습니다.");
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
   }
 
   return createAuthSession(prisma, user);
@@ -112,7 +113,7 @@ export async function login(prisma: PrismaClient, input: LoginInput) {
 
 export async function logout(prisma: PrismaClient, refreshToken?: string) {
   if (!refreshToken) {
-    throw new HttpError(401, "UNAUTHORIZED", "Refresh token이 유효하지 않습니다.");
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
   }
 
   const tokenHash = hashRefreshToken(refreshToken);
@@ -121,7 +122,7 @@ export async function logout(prisma: PrismaClient, refreshToken?: string) {
   });
 
   if (!storedToken || storedToken.revokedAt || storedToken.expiresAt <= new Date()) {
-    throw new HttpError(401, "UNAUTHORIZED", "Refresh token이 유효하지 않습니다.");
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "Refresh token이 유효하지 않습니다.");
   }
 
   await prisma.refreshToken.update({
@@ -132,7 +133,7 @@ export async function logout(prisma: PrismaClient, refreshToken?: string) {
 
 export async function getMe(prisma: PrismaClient, accessToken?: string) {
   if (!accessToken) {
-    throw new HttpError(401, "UNAUTHORIZED", "인증이 필요합니다.");
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다.");
   }
 
   let userId: bigint;
@@ -140,7 +141,7 @@ export async function getMe(prisma: PrismaClient, accessToken?: string) {
   try {
     userId = verifyAccessToken(accessToken).userId;
   } catch {
-    throw new HttpError(401, "UNAUTHORIZED", "인증이 필요합니다.");
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다.");
   }
 
   const user = await prisma.user.findUnique({
@@ -156,7 +157,7 @@ export async function getMe(prisma: PrismaClient, accessToken?: string) {
   });
 
   if (!user) {
-    throw new HttpError(401, "UNAUTHORIZED", "인증이 필요합니다.");
+    throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다.");
   }
 
   return {

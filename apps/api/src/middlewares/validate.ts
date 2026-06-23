@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import type { z } from "zod";
 
+import { ERROR_CODES } from "../common/constants/error-codes";
 import { HttpError } from "../errors/http-error";
 
 type RequestSchema = z.ZodType<{
@@ -18,7 +19,7 @@ export function validate(schema: RequestSchema): RequestHandler {
     });
 
     if (!result.success) {
-      next(new HttpError(400, "VALIDATION_ERROR", "요청 형식이 올바르지 않습니다."));
+      next(new HttpError(400, ERROR_CODES.VALIDATION_ERROR, "요청 형식이 올바르지 않습니다."));
       return;
     }
 
