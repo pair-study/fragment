@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start:dev": "node --watch -r ts-node/register src/main.ts",
-    "dev": "node --watch -r ts-node/register src/main.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "start:dev": "pnpm --filter @fragment/shared build && node --watch -r ts-node/register src/main.ts",
+    "dev": "pnpm --filter @fragment/shared build && node --watch -r ts-node/register src/main.ts",
+    "build": "pnpm --filter @fragment/shared build && tsc -p tsconfig.build.json",
     "start": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --filter @fragment/shared build && tsc --noEmit"
   },
   "dependencies": {
     "@fragment/database": "workspace:*",
