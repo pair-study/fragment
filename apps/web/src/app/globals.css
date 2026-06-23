@@ -1,5 +1,7 @@
+@import "@moyeorak/design-system/layers.css";
 @import "tailwindcss";
 @plugin "@moyeorak/design-system/tailwind-plugin";
+@import "@moyeorak/design-system/styles.css";
 
 @font-face {
   font-family: "Pretendard";

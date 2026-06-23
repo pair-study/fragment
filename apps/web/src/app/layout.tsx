@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "@moyeorak/design-system/dist/style.css";
 
 export const metadata: Metadata = {
   title: "프래그먼트",

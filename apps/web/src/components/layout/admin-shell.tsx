@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 import { FloatingButton } from "@moyeorak/design-system";
 
@@ -12,13 +12,21 @@ type AdminShellProps = {
 };
 
 export function AdminShell({ children }: AdminShellProps) {
+  function scrollToTop(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const scrollRoot = document.scrollingElement ?? document.documentElement;
+    scrollRoot.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   return (
     <SidebarProvider>
       <AdminSidebar />
       <SidebarInset className="flex min-h-dvh flex-col max-lg:pl-16">
         <div className="min-w-0 flex-1 bg-background">{children}</div>
       </SidebarInset>
-      <FloatingButton type="up" aria-label="위로 이동" />
+      <FloatingButton type="up" aria-label="위로 이동" onClick={scrollToTop} />
     </SidebarProvider>
   );
 }

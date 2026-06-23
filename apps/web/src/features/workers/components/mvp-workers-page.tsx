@@ -182,6 +182,7 @@ export function MvpWorkersPage() {
                         <IconButton
                           size="sm"
                           aria-label="수정"
+                          className="rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                           onClick={() => openEditForm(worker)}
                         >
                           <Pencil className="size-4" />
@@ -189,6 +190,7 @@ export function MvpWorkersPage() {
                         <IconButton
                           size="sm"
                           aria-label="삭제"
+                          className="rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setDeleteTarget(worker)}
                         >
                           <Trash2 className="size-4" />
