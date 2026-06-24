@@ -6,6 +6,7 @@ import { HttpError } from "@/errors/http-error";
 import { createOrganization, getOrganization, updateOrganization } from "./organization.service";
 
 const getAuthenticatedUserId = (req: Request) => {
+  // requireAuth 이후 실행되지만, 타입 좁히기와 라우터 누락 방지를 위해 확인합니다.
   if (!req.user) {
     throw new HttpError(401, ERROR_CODES.UNAUTHORIZED, "인증이 필요합니다.");
   }
