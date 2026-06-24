@@ -1,4 +1,4 @@
-import type { ApiId } from "../utils/mapper";
+import type { ApiId } from "@/utils/mapper";
 
 export type AuthenticatedUser = {
   id: ApiId;

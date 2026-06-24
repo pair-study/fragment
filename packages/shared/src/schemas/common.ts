@@ -42,6 +42,7 @@ export const scheduleStatusSchema = z.enum(["DRAFT", "CONFIRMED"]);
 
 export const errorCodeSchema = z.enum([
   "VALIDATION_ERROR",
+  "INTERNAL_SERVER_ERROR",
   "UNAUTHORIZED",
   "FORBIDDEN",
   "NOT_FOUND",

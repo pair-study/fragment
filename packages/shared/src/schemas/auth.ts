@@ -25,6 +25,7 @@ export const authLoginRequestSchema = z.object({
 });
 
 export const authSessionResponseSchema = z.object({
+  accessToken: z.string().min(1),
   user: userSchema,
   hasOrganization: z.boolean(),
 });
