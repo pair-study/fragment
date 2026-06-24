@@ -19,7 +19,7 @@
 | Framework | Next.js `15.3.x` |
 | UI Library | React `19.1.x` |
 | Styling | Tailwind CSS `4.1.x` |
-| Design System | `@moyeorak/design-system` `0.2.x` |
+| Design System | `@moyeorak/design-system` `0.3.x` |
 | UI 보조 | shadcn/ui, Radix UI |
 | Icon | lucide-react |
 
@@ -28,6 +28,7 @@
 - 운영 웹은 반응형으로 구현합니다.
 - 컴포넌트는 `@moyeorak/design-system`을 우선 사용합니다.
 - 디자인 시스템에 없는 컴포넌트만 shadcn/ui 또는 Radix UI 기반으로 보완합니다.
+- Tailwind CSS v4와 함께 사용할 때는 전역 CSS 진입점에서 `@moyeorak/design-system/layers.css`를 가장 먼저 import하고, `@moyeorak/design-system/styles.css`를 함께 import합니다.
 - 화면 상태는 서버 상태, 전역 UI 상태, 로컬 UI 상태, 폼 상태를 구분합니다.
 
 ### 상태와 폼 적용 기준

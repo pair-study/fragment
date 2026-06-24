@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@moyeorak/design-system";
-import { Download, Store } from "lucide-react";
+import { Download } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 
@@ -122,16 +122,13 @@ export function MvpDashboardPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-lg bg-surface-secondary text-muted-foreground">
-                <Store className="size-5" aria-hidden="true" />
-              </span>
               <h2 className="text-xl font-semibold text-foreground">
                 {dashboardSummary.organizationName}
               </h2>
             </div>
             <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-              <p>운영 시간 {dashboardSummary.operationHours}</p>
-              <p>휴무일 {dashboardSummary.closedDays}</p>
+              <p>운영 시간: {dashboardSummary.operationHours}</p>
+              <p>휴무일: {dashboardSummary.closedDays}</p>
             </div>
           </div>
           <Button asChild variant="outline">
@@ -161,8 +158,8 @@ export function MvpDashboardPage() {
             type="button"
             variant="brand"
             onClick={() => setExportMessage("확정 스케줄 CSV export가 준비되었습니다.")}
+            leadingIcon={<Download className="size-4" aria-hidden="true" />}
           >
-            <Download className="size-4" aria-hidden="true" />
             CSV export
           </Button>
         </div>

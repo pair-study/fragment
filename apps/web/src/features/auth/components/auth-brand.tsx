@@ -34,7 +34,7 @@ export function AuthBrand({ className, variant = "compact" }: AuthBrandProps) {
   return (
     <div className={cn("flex items-center", className)}>
       <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-lg bg-primary p-2 shadow-sm">
+        <span className="flex size-10 items-center justify-center rounded-lg p-2 shadow-sm">
           <Image
             src="/favicons/favicon-64.png"
             width={64}
