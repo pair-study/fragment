@@ -1,19 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@moyeorak/design-system";
+import { useForm } from "react-hook-form";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
   createOrganizationRequestFromForm,
-  type BusinessHour,
   type DayOfWeek,
   type OrganizationFormValues,
   ORGANIZATION_DAYS,
-  validateOrganizationForm,
+  organizationFormSchema,
 } from "../utils/organization-form-utils";
 
 type OrganizationFormProps = {
@@ -33,62 +33,45 @@ export function OrganizationForm({
   submitLabel,
   submittingLabel,
 }: OrganizationFormProps) {
-  const [name, setName] = useState(initialValues.name);
-  const [businessHours, setBusinessHours] = useState(initialValues.businessHours);
-  const [weeklyClosedDays, setWeeklyClosedDays] = useState(initialValues.weeklyClosedDays);
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    formState: { errors, isSubmitting },
+    handleSubmit,
+    register,
+    setValue,
+    watch,
+  } = useForm<OrganizationFormValues>({
+    defaultValues: initialValues,
+    resolver: zodResolver(organizationFormSchema),
+  });
 
-  const formValues = useMemo(
-    () => ({
-      name,
-      businessHours,
-      weeklyClosedDays,
-    }),
-    [businessHours, name, weeklyClosedDays],
-  );
-  const errors = useMemo(() => validateOrganizationForm(formValues), [formValues]);
-  const hasErrors = Object.keys(errors).length > 0;
+  const weeklyClosedDays = watch("weeklyClosedDays");
 
   function toggleWeeklyClosedDay(day: DayOfWeek) {
-    setWeeklyClosedDays((currentDays) =>
-      currentDays.includes(day)
-        ? currentDays.filter((currentDay) => currentDay !== day)
-        : [...currentDays, day],
+    const nextWeeklyClosedDays = weeklyClosedDays.includes(day)
+      ? weeklyClosedDays.filter((currentDay) => currentDay !== day)
+      : [...weeklyClosedDays, day];
+
+    setValue("weeklyClosedDays", nextWeeklyClosedDays, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+
+  async function submitForm(values: OrganizationFormValues) {
+    await onSubmit(createOrganizationRequestFromForm(values));
+  }
+
+  function getBusinessHourError(day: DayOfWeek) {
+    return (
+      errors.businessHours?.[day]?.openTime?.message ??
+      errors.businessHours?.[day]?.closeTime?.message
     );
-  }
-
-  function updateBusinessHour(day: DayOfWeek, field: keyof BusinessHour, value: string) {
-    setBusinessHours((currentHours) => ({
-      ...currentHours,
-      [day]: {
-        ...currentHours[day],
-        [field]: value,
-      },
-    }));
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitted(true);
-
-    if (hasErrors) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      await onSubmit(createOrganizationRequestFromForm(formValues));
-    } finally {
-      setIsSubmitting(false);
-    }
   }
 
   return (
     <form
       className="rounded-xl border border-border bg-card p-6 shadow-card"
-      onSubmit={handleSubmit}
+      onSubmit={handleSubmit(submitForm)}
     >
       <div>
         <h2 className="text-lg font-semibold text-foreground">조직 정보</h2>
@@ -103,13 +86,10 @@ export function OrganizationForm({
           <Input
             id="organization-name"
             placeholder="예: 강남 스터디 카페"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            aria-invalid={submitted && Boolean(errors.name)}
+            aria-invalid={Boolean(errors.name)}
+            {...register("name")}
           />
-          {submitted && errors.name ? (
-            <p className="text-sm text-destructive">{errors.name}</p>
-          ) : null}
+          {errors.name ? <p className="text-sm text-destructive">{errors.name.message}</p> : null}
         </div>
 
         <section className="space-y-4 rounded-lg border border-border p-4">
@@ -153,7 +133,7 @@ export function OrganizationForm({
           <div className="overflow-hidden rounded-lg border border-border">
             {ORGANIZATION_DAYS.map((day) => {
               const closed = weeklyClosedDays.includes(day.value);
-              const dayError = errors.businessHours?.[day.value];
+              const dayError = getBusinessHourError(day.value);
 
               return (
                 <div
@@ -173,26 +153,18 @@ export function OrganizationForm({
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Input
                         type="time"
-                        value={businessHours[day.value].openTime}
                         disabled={closed}
                         aria-label={`${day.label} 운영 시작 시간`}
-                        onChange={(event) =>
-                          updateBusinessHour(day.value, "openTime", event.target.value)
-                        }
+                        {...register(`businessHours.${day.value}.openTime`)}
                       />
                       <Input
                         type="time"
-                        value={businessHours[day.value].closeTime}
                         disabled={closed}
                         aria-label={`${day.label} 운영 종료 시간`}
-                        onChange={(event) =>
-                          updateBusinessHour(day.value, "closeTime", event.target.value)
-                        }
+                        {...register(`businessHours.${day.value}.closeTime`)}
                       />
                     </div>
-                    {submitted && dayError ? (
-                      <p className="mt-2 text-sm text-destructive">{dayError}</p>
-                    ) : null}
+                    {dayError ? <p className="mt-2 text-sm text-destructive">{dayError}</p> : null}
                   </div>
                 </div>
               );

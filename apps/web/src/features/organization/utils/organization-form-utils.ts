@@ -1,5 +1,10 @@
 import type { CreateOrganizationRequest, OrganizationDetail } from "@fragment/shared";
-import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
+import {
+  createOrganizationRequestSchema,
+  DAY_OF_WEEK_VALUES,
+  dayOfWeekSchema,
+} from "@fragment/shared";
+import { z } from "zod";
 
 export type DayOfWeek = (typeof DAY_OF_WEEK_VALUES)[number];
 
@@ -12,11 +17,6 @@ export type OrganizationFormValues = {
   name: string;
   businessHours: Record<DayOfWeek, BusinessHour>;
   weeklyClosedDays: DayOfWeek[];
-};
-
-export type OrganizationFormErrors = {
-  name?: string;
-  businessHours?: Partial<Record<DayOfWeek, string>>;
 };
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
@@ -59,45 +59,48 @@ export const DEFAULT_ORGANIZATION_FORM_VALUES: OrganizationFormValues = {
   weeklyClosedDays: ["SUN"],
 };
 
-export function validateOrganizationForm({
-  businessHours,
-  name,
-  weeklyClosedDays,
-}: OrganizationFormValues) {
-  const errors: OrganizationFormErrors = {};
-  const businessHourErrors: Partial<Record<DayOfWeek, string>> = {};
+const organizationBusinessHourFormSchema = z.object({
+  openTime: z.string(),
+  closeTime: z.string(),
+});
 
-  if (!name.trim()) {
-    errors.name = "조직명을 입력하세요.";
-  }
+const organizationBusinessHoursFormSchema = z.object(
+  Object.fromEntries(
+    DAY_OF_WEEK_VALUES.map((day) => [day, organizationBusinessHourFormSchema]),
+  ) as Record<DayOfWeek, typeof organizationBusinessHourFormSchema>,
+);
 
-  ORGANIZATION_DAYS.forEach((day) => {
-    if (weeklyClosedDays.includes(day.value)) {
+export const organizationFormSchema = z
+  .object({
+    name: z.string(),
+    businessHours: organizationBusinessHoursFormSchema,
+    weeklyClosedDays: z.array(dayOfWeekSchema),
+  })
+  .superRefine((values, context) => {
+    const request = createOrganizationRequestFromForm(values);
+    const result = createOrganizationRequestSchema.safeParse(request);
+
+    if (result.success) {
       return;
     }
 
-    const hours = businessHours[day.value];
+    result.error.issues.forEach((issue) => {
+      const [field, index, nestedField] = issue.path;
+      const businessHour =
+        field === "businessHours" && typeof index === "number"
+          ? request.businessHours[index]
+          : undefined;
 
-    if (!hours.openTime || !hours.closeTime) {
-      businessHourErrors[day.value] = "운영 시작/종료 시간을 모두 선택하세요.";
-      return;
-    }
-
-    if (hours.closeTime <= hours.openTime) {
-      businessHourErrors[day.value] = "운영 종료 시간은 시작 시간보다 늦어야 합니다.";
-    }
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: issue.message,
+        path:
+          businessHour && typeof nestedField === "string"
+            ? ["businessHours", businessHour.dayOfWeek, nestedField]
+            : issue.path,
+      });
+    });
   });
-
-  if (ORGANIZATION_DAYS.every((day) => weeklyClosedDays.includes(day.value))) {
-    businessHourErrors.MON = "최소 하루 이상 운영 시간이 필요합니다.";
-  }
-
-  if (Object.keys(businessHourErrors).length > 0) {
-    errors.businessHours = businessHourErrors;
-  }
-
-  return errors;
-}
 
 export function createOrganizationRequestFromForm({
   businessHours,
@@ -108,7 +111,7 @@ export function createOrganizationRequestFromForm({
     name,
     businessHours: ORGANIZATION_DAYS.map((day) => {
       const isClosed = weeklyClosedDays.includes(day.value);
-      const hours = businessHours[day.value];
+      const hours = businessHours[day.value] ?? DEFAULT_BUSINESS_HOURS[day.value];
 
       return {
         dayOfWeek: day.value,
