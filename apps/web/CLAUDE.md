@@ -79,7 +79,7 @@ apps/web/
 
 - **Tailwind CSS** 유틸리티 클래스만 사용합니다. 인라인 `style` 속성 사용을 지양합니다.
 - 앱 자체 디자인 토큰(색상, 간격, 폰트)은 Tailwind CSS 4의 CSS-first 방식에 맞춰 `src/app/globals.css`의 `@theme`와 CSS 변수에서 중앙 관리합니다.
-- `@moyeorak/design-system` 토큰과 컴포넌트 CSS는 `src/app/globals.css`에서 `layers.css`, `styles.css`, `tailwind-plugin`으로 불러옵니다.
+- `@moyeorak/design-system` 토큰과 컴포넌트 CSS는 `src/app/globals.css`에서 `layers.css`, `tailwindcss`, `tailwind-plugin`, `styles.css` 순서로 불러옵니다.
 - `max-w-[440px]`, `h-[52px]`, `px-[18px]`처럼 픽셀 값을 arbitrary value로 직접 넣지 않습니다. Tailwind 기본 scale을 먼저 사용하고, 반복되는 값은 `globals.css`의 token으로 승격합니다.
 - 컴포넌트 로직과 스타일이 복잡해지면 `variants`(cva) 패턴으로 분리합니다.
 
