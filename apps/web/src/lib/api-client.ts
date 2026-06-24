@@ -139,24 +139,26 @@ export async function apiClient<TResponse>(
     });
   }
 
-  let response: Response;
+  async function executeRequest() {
+    try {
+      return await sendRequest();
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
 
-  try {
-    response = await sendRequest();
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw error;
+      throw new ApiError(0, {
+        message: "네트워크 연결 상태를 확인한 뒤 다시 시도해 주세요.",
+      });
     }
-
-    throw new ApiError(0, {
-      message: "네트워크 연결 상태를 확인한 뒤 다시 시도해 주세요.",
-    });
   }
+
+  let response = await executeRequest();
 
   if (auth && response.status === 401 && authHandlers) {
     try {
       await authHandlers.refreshAccessToken();
-      response = await sendRequest();
+      response = await executeRequest();
     } catch (error) {
       if (redirectOnUnauthorized) {
         authHandlers.onUnauthorized();

@@ -6,7 +6,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -35,9 +35,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
-  const [configured, setConfigured] = useState(false);
   const accessTokenRef = useRef<string | null>(null);
   const refreshPromiseRef = useRef<Promise<string> | null>(null);
+  const sessionEpochRef = useRef(0);
 
   const clearAccessToken = useCallback(() => {
     accessTokenRef.current = null;
@@ -50,6 +50,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const clearSession = useCallback(() => {
+    sessionEpochRef.current += 1;
+    refreshPromiseRef.current = null;
     clearAccessToken();
     queryClient.removeQueries({ queryKey: authMeQueryKey });
   }, [clearAccessToken, queryClient]);
@@ -61,30 +63,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshAccessToken = useCallback(async () => {
     if (!refreshPromiseRef.current) {
-      refreshPromiseRef.current = refreshSession()
+      const sessionEpoch = sessionEpochRef.current;
+      const refreshPromise = refreshSession()
         .then((session) => {
+          if (sessionEpoch !== sessionEpochRef.current) {
+            throw new Error("Session was cleared while refreshing.");
+          }
+
           setAccessToken(session.accessToken);
           return session.accessToken;
         })
         .catch((error: unknown) => {
-          clearAccessToken();
+          if (sessionEpoch === sessionEpochRef.current) {
+            clearAccessToken();
+          }
+
           throw error;
         })
         .finally(() => {
-          refreshPromiseRef.current = null;
+          if (refreshPromiseRef.current === refreshPromise) {
+            refreshPromiseRef.current = null;
+          }
         });
+
+      refreshPromiseRef.current = refreshPromise;
     }
 
     return refreshPromiseRef.current;
   }, [clearAccessToken, setAccessToken]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     configureApiClientAuth({
       getAccessToken: () => accessTokenRef.current,
       onUnauthorized: redirectToLogin,
       refreshAccessToken,
     });
-    setConfigured(true);
 
     return () => {
       resetApiClientAuth();
@@ -93,6 +106,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const setSession = useCallback(
     (session: AuthSessionResponse) => {
+      sessionEpochRef.current += 1;
+      refreshPromiseRef.current = null;
       setAccessToken(session.accessToken);
     },
     [setAccessToken],
@@ -107,10 +122,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }),
     [accessToken, clearSession, refreshAccessToken, setSession],
   );
-
-  if (!configured) {
-    return null;
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

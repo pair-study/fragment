@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getMe } from "@/features/auth/api";
@@ -15,6 +15,7 @@ type RequireGuestAuthProps = {
 export function RequireGuestAuth({ children }: RequireGuestAuthProps) {
   const router = useRouter();
   const { refreshAccessToken } = useAuth();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
     let ignore = false;
@@ -29,6 +30,10 @@ export function RequireGuestAuth({ children }: RequireGuestAuthProps) {
         }
       } catch {
         // Guest routes should stay usable when no session can be restored.
+      } finally {
+        if (!ignore) {
+          setIsCheckingSession(false);
+        }
       }
     }
 
@@ -38,6 +43,10 @@ export function RequireGuestAuth({ children }: RequireGuestAuthProps) {
       ignore = true;
     };
   }, [refreshAccessToken, router]);
+
+  if (isCheckingSession) {
+    return null;
+  }
 
   return <>{children}</>;
 }
