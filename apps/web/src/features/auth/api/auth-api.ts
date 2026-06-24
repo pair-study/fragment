@@ -35,5 +35,7 @@ export function refreshSession() {
 }
 
 export function getMe() {
-  return apiClient<AuthMeResponse>("/auth/me");
+  return apiClient<AuthMeResponse>("/auth/me", {
+    method: "GET",
+  });
 }
