@@ -4,6 +4,7 @@ import type {
   OrganizationDetail,
   UpdateOrganizationRequest,
 } from "@fragment/shared";
+import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
@@ -16,8 +17,6 @@ type OrganizationWithBusinessHours = Prisma.OrganizationGetPayload<{
     businessHours: true;
   };
 }>;
-
-const DAY_ORDER = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
 
 const toTimeDate = (time: string | null): Date | null => {
   if (time === null) {
@@ -38,7 +37,7 @@ const toTimeString = (time: Date | null): string | null => {
   return `${hour}:${minute}`;
 };
 
-const getBusinessHourOrder = (dayOfWeek: DayOfWeek) => DAY_ORDER.indexOf(dayOfWeek);
+const getBusinessHourOrder = (dayOfWeek: DayOfWeek) => DAY_OF_WEEK_VALUES.indexOf(dayOfWeek);
 
 const getClosesNextDay = ({
   closeTime,
