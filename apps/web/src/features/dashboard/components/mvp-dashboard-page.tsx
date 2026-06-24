@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Icon } from "@moyeorak/design-system";
+import { Button } from "@moyeorak/design-system";
+import { Download } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 
@@ -157,7 +158,7 @@ export function MvpDashboardPage() {
             type="button"
             variant="brand"
             onClick={() => setExportMessage("확정 스케줄 CSV export가 준비되었습니다.")}
-            leadingIcon={<Icon type="share" size="xs" />}
+            leadingIcon={<Download className="size-4" aria-hidden="true" />}
           >
             CSV export
           </Button>

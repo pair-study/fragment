@@ -240,7 +240,6 @@ export function MvpStaffingRulesPage() {
       <CrudFormDialog
         open={formOpen}
         title={formTitle}
-        titleId="staffing-rule-form-title"
         description="특정 요일과 시간대에 필요한 최소 근무 인원을 입력하세요."
         onClose={closeForm}
         onSave={saveRule}

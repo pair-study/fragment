@@ -191,7 +191,6 @@ export function MvpWorkersPage() {
       <CrudFormDialog
         open={formOpen}
         title={formTitle}
-        titleId="worker-form-title"
         description={
           formMode === "create"
             ? "이름과 주간 계약 시간을 입력하면 사번은 자동으로 생성됩니다."
