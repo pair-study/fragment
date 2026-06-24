@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Archive, CalendarDays, Clock3, Home, ListChecks, LogOut, Users } from "lucide-react";
 
 import {
@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useAuthMeQuery, useLogoutMutation } from "@/features/auth/queries/auth-session";
 
 const primaryNavigationItems = [
   { title: "대시보드", href: "/dashboard", icon: Home },
@@ -35,6 +36,17 @@ function isActivePath(pathname: string, href: string) {
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: authMe } = useAuthMeQuery();
+  const logoutMutation = useLogoutMutation();
+
+  async function handleLogout() {
+    try {
+      await logoutMutation.mutateAsync();
+    } finally {
+      router.replace("/login");
+    }
+  }
 
   return (
     <Sidebar>
@@ -62,13 +74,20 @@ export function AdminSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-border">
+        <div className="min-w-0 px-3 py-2 group-data-[state=collapsed]/sidebar:sr-only">
+          <p className="truncate text-sm font-semibold text-foreground">{authMe?.user.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{authMe?.user.email}</p>
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/login" title="로그아웃">
-                <LogOut aria-hidden="true" />
-                <span>로그아웃</span>
-              </Link>
+            <SidebarMenuButton
+              type="button"
+              title="로그아웃"
+              disabled={logoutMutation.isPending}
+              onClick={handleLogout}
+            >
+              <LogOut aria-hidden="true" />
+              <span>{logoutMutation.isPending ? "로그아웃 중" : "로그아웃"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
