@@ -236,7 +236,7 @@ export function MvpScheduleHistoryPage() {
                   <SelectValue placeholder="월 선택" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">전체 월</SelectItem>
+                  <SelectItem value="ALL">전체</SelectItem>
                   {historyMonths.map((month) => (
                     <SelectItem key={month} value={month}>
                       {Number(month)}월
