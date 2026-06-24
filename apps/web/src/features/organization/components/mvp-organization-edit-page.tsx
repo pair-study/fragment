@@ -1,53 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@moyeorak/design-system";
 import Link from "next/link";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import { getApiErrorMessage } from "@/lib/api-error-message";
-import { getOrganization, updateOrganization } from "../api/organization-api";
-import { OrganizationForm } from "./organization-form";
 import {
-  createOrganizationFormValuesFromDetail,
-  type OrganizationFormValues,
-} from "../utils/organization-form-utils";
+  useOrganizationQuery,
+  useUpdateOrganizationMutation,
+} from "../queries/organization-queries";
+import { OrganizationForm } from "./organization-form";
+import { createOrganizationFormValuesFromDetail } from "../utils/organization-form-utils";
 
 export function MvpOrganizationEditPage() {
   const router = useRouter();
-  const [formValues, setFormValues] = useState<OrganizationFormValues | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const organizationQuery = useOrganizationQuery();
+  const updateOrganizationMutation = useUpdateOrganizationMutation();
   const [submitError, setSubmitError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadOrganization() {
-      try {
-        const organization = await getOrganization();
-
-        if (!ignore) {
-          setFormValues(createOrganizationFormValuesFromDetail(organization));
-        }
-      } catch {
-        if (!ignore) {
-          setLoadError("조직 정보를 불러오지 못했습니다.");
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    void loadOrganization();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const formValues = useMemo(
+    () =>
+      organizationQuery.data
+        ? createOrganizationFormValuesFromDetail(organizationQuery.data)
+        : null,
+    [organizationQuery.data],
+  );
 
   return (
     <AdminPageShell
@@ -60,10 +38,10 @@ export function MvpOrganizationEditPage() {
       }
       contentClassName="space-y-6"
     >
-      {isLoading ? (
+      {organizationQuery.isPending ? (
         <p className="text-sm text-muted-foreground">조직 정보를 불러오는 중입니다.</p>
-      ) : loadError ? (
-        <p className="text-sm text-destructive">{loadError}</p>
+      ) : organizationQuery.isError ? (
+        <p className="text-sm text-destructive">조직 정보를 불러오지 못했습니다.</p>
       ) : formValues ? (
         <OrganizationForm
           cancelHref="/dashboard"
@@ -75,7 +53,7 @@ export function MvpOrganizationEditPage() {
             setSubmitError(null);
 
             try {
-              await updateOrganization(request);
+              await updateOrganizationMutation.mutateAsync(request);
               router.push("/dashboard");
             } catch (error) {
               setSubmitError(

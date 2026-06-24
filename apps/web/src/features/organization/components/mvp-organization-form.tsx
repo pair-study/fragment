@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getApiErrorMessage } from "@/lib/api-error-message";
-import { createOrganization } from "../api/organization-api";
+import { useCreateOrganizationMutation } from "../queries/organization-queries";
 import { OrganizationForm } from "./organization-form";
 import { DEFAULT_ORGANIZATION_FORM_VALUES } from "../utils/organization-form-utils";
 
 export function MvpOrganizationForm() {
   const router = useRouter();
+  const createOrganizationMutation = useCreateOrganizationMutation();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   return (
@@ -22,7 +23,7 @@ export function MvpOrganizationForm() {
         setSubmitError(null);
 
         try {
-          await createOrganization(request);
+          await createOrganizationMutation.mutateAsync(request);
           router.push("/dashboard");
         } catch (error) {
           setSubmitError(
