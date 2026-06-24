@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { ApiError } from "@/lib/api-client";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import { createOrganization } from "../api/organization-api";
 import { OrganizationForm } from "./organization-form";
 import { DEFAULT_ORGANIZATION_FORM_VALUES } from "../utils/organization-form-utils";
@@ -26,9 +26,7 @@ export function MvpOrganizationForm() {
           router.push("/dashboard");
         } catch (error) {
           setSubmitError(
-            error instanceof ApiError
-              ? error.message
-              : "조직 생성 중 오류가 발생했습니다. 다시 시도해 주세요.",
+            getApiErrorMessage(error, "조직 생성 중 오류가 발생했습니다. 다시 시도해 주세요."),
           );
         }
       }}

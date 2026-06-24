@@ -6,7 +6,7 @@ import { Button } from "@moyeorak/design-system";
 import Link from "next/link";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
-import { ApiError } from "@/lib/api-client";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import { getOrganization, updateOrganization } from "../api/organization-api";
 import { OrganizationForm } from "./organization-form";
 import {
@@ -79,9 +79,7 @@ export function MvpOrganizationEditPage() {
               router.push("/dashboard");
             } catch (error) {
               setSubmitError(
-                error instanceof ApiError
-                  ? error.message
-                  : "조직 수정 중 오류가 발생했습니다. 다시 시도해 주세요.",
+                getApiErrorMessage(error, "조직 수정 중 오류가 발생했습니다. 다시 시도해 주세요."),
               );
             }
           }}
