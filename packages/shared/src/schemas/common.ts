@@ -36,7 +36,9 @@ export const isDateTimeOnThirtyMinuteBoundary = (dateTime: string) => {
   return minute === 0 || minute === 30;
 };
 
-export const dayOfWeekSchema = z.enum(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]);
+export const DAY_OF_WEEK_VALUES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+
+export const dayOfWeekSchema = z.enum(DAY_OF_WEEK_VALUES);
 
 export const scheduleStatusSchema = z.enum(["DRAFT", "CONFIRMED"]);
 
