@@ -1,11 +1,11 @@
 import { errorResponseSchema, type ErrorResponse } from "@fragment/shared";
 
-import { getAccessToken } from "@/lib/access-token";
-
 const DEFAULT_API_BASE_URL = "/api";
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
+  auth?: boolean;
   body?: unknown;
+  redirectOnUnauthorized?: boolean;
 };
 
 type ApiJsonRequestOptions = ApiRequestOptions & {
@@ -17,6 +17,14 @@ type ApiVoidRequestOptions = ApiRequestOptions & {
 };
 
 type ApiErrorResponse = Partial<ErrorResponse>;
+
+type ApiClientAuthHandlers = {
+  getAccessToken: () => string | null;
+  onUnauthorized: () => void;
+  refreshAccessToken: () => Promise<string>;
+};
+
+let authHandlers: ApiClientAuthHandlers | null = null;
 
 export class ApiError extends Error {
   readonly statusCode: number;
@@ -30,6 +38,14 @@ export class ApiError extends Error {
     this.errorCode = response?.errorCode;
     this.response = response;
   }
+}
+
+export function configureApiClientAuth(handlers: ApiClientAuthHandlers) {
+  authHandlers = handlers;
+}
+
+export function resetApiClientAuth() {
+  authHandlers = null;
 }
 
 function getApiBaseUrl() {
@@ -88,38 +104,45 @@ export function apiClient<TResponse>(
 export async function apiClient<TResponse>(
   path: string,
   {
+    auth = true,
     body,
     headers,
+    redirectOnUnauthorized = true,
     responseType = "json",
     ...init
   }: ApiJsonRequestOptions | ApiVoidRequestOptions = {},
 ): Promise<TResponse | void> {
-  const requestHeaders = new Headers(headers);
   const hasBody = body !== undefined;
 
-  if (hasBody && isJsonBody(body) && !requestHeaders.has("content-type")) {
-    requestHeaders.set("content-type", "application/json");
-  }
+  async function sendRequest() {
+    const requestHeaders = new Headers(headers);
 
-  if (!requestHeaders.has("accept")) {
-    requestHeaders.set("accept", "application/json");
-  }
+    if (hasBody && isJsonBody(body) && !requestHeaders.has("content-type")) {
+      requestHeaders.set("content-type", "application/json");
+    }
 
-  const accessToken = getAccessToken();
+    if (!requestHeaders.has("accept")) {
+      requestHeaders.set("accept", "application/json");
+    }
 
-  if (accessToken && !requestHeaders.has("authorization")) {
-    requestHeaders.set("authorization", `Bearer ${accessToken}`);
-  }
+    const accessToken = authHandlers?.getAccessToken();
 
-  let response: Response;
+    if (auth && accessToken && !requestHeaders.has("authorization")) {
+      requestHeaders.set("authorization", `Bearer ${accessToken}`);
+    }
 
-  try {
-    response = await fetch(createApiUrl(path), {
+    return fetch(createApiUrl(path), {
       ...init,
       body: hasBody && isJsonBody(body) ? JSON.stringify(body) : (body as BodyInit | undefined),
       credentials: init.credentials ?? "include",
       headers: requestHeaders,
     });
+  }
+
+  let response: Response;
+
+  try {
+    response = await sendRequest();
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw error;
@@ -128,6 +151,22 @@ export async function apiClient<TResponse>(
     throw new ApiError(0, {
       message: "네트워크 연결 상태를 확인한 뒤 다시 시도해 주세요.",
     });
+  }
+
+  if (auth && response.status === 401 && authHandlers) {
+    try {
+      await authHandlers.refreshAccessToken();
+      response = await sendRequest();
+    } catch (error) {
+      if (redirectOnUnauthorized) {
+        authHandlers.onUnauthorized();
+      }
+      throw error;
+    }
+  }
+
+  if (auth && redirectOnUnauthorized && response.status === 401) {
+    authHandlers?.onUnauthorized();
   }
 
   if (!response.ok) {
