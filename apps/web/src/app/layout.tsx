@@ -7,7 +7,7 @@ import { Providers } from "./providers";
 
 const pretendard = localFont({
   display: "swap",
-  src: "../../../../node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2",
+  src: "./fonts/PretendardVariable.woff2",
   variable: "--font-pretendard",
   weight: "400 700",
 });
