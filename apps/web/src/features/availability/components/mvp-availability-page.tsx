@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
+import { Check } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import { Input } from "@/components/ui/input";
@@ -470,9 +471,10 @@ export function MvpAvailabilityPage() {
                           key={`${date}-${time}`}
                           type="button"
                           disabled={disabled}
+                          aria-pressed={selected}
                           aria-label={`${date} ${time} 가능 시간 ${selected ? "해제" : "선택"}`}
                           className={cn(
-                            "h-8 rounded-md border text-[10px] transition-colors",
+                            "flex h-8 items-center justify-center rounded-md border text-[10px] transition-colors",
                             disabled
                               ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
                               : selected
@@ -481,7 +483,7 @@ export function MvpAvailabilityPage() {
                           )}
                           onClick={() => toggleSlot(date, time)}
                         >
-                          {selected ? "가능" : ""}
+                          {selected ? <Check className="size-3" aria-hidden="true" /> : null}
                         </button>
                       );
                     })}

@@ -2,19 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@moyeorak/design-system";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Plus } from "lucide-react";
 
+import { AdminTableSection } from "@/components/admin/admin-table-section";
+import { CrudFormDialog } from "@/components/admin/crud-form-dialog";
+import { DeleteConfirmDialog } from "@/components/common/delete-confirm-dialog";
+import { RowActions } from "@/components/common/row-actions";
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -153,183 +147,122 @@ export function MvpWorkersPage() {
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-        <div className="border-b border-border px-6 py-4">
-          <h2 className="text-base font-semibold text-foreground">근무자 목록</h2>
-        </div>
-
-        {workers.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-2xl border-collapse text-left text-sm">
-              <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-3">이름</th>
-                  <th className="px-6 py-3">사번</th>
-                  <th className="px-6 py-3">주간 계약 시간</th>
-                  <th className="px-6 py-3 text-right">액션</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {workers.map((worker) => (
-                  <tr key={worker.id} className="bg-card">
-                    <td className="px-6 py-4 font-medium text-foreground">{worker.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{worker.employeeNumber}</td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      주 {worker.weeklyContractHours}시간
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" onClick={() => openEditForm(worker)}>
-                          <Pencil className="size-4" aria-hidden="true" />
-                          수정
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setDeleteTarget(worker)}
-                        >
-                          <Trash2 className="size-4" aria-hidden="true" />
-                          삭제
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="px-6 py-16 text-center">
-            <p className="text-sm font-medium text-foreground">등록된 근무자가 없습니다.</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              근무자를 추가하면 스케줄 추천 대상에 포함됩니다.
-            </p>
-          </div>
-        )}
-      </section>
-
-      {formOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="worker-form-title"
-            className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-modal"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 id="worker-form-title" className="text-lg font-semibold text-foreground">
-                  {formTitle}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {formMode === "create"
-                    ? "이름과 주간 계약 시간을 입력하면 사번은 자동으로 생성됩니다."
-                    : "이름과 주간 계약 시간을 수정할 수 있습니다."}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="닫기"
-                onClick={closeForm}
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="mt-6 space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="worker-name">이름</Label>
-                <Input
-                  id="worker-name"
-                  value={draft.name}
-                  placeholder="예: 김민지"
-                  aria-invalid={submitted && Boolean(errors.name)}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, name: event.target.value }))
-                  }
-                />
-                {submitted && errors.name ? (
-                  <p className="text-sm text-destructive">{errors.name}</p>
-                ) : null}
-              </div>
-
-              {formMode === "edit" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="employee-number">사번</Label>
-                  <Input
-                    id="employee-number"
-                    value={draft.employeeNumber}
-                    readOnly
-                    className="bg-surface-secondary"
+      <AdminTableSection
+        title="근무자 목록"
+        isEmpty={workers.length === 0}
+        emptyTitle="등록된 근무자가 없습니다."
+        emptyDescription="근무자를 추가하면 스케줄 추천 대상에 포함됩니다."
+      >
+        <table className="w-full min-w-max border-collapse text-left text-sm">
+          <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
+            <tr>
+              <th className="px-2 py-3 sm:px-4 lg:px-6">이름</th>
+              <th className="px-2 py-3 sm:px-4 lg:px-6">사번</th>
+              <th className="px-2 py-3 sm:px-4 lg:px-6">주간 계약 시간</th>
+              <th className="px-2 py-3 text-right sm:px-4 lg:px-6">
+                <span className="sr-only">액션</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {workers.map((worker) => (
+              <tr key={worker.id} className="bg-card">
+                <td className="px-2 py-4 font-medium text-foreground sm:px-4 lg:px-6">
+                  {worker.name}
+                </td>
+                <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">
+                  {worker.employeeNumber}
+                </td>
+                <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">
+                  주 {worker.weeklyContractHours}시간
+                </td>
+                <td className="px-2 py-4 sm:px-4 lg:px-6">
+                  <RowActions
+                    onEdit={() => openEditForm(worker)}
+                    onDelete={() => setDeleteTarget(worker)}
                   />
-                </div>
-              ) : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </AdminTableSection>
 
-              <div className="space-y-2">
-                <Label htmlFor="weekly-contract-hours">주간 계약 시간</Label>
-                <Input
-                  id="weekly-contract-hours"
-                  type="number"
-                  min={1}
-                  value={draft.weeklyContractHours}
-                  placeholder="예: 15"
-                  aria-invalid={submitted && Boolean(errors.weeklyContractHours)}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      weeklyContractHours: event.target.value,
-                    }))
-                  }
-                />
-                {submitted && errors.weeklyContractHours ? (
-                  <p className="text-sm text-destructive">{errors.weeklyContractHours}</p>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-8 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={closeForm}>
-                취소
-              </Button>
-              <Button type="button" variant="brand" onClick={saveWorker}>
-                저장
-              </Button>
-            </div>
-          </section>
+      <CrudFormDialog
+        open={formOpen}
+        title={formTitle}
+        description={
+          formMode === "create"
+            ? "이름과 주간 계약 시간을 입력하면 사번은 자동으로 생성됩니다."
+            : "이름과 주간 계약 시간을 수정할 수 있습니다."
+        }
+        onClose={closeForm}
+        onSave={saveWorker}
+      >
+        <div className="space-y-2">
+          <Label htmlFor="worker-name">이름</Label>
+          <Input
+            id="worker-name"
+            value={draft.name}
+            placeholder="예: 김민지"
+            aria-invalid={submitted && Boolean(errors.name)}
+            onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+          />
+          {submitted && errors.name ? (
+            <p className="text-sm text-destructive">{errors.name}</p>
+          ) : null}
         </div>
-      ) : null}
 
-      <AlertDialog
+        {formMode === "edit" ? (
+          <div className="space-y-2">
+            <Label htmlFor="employee-number">사번</Label>
+            <Input
+              id="employee-number"
+              value={draft.employeeNumber}
+              readOnly
+              className="bg-surface-secondary"
+            />
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          <Label htmlFor="weekly-contract-hours">주간 계약 시간</Label>
+          <Input
+            id="weekly-contract-hours"
+            type="number"
+            min={1}
+            value={draft.weeklyContractHours}
+            placeholder="예: 15"
+            aria-invalid={submitted && Boolean(errors.weeklyContractHours)}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...current,
+                weeklyContractHours: event.target.value,
+              }))
+            }
+          />
+          {submitted && errors.weeklyContractHours ? (
+            <p className="text-sm text-destructive">{errors.weeklyContractHours}</p>
+          ) : null}
+        </div>
+      </CrudFormDialog>
+
+      <DeleteConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>근무자 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 근무자를 삭제하면 목록과 추천 대상에서 제외됩니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (!deleteTarget) {
-                  return;
-                }
+        title="근무자 삭제"
+        description="이 근무자를 삭제하면 목록과 추천 대상에서 제외됩니다."
+        onConfirm={() => {
+          if (!deleteTarget) {
+            return;
+          }
 
-                setWorkers((currentWorkers) =>
-                  currentWorkers.filter((worker) => worker.id !== deleteTarget.id),
-                );
-                setDeleteTarget(null);
-              }}
-            >
-              삭제
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          setWorkers((currentWorkers) =>
+            currentWorkers.filter((worker) => worker.id !== deleteTarget.id),
+          );
+          setDeleteTarget(null);
+        }}
+      />
     </AdminPageShell>
   );
 }
