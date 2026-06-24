@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Archive, CalendarDays, Clock3, Home, ListChecks, LogOut, Users } from "lucide-react";
 
 import {
@@ -16,6 +16,10 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuthMeQuery, useLogoutMutation } from "@/features/auth/queries/auth-session";
 
+type AdminSidebarProps = {
+  navigation?: "default" | "hidden";
+};
+
 const navigationItems = [
   { title: "대시보드", href: "/dashboard", icon: Home },
   { title: "스케줄", href: "/schedules", icon: CalendarDays },
@@ -29,9 +33,8 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AdminSidebar() {
+export function AdminSidebar({ navigation = "default" }: AdminSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { data: authMe } = useAuthMeQuery();
   const logoutMutation = useLogoutMutation();
 
@@ -39,7 +42,7 @@ export function AdminSidebar() {
     try {
       await logoutMutation.mutateAsync();
     } finally {
-      router.replace("/login");
+      window.location.replace("/login");
     }
   }
 
@@ -49,13 +52,17 @@ export function AdminSidebar() {
         <SidebarTrigger className="shrink-0 hover:bg-fill-brand-subtler hover:text-fg-neutral-strong" />
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarMenu>
-          {navigationItems.map((item) => (
-            <NavigationMenuItem key={item.href} item={item} pathname={pathname} />
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
+      {navigation === "default" ? (
+        <SidebarContent>
+          <SidebarMenu>
+            {navigationItems.map((item) => (
+              <NavigationMenuItem key={item.href} item={item} pathname={pathname} />
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+      ) : (
+        <SidebarContent aria-hidden="true" />
+      )}
       <SidebarFooter className="border-t border-border">
         <div className="flex min-w-0 items-center gap-2 px-3 py-2 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0">
           <div className="min-w-0 flex-1 group-data-[state=collapsed]/sidebar:sr-only">

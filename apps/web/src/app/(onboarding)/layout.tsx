@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireOnboardingAuth } from "@/features/auth/components/require-onboarding-auth";
 
 export default function OnboardingLayout({
@@ -9,7 +10,7 @@ export default function OnboardingLayout({
 }>) {
   return (
     <RequireOnboardingAuth>
-      <div className="min-h-dvh bg-background">{children}</div>
+      <AdminShell sidebarNavigation="hidden">{children}</AdminShell>
     </RequireOnboardingAuth>
   );
 }

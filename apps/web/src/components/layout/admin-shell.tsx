@@ -9,9 +9,10 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 type AdminShellProps = {
   children: ReactNode;
+  sidebarNavigation?: "default" | "hidden";
 };
 
-export function AdminShell({ children }: AdminShellProps) {
+export function AdminShell({ children, sidebarNavigation = "default" }: AdminShellProps) {
   function scrollToTop(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
@@ -22,7 +23,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
   return (
     <SidebarProvider>
-      <AdminSidebar />
+      <AdminSidebar navigation={sidebarNavigation} />
       <SidebarInset className="flex min-h-dvh flex-col max-lg:pl-16">
         <div className="min-w-0 flex-1 bg-background">{children}</div>
       </SidebarInset>
