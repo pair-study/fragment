@@ -126,8 +126,8 @@ export function MvpDashboardPage() {
               </h2>
             </div>
             <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-              <p>운영 시간 {dashboardSummary.operationHours}</p>
-              <p>휴무일 {dashboardSummary.closedDays}</p>
+              <p>운영 시간: {dashboardSummary.operationHours}</p>
+              <p>휴무일: {dashboardSummary.closedDays}</p>
             </div>
           </div>
           <Button asChild variant="outline">
