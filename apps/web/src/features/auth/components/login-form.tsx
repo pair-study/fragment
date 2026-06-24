@@ -2,43 +2,49 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authLoginRequestSchema, type AuthLoginRequest } from "@fragment/shared";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@moyeorak/design-system";
 import { Mail } from "lucide-react";
+import { useForm } from "react-hook-form";
 
 import { PasswordInput } from "@/components/common/password-input";
 import { Input } from "@/components/ui/input";
+import { login } from "@/features/auth/api";
+import { getAuthErrorMessage } from "@/features/auth/utils/auth-error-message";
 
 import { AuthField } from "./auth-field";
 import { AuthFooterLink } from "./auth-footer-link";
 
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const {
+    formState: { errors, isSubmitting },
+    handleSubmit,
+    register,
+  } = useForm<AuthLoginRequest>({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    resolver: zodResolver(authLoginRequestSchema),
+  });
 
-  const errors = {
-    email: !email.trim() ? "이메일을 입력하세요." : "",
-    password: !password ? "비밀번호를 입력하세요." : "",
-  };
-  const hasErrors = Object.values(errors).some(Boolean);
+  async function onSubmit(values: AuthLoginRequest) {
+    setFormError("");
+
+    try {
+      const session = await login(values);
+
+      router.push(session.hasOrganization ? "/dashboard" : "/organization/new");
+    } catch (error) {
+      setFormError(getAuthErrorMessage(error));
+    }
+  }
 
   return (
-    <form
-      className="space-y-6"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setSubmitted(true);
-
-        if (hasErrors) {
-          return;
-        }
-
-        setIsSubmitting(true);
-        router.push("/dashboard");
-      }}
-    >
+    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
       <div>
         <h1 className="text-balance text-2xl font-bold text-foreground">로그인</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
@@ -47,6 +53,15 @@ export function LoginForm() {
       </div>
 
       <div className="space-y-5">
+        {formError ? (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {formError}
+          </p>
+        ) : null}
+
         <AuthField id="email" label="이메일">
           <div className="relative">
             <Mail
@@ -55,33 +70,27 @@ export function LoginForm() {
             />
             <Input
               id="email"
-              name="email"
               type="email"
               placeholder="name@company.com"
-              value={email}
               autoComplete="email"
               className="pl-9"
-              aria-invalid={submitted && Boolean(errors.email)}
-              onChange={(event) => setEmail(event.target.value)}
+              aria-invalid={Boolean(errors.email)}
+              {...register("email")}
             />
           </div>
-          {submitted && errors.email ? (
-            <p className="text-sm text-destructive">{errors.email}</p>
-          ) : null}
+          {errors.email ? <p className="text-sm text-destructive">{errors.email.message}</p> : null}
         </AuthField>
 
         <AuthField id="password" label="비밀번호">
           <PasswordInput
             id="password"
-            name="password"
             placeholder="비밀번호 입력"
-            value={password}
             autoComplete="current-password"
-            aria-invalid={submitted && Boolean(errors.password)}
-            onChange={(event) => setPassword(event.target.value)}
+            aria-invalid={Boolean(errors.password)}
+            {...register("password")}
           />
-          {submitted && errors.password ? (
-            <p className="text-sm text-destructive">{errors.password}</p>
+          {errors.password ? (
+            <p className="text-sm text-destructive">{errors.password.message}</p>
           ) : null}
         </AuthField>
       </div>
