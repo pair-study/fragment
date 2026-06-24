@@ -1,4 +1,4 @@
-export const DAY_OF_WEEK_VALUES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 
 export type ApiDayOfWeek = (typeof DAY_OF_WEEK_VALUES)[number];
 
