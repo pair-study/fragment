@@ -17,13 +17,14 @@ import {
   createOrganizationlessAuthMeFromSession,
 } from "@/features/auth/queries/auth-session";
 import { getAuthErrorMessage } from "@/features/auth/utils/auth-error-message";
-import { setAccessToken } from "@/lib/access-token";
+import { useAuth } from "./auth-provider";
 
 import { AuthField } from "./auth-field";
 import { AuthFooterLink } from "./auth-footer-link";
 
 export function LoginForm() {
   const router = useRouter();
+  const { setSession } = useAuth();
   const queryClient = useQueryClient();
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -44,7 +45,7 @@ export function LoginForm() {
     try {
       const session = await login(values);
 
-      setAccessToken(session.accessToken);
+      setSession(session);
 
       if (session.hasOrganization) {
         queryClient.removeQueries({ queryKey: authMeQueryKey });

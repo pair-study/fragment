@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import "@moyeorak/design-system/dist/style.css";
 
 import { Providers } from "./providers";
+
+const pretendard = localFont({
+  display: "swap",
+  src: "./fonts/PretendardVariable.woff2",
+  variable: "--font-pretendard",
+  weight: "400 700",
+});
 
 export const metadata: Metadata = {
   title: "프래그먼트",
@@ -29,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full">
-      <body className="flex min-h-full flex-col">
+      <body className={`${pretendard.variable} flex min-h-full flex-col`}>
         <Providers>{children}</Providers>
       </body>
     </html>
