@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dayOfWeekSchema, idSchema, timeSchema } from "./common";
+import { DAY_OF_WEEK_VALUES, dayOfWeekSchema, idSchema, timeSchema } from "./common";
 
 export const organizationBusinessHourSchema = z.object({
   id: idSchema,
@@ -91,7 +91,7 @@ export const organizationDetailSchema = organizationSummarySchema.extend({
 
 const organizationBusinessHoursInputSchema = z
   .array(organizationBusinessHourInputSchema)
-  .min(1)
+  .length(DAY_OF_WEEK_VALUES.length, "요일별 운영 시간은 모든 요일을 포함해야 합니다.")
   .refine(
     (businessHours) =>
       new Set(businessHours.map((businessHour) => businessHour.dayOfWeek)).size ===
@@ -102,7 +102,7 @@ const organizationBusinessHoursInputSchema = z
   );
 
 export const createOrganizationRequestSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1, "조직명을 입력하세요."),
   businessHours: organizationBusinessHoursInputSchema,
 });
 
