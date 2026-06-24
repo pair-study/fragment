@@ -398,7 +398,6 @@ components:
         - isClosed
         - openTime
         - closeTime
-        - closesNextDay
       properties:
         id:
           type: string
@@ -451,9 +450,6 @@ components:
             - "null"
           pattern: "^\\d{2}:\\d{2}$"
           example: "18:00"
-        closesNextDay:
-          type: boolean
-          example: false
 
     OrganizationDetail:
       allOf:

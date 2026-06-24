@@ -40,6 +40,13 @@ const toTimeString = (time: Date | null): string | null => {
 
 const getBusinessHourOrder = (dayOfWeek: DayOfWeek) => DAY_ORDER.indexOf(dayOfWeek);
 
+const getClosesNextDay = ({
+  closeTime,
+  isClosed,
+  openTime,
+}: CreateOrganizationRequest["businessHours"][number]) =>
+  !isClosed && openTime !== null && closeTime !== null && openTime > closeTime;
+
 const toOrganizationDetail = (organization: OrganizationWithBusinessHours): OrganizationDetail => ({
   id: toApiId(organization.id),
   name: organization.name,
@@ -61,7 +68,7 @@ const createBusinessHoursData = (businessHours: CreateOrganizationRequest["busin
     isClosed: businessHour.isClosed,
     openTime: toTimeDate(businessHour.openTime),
     closeTime: toTimeDate(businessHour.closeTime),
-    closesNextDay: businessHour.closesNextDay,
+    closesNextDay: getClosesNextDay(businessHour),
   }));
 
 async function findOrganizationByUserId(client: OrganizationDatabaseClient, userId: bigint) {

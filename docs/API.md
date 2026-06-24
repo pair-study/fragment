@@ -181,8 +181,7 @@ Request:
       "dayOfWeek": "MON",
       "isClosed": false,
       "openTime": "09:00",
-      "closeTime": "18:00",
-      "closesNextDay": false
+      "closeTime": "18:00"
     }
   ]
 }
@@ -210,8 +209,7 @@ Request:
       "dayOfWeek": "MON",
       "isClosed": false,
       "openTime": "10:00",
-      "closeTime": "19:00",
-      "closesNextDay": false
+      "closeTime": "19:00"
     }
   ]
 }
