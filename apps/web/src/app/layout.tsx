@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "@moyeorak/design-system/dist/style.css";
 
+import { Providers } from "./providers";
+
 export const metadata: Metadata = {
   title: "프래그먼트",
   description: "근무 스케줄 편성과 확정 이력 관리를 돕는 도구",
@@ -27,7 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full">
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

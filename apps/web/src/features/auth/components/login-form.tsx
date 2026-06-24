@@ -5,19 +5,26 @@ import { useRouter } from "next/navigation";
 import { authLoginRequestSchema, type AuthLoginRequest } from "@fragment/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@moyeorak/design-system";
+import { useQueryClient } from "@tanstack/react-query";
 import { Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import { PasswordInput } from "@/components/common/password-input";
 import { Input } from "@/components/ui/input";
 import { login } from "@/features/auth/api";
+import {
+  authMeQueryKey,
+  createOrganizationlessAuthMeFromSession,
+} from "@/features/auth/queries/auth-session";
 import { getAuthErrorMessage } from "@/features/auth/utils/auth-error-message";
+import { setAccessToken } from "@/lib/access-token";
 
 import { AuthField } from "./auth-field";
 import { AuthFooterLink } from "./auth-footer-link";
 
 export function LoginForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [formError, setFormError] = useState<string | null>(null);
   const {
     formState: { errors, isSubmitting },
@@ -37,7 +44,16 @@ export function LoginForm() {
     try {
       const session = await login(values);
 
-      router.push(session.hasOrganization ? "/dashboard" : "/organization/new");
+      setAccessToken(session.accessToken);
+
+      if (session.hasOrganization) {
+        queryClient.removeQueries({ queryKey: authMeQueryKey });
+        router.push("/dashboard");
+        return;
+      }
+
+      queryClient.setQueryData(authMeQueryKey, createOrganizationlessAuthMeFromSession(session));
+      router.push("/organization/new");
     } catch (error) {
       setFormError(getAuthErrorMessage(error));
     }

@@ -1,5 +1,7 @@
 import { errorResponseSchema, type ErrorResponse } from "@fragment/shared";
 
+import { getAccessToken } from "@/lib/access-token";
+
 const DEFAULT_API_BASE_URL = "/api";
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
@@ -101,6 +103,12 @@ export async function apiClient<TResponse>(
 
   if (!requestHeaders.has("accept")) {
     requestHeaders.set("accept", "application/json");
+  }
+
+  const accessToken = getAccessToken();
+
+  if (accessToken && !requestHeaders.has("authorization")) {
+    requestHeaders.set("authorization", `Bearer ${accessToken}`);
   }
 
   let response: Response;
