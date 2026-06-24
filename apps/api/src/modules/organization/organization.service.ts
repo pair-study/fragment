@@ -96,20 +96,28 @@ export async function createOrganization(
     throw new HttpError(409, ERROR_CODES.ORGANIZATION_ALREADY_EXISTS, "이미 조직이 존재합니다.");
   }
 
-  const organization = await prisma.organization.create({
-    data: {
-      userId: userDatabaseId,
-      name: input.name,
-      businessHours: {
-        create: createBusinessHoursData(input.businessHours),
+  try {
+    const organization = await prisma.organization.create({
+      data: {
+        userId: userDatabaseId,
+        name: input.name,
+        businessHours: {
+          create: createBusinessHoursData(input.businessHours),
+        },
       },
-    },
-    include: {
-      businessHours: true,
-    },
-  });
+      include: {
+        businessHours: true,
+      },
+    });
 
-  return toOrganizationDetail(organization);
+    return toOrganizationDetail(organization);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new HttpError(409, ERROR_CODES.ORGANIZATION_ALREADY_EXISTS, "이미 조직이 존재합니다.");
+    }
+
+    throw error;
+  }
 }
 
 export async function getOrganization(prisma: PrismaClient, userId: string) {
