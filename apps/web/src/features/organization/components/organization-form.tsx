@@ -153,12 +153,14 @@ export function OrganizationForm({
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Input
                         type="time"
+                        step={1800}
                         disabled={closed}
                         aria-label={`${day.label} 운영 시작 시간`}
                         {...register(`businessHours.${day.value}.openTime`)}
                       />
                       <Input
                         type="time"
+                        step={1800}
                         disabled={closed}
                         aria-label={`${day.label} 운영 종료 시간`}
                         {...register(`businessHours.${day.value}.closeTime`)}
