@@ -260,6 +260,7 @@ components:
           type: string
           enum:
             - VALIDATION_ERROR
+            - INTERNAL_SERVER_ERROR
             - UNAUTHORIZED
             - FORBIDDEN
             - NOT_FOUND
@@ -338,9 +339,14 @@ components:
     AuthSessionResponse:
       type: object
       required:
+        - accessToken
         - user
         - hasOrganization
       properties:
+        accessToken:
+          type: string
+          description: 인증 API 호출에 사용하는 JWT access token입니다.
+          example: eyJhbGciOi...
         user:
           $ref: "#/components/schemas/User"
         hasOrganization:
@@ -392,7 +398,6 @@ components:
         - isClosed
         - openTime
         - closeTime
-        - closesNextDay
       properties:
         id:
           type: string
@@ -445,9 +450,6 @@ components:
             - "null"
           pattern: "^\\d{2}:\\d{2}$"
           example: "18:00"
-        closesNextDay:
-          type: boolean
-          example: false
 
     OrganizationDetail:
       allOf:

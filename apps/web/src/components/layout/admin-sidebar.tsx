@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Archive, CalendarDays, Clock3, Home, ListChecks, LogOut, Users } from "lucide-react";
 
 import {
@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useAuthMeQuery, useLogoutMutation } from "@/features/auth/queries/auth-session";
 
 const navigationItems = [
   { title: "대시보드", href: "/dashboard", icon: Home },
@@ -24,17 +25,23 @@ const navigationItems = [
   { title: "최소 인원 조건", href: "/staffing-rules", icon: ListChecks },
 ];
 
-const currentUser = {
-  name: "프래그먼트 관리자",
-  email: "owner@fragment.local",
-};
-
 function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: authMe } = useAuthMeQuery();
+  const logoutMutation = useLogoutMutation();
+
+  async function handleLogout() {
+    try {
+      await logoutMutation.mutateAsync();
+    } finally {
+      router.replace("/login");
+    }
+  }
 
   return (
     <Sidebar>
@@ -52,17 +59,19 @@ export function AdminSidebar() {
       <SidebarFooter className="border-t border-border">
         <div className="flex min-w-0 items-center gap-2 px-3 py-2 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0">
           <div className="min-w-0 flex-1 group-data-[state=collapsed]/sidebar:sr-only">
-            <p className="truncate text-sm font-semibold text-foreground">{currentUser.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{currentUser.email}</p>
+            <p className="truncate text-sm font-semibold text-foreground">{authMe?.user.name}</p>
+            <p className="truncate text-xs text-muted-foreground">{authMe?.user.email}</p>
           </div>
-          <Link
-            href="/login"
+          <button
+            type="button"
             aria-label="로그아웃"
             title="로그아웃"
+            disabled={logoutMutation.isPending}
+            onClick={handleLogout}
             className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-fill-brand-subtler hover:text-fg-neutral-strong"
           >
             <LogOut className="size-5" aria-hidden="true" />
-          </Link>
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>

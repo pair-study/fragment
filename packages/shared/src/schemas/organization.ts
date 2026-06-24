@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dayOfWeekSchema, idSchema, timeSchema } from "./common";
+import { DAY_OF_WEEK_VALUES, dayOfWeekSchema, idSchema, timeSchema } from "./common";
 
 export const organizationBusinessHourSchema = z.object({
   id: idSchema,
@@ -11,8 +11,10 @@ export const organizationBusinessHourSchema = z.object({
 });
 
 const organizationBusinessHourInputBaseSchema = organizationBusinessHourSchema
-  .omit({ id: true })
+  .omit({ closesNextDay: true, id: true })
   .strict();
+
+const isThirtyMinuteBoundary = (time: string) => time.endsWith(":00") || time.endsWith(":30");
 
 export const organizationBusinessHourInputSchema =
   organizationBusinessHourInputBaseSchema.superRefine((value, context) => {
@@ -30,14 +32,6 @@ export const organizationBusinessHourInputSchema =
           code: z.ZodIssueCode.custom,
           message: "휴무일에는 운영 종료 시간을 입력할 수 없습니다.",
           path: ["closeTime"],
-        });
-      }
-
-      if (value.closesNextDay) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "휴무일에는 익일 종료를 설정할 수 없습니다.",
-          path: ["closesNextDay"],
         });
       }
 
@@ -60,6 +54,22 @@ export const organizationBusinessHourInputSchema =
       });
     }
 
+    if (value.openTime && !isThirtyMinuteBoundary(value.openTime)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "운영 시작 시간은 30분 단위여야 합니다.",
+        path: ["openTime"],
+      });
+    }
+
+    if (value.closeTime && !isThirtyMinuteBoundary(value.closeTime)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "운영 종료 시간은 30분 단위여야 합니다.",
+        path: ["closeTime"],
+      });
+    }
+
     if (value.openTime && value.closeTime && value.openTime === value.closeTime) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -67,32 +77,6 @@ export const organizationBusinessHourInputSchema =
         path: ["closeTime"],
       });
       return;
-    }
-
-    if (
-      value.openTime &&
-      value.closeTime &&
-      !value.closesNextDay &&
-      value.openTime > value.closeTime
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "당일 종료는 시작 시간보다 늦어야 합니다.",
-        path: ["closeTime"],
-      });
-    }
-
-    if (
-      value.openTime &&
-      value.closeTime &&
-      value.closesNextDay &&
-      value.openTime < value.closeTime
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "익일 종료는 시작 시간보다 이른 시각이어야 합니다.",
-        path: ["closeTime"],
-      });
     }
   });
 
@@ -107,7 +91,7 @@ export const organizationDetailSchema = organizationSummarySchema.extend({
 
 const organizationBusinessHoursInputSchema = z
   .array(organizationBusinessHourInputSchema)
-  .min(1)
+  .length(DAY_OF_WEEK_VALUES.length, "요일별 운영 시간은 모든 요일을 포함해야 합니다.")
   .refine(
     (businessHours) =>
       new Set(businessHours.map((businessHour) => businessHour.dayOfWeek)).size ===
@@ -118,7 +102,7 @@ const organizationBusinessHoursInputSchema = z
   );
 
 export const createOrganizationRequestSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1, "조직명을 입력하세요."),
   businessHours: organizationBusinessHoursInputSchema,
 });
 

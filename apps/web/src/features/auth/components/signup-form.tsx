@@ -2,55 +2,68 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authSignupRequestSchema, type AuthSignupRequest } from "@fragment/shared";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@moyeorak/design-system";
+import { useQueryClient } from "@tanstack/react-query";
 import { Mail } from "lucide-react";
+import { useForm } from "react-hook-form";
 
 import { PasswordInput } from "@/components/common/password-input";
 import { Input } from "@/components/ui/input";
+import { signup } from "@/features/auth/api";
+import {
+  authMeQueryKey,
+  createOrganizationlessAuthMeFromSession,
+} from "@/features/auth/queries/auth-session";
+import { getAuthErrorMessage } from "@/features/auth/utils/auth-error-message";
+import { useAuth } from "./auth-provider";
 
 import { AuthField } from "./auth-field";
 import { AuthFooterLink } from "./auth-footer-link";
 
 export function SignupForm() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { setSession } = useAuth();
+  const queryClient = useQueryClient();
+  const [formError, setFormError] = useState<string | null>(null);
+  const {
+    formState: { errors, isSubmitting },
+    handleSubmit,
+    register,
+  } = useForm<AuthSignupRequest>({
+    defaultValues: {
+      email: "",
+      name: "",
+      password: "",
+      passwordConfirm: "",
+    },
+    resolver: zodResolver(authSignupRequestSchema),
+  });
 
-  const errors = {
-    name: !name.trim() ? "이름을 입력하세요." : "",
-    email: !email.trim()
-      ? "이메일을 입력하세요."
-      : !email.includes("@")
-        ? "이메일 형식으로 입력하세요."
-        : "",
-    password: !password ? "비밀번호를 입력하세요." : "",
-    passwordConfirm: !passwordConfirm
-      ? "비밀번호 확인을 입력하세요."
-      : passwordConfirm !== password
-        ? "비밀번호가 일치하지 않습니다."
-        : "",
-  };
-  const hasErrors = Object.values(errors).some(Boolean);
+  async function onSubmit(values: AuthSignupRequest) {
+    setFormError(null);
+
+    try {
+      const session = await signup(values);
+
+      setSession(session);
+
+      if (session.hasOrganization) {
+        queryClient.removeQueries({ queryKey: authMeQueryKey });
+        router.push("/dashboard");
+        return;
+      }
+
+      queryClient.setQueryData(authMeQueryKey, createOrganizationlessAuthMeFromSession(session));
+      router.push("/organization/new");
+    } catch (error) {
+      setFormError(getAuthErrorMessage(error));
+    }
+  }
 
   return (
-    <form
-      className="space-y-6"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setSubmitted(true);
-
-        if (hasErrors) {
-          return;
-        }
-
-        setIsSubmitting(true);
-        router.push("/organization/new");
-      }}
-    >
+    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
       <div>
         <h1 className="text-balance text-2xl font-bold text-foreground">회원가입</h1>
         <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
@@ -59,18 +72,28 @@ export function SignupForm() {
       </div>
 
       <div className="space-y-5">
+        {formError ? (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {formError}
+          </p>
+        ) : null}
+
         <AuthField id="name" label="이름">
           <Input
             id="name"
-            name="name"
             placeholder="홍길동"
-            value={name}
             autoComplete="name"
-            aria-invalid={submitted && Boolean(errors.name)}
-            onChange={(event) => setName(event.target.value)}
+            aria-invalid={Boolean(errors.name)}
+            aria-describedby={errors.name ? "signup-name-error" : undefined}
+            {...register("name")}
           />
-          {submitted && errors.name ? (
-            <p className="text-sm text-destructive">{errors.name}</p>
+          {errors.name ? (
+            <p id="signup-name-error" className="text-sm text-destructive">
+              {errors.name.message}
+            </p>
           ) : null}
         </AuthField>
 
@@ -82,48 +105,51 @@ export function SignupForm() {
             />
             <Input
               id="email"
-              name="email"
               type="email"
               placeholder="name@company.com"
-              value={email}
               autoComplete="email"
               className="pl-9"
-              aria-invalid={submitted && Boolean(errors.email)}
-              onChange={(event) => setEmail(event.target.value)}
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "signup-email-error" : undefined}
+              {...register("email")}
             />
           </div>
-          {submitted && errors.email ? (
-            <p className="text-sm text-destructive">{errors.email}</p>
+          {errors.email ? (
+            <p id="signup-email-error" className="text-sm text-destructive">
+              {errors.email.message}
+            </p>
           ) : null}
         </AuthField>
 
         <AuthField id="password" label="비밀번호">
           <PasswordInput
             id="password"
-            name="password"
             placeholder="8자 이상 입력"
-            value={password}
             autoComplete="new-password"
-            aria-invalid={submitted && Boolean(errors.password)}
-            onChange={(event) => setPassword(event.target.value)}
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "signup-password-error" : undefined}
+            {...register("password")}
           />
-          {submitted && errors.password ? (
-            <p className="text-sm text-destructive">{errors.password}</p>
+          {errors.password ? (
+            <p id="signup-password-error" className="text-sm text-destructive">
+              {errors.password.message}
+            </p>
           ) : null}
         </AuthField>
 
         <AuthField id="password-confirm" label="비밀번호 확인">
           <PasswordInput
             id="password-confirm"
-            name="passwordConfirm"
             placeholder="비밀번호 재입력"
-            value={passwordConfirm}
             autoComplete="new-password"
-            aria-invalid={submitted && Boolean(errors.passwordConfirm)}
-            onChange={(event) => setPasswordConfirm(event.target.value)}
+            aria-invalid={Boolean(errors.passwordConfirm)}
+            aria-describedby={errors.passwordConfirm ? "signup-password-confirm-error" : undefined}
+            {...register("passwordConfirm")}
           />
-          {submitted && errors.passwordConfirm ? (
-            <p className="text-sm text-destructive">{errors.passwordConfirm}</p>
+          {errors.passwordConfirm ? (
+            <p id="signup-password-confirm-error" className="text-sm text-destructive">
+              {errors.passwordConfirm.message}
+            </p>
           ) : null}
         </AuthField>
       </div>
