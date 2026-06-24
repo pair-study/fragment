@@ -1,4 +1,4 @@
-import type { CreateOrganizationRequest } from "@fragment/shared";
+import type { CreateOrganizationRequest, OrganizationDetail } from "@fragment/shared";
 import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 
 export type DayOfWeek = (typeof DAY_OF_WEEK_VALUES)[number];
@@ -59,11 +59,6 @@ export const DEFAULT_ORGANIZATION_FORM_VALUES: OrganizationFormValues = {
   weeklyClosedDays: ["SUN"],
 };
 
-export const MOCK_ORGANIZATION_FORM_VALUES: OrganizationFormValues = {
-  ...DEFAULT_ORGANIZATION_FORM_VALUES,
-  name: "강남 스터디 카페",
-};
-
 export function validateOrganizationForm({
   businessHours,
   name,
@@ -122,5 +117,34 @@ export function createOrganizationRequestFromForm({
         closeTime: isClosed ? null : hours.closeTime,
       };
     }),
+  };
+}
+
+export function createOrganizationFormValuesFromDetail(
+  organization: OrganizationDetail,
+): OrganizationFormValues {
+  const businessHoursByDay = new Map(
+    organization.businessHours.map((businessHour) => [businessHour.dayOfWeek, businessHour]),
+  );
+
+  return {
+    name: organization.name,
+    businessHours: Object.fromEntries(
+      DAY_OF_WEEK_VALUES.map((day) => {
+        const businessHour = businessHoursByDay.get(day);
+        const defaultBusinessHour = DEFAULT_BUSINESS_HOURS[day];
+
+        return [
+          day,
+          {
+            openTime: businessHour?.openTime ?? defaultBusinessHour.openTime,
+            closeTime: businessHour?.closeTime ?? defaultBusinessHour.closeTime,
+          },
+        ];
+      }),
+    ) as Record<DayOfWeek, BusinessHour>,
+    weeklyClosedDays: DAY_OF_WEEK_VALUES.filter(
+      (day) => businessHoursByDay.get(day)?.isClosed ?? false,
+    ),
   };
 }

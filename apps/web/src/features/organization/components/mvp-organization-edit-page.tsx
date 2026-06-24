@@ -1,15 +1,53 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@moyeorak/design-system";
 import Link from "next/link";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import { ApiError } from "@/lib/api-client";
+import { getOrganization, updateOrganization } from "../api/organization-api";
 import { OrganizationForm } from "./organization-form";
-import { MOCK_ORGANIZATION_FORM_VALUES } from "../utils/organization-form-utils";
+import {
+  createOrganizationFormValuesFromDetail,
+  type OrganizationFormValues,
+} from "../utils/organization-form-utils";
 
 export function MvpOrganizationEditPage() {
   const router = useRouter();
+  const [formValues, setFormValues] = useState<OrganizationFormValues | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadOrganization() {
+      try {
+        const organization = await getOrganization();
+
+        if (!ignore) {
+          setFormValues(createOrganizationFormValuesFromDetail(organization));
+        }
+      } catch {
+        if (!ignore) {
+          setLoadError("조직 정보를 불러오지 못했습니다.");
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadOrganization();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <AdminPageShell
@@ -22,15 +60,33 @@ export function MvpOrganizationEditPage() {
       }
       contentClassName="space-y-6"
     >
-      <OrganizationForm
-        cancelHref="/dashboard"
-        initialValues={MOCK_ORGANIZATION_FORM_VALUES}
-        submitLabel="변경사항 저장"
-        submittingLabel="저장 중"
-        onSubmit={() => {
-          router.push("/dashboard");
-        }}
-      />
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">조직 정보를 불러오는 중입니다.</p>
+      ) : loadError ? (
+        <p className="text-sm text-destructive">{loadError}</p>
+      ) : formValues ? (
+        <OrganizationForm
+          cancelHref="/dashboard"
+          initialValues={formValues}
+          submitError={submitError}
+          submitLabel="변경사항 저장"
+          submittingLabel="저장 중"
+          onSubmit={async (request) => {
+            setSubmitError(null);
+
+            try {
+              await updateOrganization(request);
+              router.push("/dashboard");
+            } catch (error) {
+              setSubmitError(
+                error instanceof ApiError
+                  ? error.message
+                  : "조직 수정 중 오류가 발생했습니다. 다시 시도해 주세요.",
+              );
+            }
+          }}
+        />
+      ) : null}
     </AdminPageShell>
   );
 }
