@@ -11,7 +11,7 @@
     "target": "ES2017",
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./src",
     "paths": {
       "@/*": ["./src/*"]
     },
@@ -19,5 +19,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "types": ["node"]
-  }
+  },
+  "include": ["src/**/*.ts"]
 }
