@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { createOrganizationRequestSchema } from "@fragment/shared";
 import { Button } from "@moyeorak/design-system";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, type Resolver, useForm } from "react-hook-form";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,6 @@ import {
   type DayOfWeek,
   type OrganizationFormValues,
   ORGANIZATION_DAYS,
-  organizationFormSchema,
 } from "../utils/organization-form-utils";
 
 type OrganizationFormProps = {
@@ -23,6 +22,58 @@ type OrganizationFormProps = {
   submitError?: string | null;
   submitLabel: string;
   submittingLabel: string;
+};
+
+const organizationFormResolver: Resolver<OrganizationFormValues> = (values) => {
+  const request = createOrganizationRequestFromForm(values);
+  const result = createOrganizationRequestSchema.safeParse(request);
+
+  if (result.success) {
+    return {
+      errors: {},
+      values,
+    };
+  }
+
+  const errors: FieldErrors<OrganizationFormValues> = {};
+
+  result.error.issues.forEach((issue) => {
+    const [field, index, nestedField] = issue.path;
+
+    if (field === "name") {
+      errors.name = {
+        type: "manual",
+        message: issue.message,
+      };
+      return;
+    }
+
+    if (field !== "businessHours" || typeof index !== "number") {
+      return;
+    }
+
+    const businessHour = request.businessHours[index];
+
+    if (!businessHour || (nestedField !== "openTime" && nestedField !== "closeTime")) {
+      return;
+    }
+
+    errors.businessHours = {
+      ...errors.businessHours,
+      [businessHour.dayOfWeek]: {
+        ...errors.businessHours?.[businessHour.dayOfWeek],
+        [nestedField]: {
+          type: "manual",
+          message: issue.message,
+        },
+      },
+    };
+  });
+
+  return {
+    errors,
+    values: {},
+  };
 };
 
 export function OrganizationForm({
@@ -41,7 +92,7 @@ export function OrganizationForm({
     watch,
   } = useForm<OrganizationFormValues>({
     defaultValues: initialValues,
-    resolver: zodResolver(organizationFormSchema),
+    resolver: organizationFormResolver,
   });
 
   const weeklyClosedDays = watch("weeklyClosedDays");

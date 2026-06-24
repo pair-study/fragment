@@ -1,10 +1,5 @@
 import type { CreateOrganizationRequest, OrganizationDetail } from "@fragment/shared";
-import {
-  createOrganizationRequestSchema,
-  DAY_OF_WEEK_VALUES,
-  dayOfWeekSchema,
-} from "@fragment/shared";
-import { z } from "zod";
+import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 
 export type DayOfWeek = (typeof DAY_OF_WEEK_VALUES)[number];
 
@@ -58,49 +53,6 @@ export const DEFAULT_ORGANIZATION_FORM_VALUES: OrganizationFormValues = {
   businessHours: DEFAULT_BUSINESS_HOURS,
   weeklyClosedDays: ["SUN"],
 };
-
-const organizationBusinessHourFormSchema = z.object({
-  openTime: z.string(),
-  closeTime: z.string(),
-});
-
-const organizationBusinessHoursFormSchema = z.object(
-  Object.fromEntries(
-    DAY_OF_WEEK_VALUES.map((day) => [day, organizationBusinessHourFormSchema]),
-  ) as Record<DayOfWeek, typeof organizationBusinessHourFormSchema>,
-);
-
-export const organizationFormSchema = z
-  .object({
-    name: z.string(),
-    businessHours: organizationBusinessHoursFormSchema,
-    weeklyClosedDays: z.array(dayOfWeekSchema),
-  })
-  .superRefine((values, context) => {
-    const request = createOrganizationRequestFromForm(values);
-    const result = createOrganizationRequestSchema.safeParse(request);
-
-    if (result.success) {
-      return;
-    }
-
-    result.error.issues.forEach((issue) => {
-      const [field, index, nestedField] = issue.path;
-      const businessHour =
-        field === "businessHours" && typeof index === "number"
-          ? request.businessHours[index]
-          : undefined;
-
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: issue.message,
-        path:
-          businessHour && typeof nestedField === "string"
-            ? ["businessHours", businessHour.dayOfWeek, nestedField]
-            : issue.path,
-      });
-    });
-  });
 
 export function createOrganizationRequestFromForm({
   businessHours,
