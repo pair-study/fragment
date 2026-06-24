@@ -20,6 +20,7 @@ type OrganizationFormProps = {
   cancelHref?: string;
   initialValues: OrganizationFormValues;
   onSubmit: (request: ReturnType<typeof createOrganizationRequestFromForm>) => Promise<void> | void;
+  submitError?: string | null;
   submitLabel: string;
   submittingLabel: string;
 };
@@ -28,6 +29,7 @@ export function OrganizationForm({
   cancelHref,
   initialValues,
   onSubmit,
+  submitError,
   submitLabel,
   submittingLabel,
 }: OrganizationFormProps) {
@@ -200,6 +202,9 @@ export function OrganizationForm({
       </div>
 
       <div className="mt-8 flex justify-end gap-2">
+        {submitError ? (
+          <p className="mr-auto self-center text-sm text-destructive">{submitError}</p>
+        ) : null}
         {cancelHref ? (
           <Button asChild type="button" variant="outline">
             <Link href={cancelHref}>취소</Link>
