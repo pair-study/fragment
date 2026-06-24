@@ -25,7 +25,7 @@ import { AuthFooterLink } from "./auth-footer-link";
 export function SignupForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [formError, setFormError] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -41,7 +41,7 @@ export function SignupForm() {
   });
 
   async function onSubmit(values: AuthSignupRequest) {
-    setFormError("");
+    setFormError(null);
 
     try {
       const session = await signup(values);
@@ -86,9 +86,14 @@ export function SignupForm() {
             placeholder="홍길동"
             autoComplete="name"
             aria-invalid={Boolean(errors.name)}
+            aria-describedby={errors.name ? "signup-name-error" : undefined}
             {...register("name")}
           />
-          {errors.name ? <p className="text-sm text-destructive">{errors.name.message}</p> : null}
+          {errors.name ? (
+            <p id="signup-name-error" className="text-sm text-destructive">
+              {errors.name.message}
+            </p>
+          ) : null}
         </AuthField>
 
         <AuthField id="email" label="이메일">
@@ -104,10 +109,15 @@ export function SignupForm() {
               autoComplete="email"
               className="pl-9"
               aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "signup-email-error" : undefined}
               {...register("email")}
             />
           </div>
-          {errors.email ? <p className="text-sm text-destructive">{errors.email.message}</p> : null}
+          {errors.email ? (
+            <p id="signup-email-error" className="text-sm text-destructive">
+              {errors.email.message}
+            </p>
+          ) : null}
         </AuthField>
 
         <AuthField id="password" label="비밀번호">
@@ -116,10 +126,13 @@ export function SignupForm() {
             placeholder="8자 이상 입력"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "signup-password-error" : undefined}
             {...register("password")}
           />
           {errors.password ? (
-            <p className="text-sm text-destructive">{errors.password.message}</p>
+            <p id="signup-password-error" className="text-sm text-destructive">
+              {errors.password.message}
+            </p>
           ) : null}
         </AuthField>
 
@@ -129,10 +142,13 @@ export function SignupForm() {
             placeholder="비밀번호 재입력"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.passwordConfirm)}
+            aria-describedby={errors.passwordConfirm ? "signup-password-confirm-error" : undefined}
             {...register("passwordConfirm")}
           />
           {errors.passwordConfirm ? (
-            <p className="text-sm text-destructive">{errors.passwordConfirm.message}</p>
+            <p id="signup-password-confirm-error" className="text-sm text-destructive">
+              {errors.passwordConfirm.message}
+            </p>
           ) : null}
         </AuthField>
       </div>

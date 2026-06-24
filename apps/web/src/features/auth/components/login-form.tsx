@@ -25,7 +25,7 @@ import { AuthFooterLink } from "./auth-footer-link";
 export function LoginForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [formError, setFormError] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -39,7 +39,7 @@ export function LoginForm() {
   });
 
   async function onSubmit(values: AuthLoginRequest) {
-    setFormError("");
+    setFormError(null);
 
     try {
       const session = await login(values);
@@ -91,10 +91,15 @@ export function LoginForm() {
               autoComplete="email"
               className="pl-9"
               aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "login-email-error" : undefined}
               {...register("email")}
             />
           </div>
-          {errors.email ? <p className="text-sm text-destructive">{errors.email.message}</p> : null}
+          {errors.email ? (
+            <p id="login-email-error" className="text-sm text-destructive">
+              {errors.email.message}
+            </p>
+          ) : null}
         </AuthField>
 
         <AuthField id="password" label="비밀번호">
@@ -103,10 +108,13 @@ export function LoginForm() {
             placeholder="비밀번호 입력"
             autoComplete="current-password"
             aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "login-password-error" : undefined}
             {...register("password")}
           />
           {errors.password ? (
-            <p className="text-sm text-destructive">{errors.password.message}</p>
+            <p id="login-password-error" className="text-sm text-destructive">
+              {errors.password.message}
+            </p>
           ) : null}
         </AuthField>
       </div>
