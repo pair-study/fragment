@@ -61,11 +61,21 @@ async function parseJsonResponse(response: Response) {
   return response.json();
 }
 
-async function parseErrorResponse(response: Response) {
-  const parsedResponse = await parseJsonResponse(response);
-  const result = errorResponseSchema.safeParse(parsedResponse);
+function createInvalidJsonResponseError(response: Response) {
+  return new ApiError(response.status, {
+    message: "응답 형식이 올바르지 않습니다.",
+  });
+}
 
-  return result.success ? result.data : undefined;
+async function parseErrorResponse(response: Response) {
+  try {
+    const parsedResponse = await parseJsonResponse(response);
+    const result = errorResponseSchema.safeParse(parsedResponse);
+
+    return result.success ? result.data : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function apiClient(path: string, options: ApiVoidRequestOptions): Promise<void>;
@@ -128,5 +138,17 @@ export async function apiClient<TResponse>(
     });
   }
 
-  return (await parseJsonResponse(response)) as TResponse;
+  let parsedResponse: unknown;
+
+  try {
+    parsedResponse = await parseJsonResponse(response);
+  } catch {
+    throw createInvalidJsonResponseError(response);
+  }
+
+  if (parsedResponse === undefined) {
+    throw createInvalidJsonResponseError(response);
+  }
+
+  return parsedResponse as TResponse;
 }
