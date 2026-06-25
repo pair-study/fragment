@@ -1,5 +1,6 @@
 import type {
   MinimumStaffingRule as PrismaMinimumStaffingRule,
+  Prisma,
   PrismaClient,
 } from "@fragment/database";
 import type {
@@ -12,17 +13,6 @@ import type {
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
 import { toApiId, toPrismaId } from "@/utils/mapper";
-
-type MinimumStaffingRuleCreateData = {
-  organizationId: bigint;
-  dayOfWeek: CreateMinimumStaffingRuleRequest["dayOfWeek"];
-  startTime: Date;
-  endTime: Date;
-  endsNextDay: boolean;
-  requiredCount: number;
-};
-
-type MinimumStaffingRuleUpdateData = Partial<Omit<MinimumStaffingRuleCreateData, "organizationId">>;
 
 const timeStringToDate = (time: string): Date => {
   const [hour, minute] = time.split(":").map(Number);
@@ -67,7 +57,7 @@ export const toMinimumStaffingRule = (rule: PrismaMinimumStaffingRule): MinimumS
 const createMinimumStaffingRuleData = (
   organizationId: bigint,
   input: CreateMinimumStaffingRuleRequest,
-): MinimumStaffingRuleCreateData => ({
+): Prisma.MinimumStaffingRuleUncheckedCreateInput => ({
   organizationId,
   dayOfWeek: input.dayOfWeek,
   startTime: timeStringToDate(input.startTime),
@@ -78,7 +68,7 @@ const createMinimumStaffingRuleData = (
 
 const createMinimumStaffingRuleUpdateData = (
   input: UpdateMinimumStaffingRuleRequest,
-): MinimumStaffingRuleUpdateData => ({
+): Prisma.MinimumStaffingRuleUncheckedUpdateInput => ({
   ...(input.dayOfWeek !== undefined ? { dayOfWeek: input.dayOfWeek } : {}),
   ...(input.startTime !== undefined ? { startTime: timeStringToDate(input.startTime) } : {}),
   ...(input.endTime !== undefined ? { endTime: timeStringToDate(input.endTime) } : {}),
