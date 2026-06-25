@@ -103,9 +103,9 @@ async function main() {
 
   await Promise.all(
     [
-      { employeeCode: "W001", name: "김민지", weeklyContractHours: 20 },
-      { employeeCode: "W002", name: "박준호", weeklyContractHours: 24 },
-      { employeeCode: "W003", name: "이서연", weeklyContractHours: 16 },
+      { employeeCode: "W-0001", name: "김민지", weeklyContractHours: 20 },
+      { employeeCode: "W-0002", name: "박준호", weeklyContractHours: 24 },
+      { employeeCode: "W-0003", name: "이서연", weeklyContractHours: 16 },
     ].map((worker) =>
       prisma.worker.upsert({
         where: {
