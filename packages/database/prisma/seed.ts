@@ -101,12 +101,77 @@ async function main() {
     },
   });
 
+  const seedWorkers = [
+    {
+      legacyEmployeeCode: "W001",
+      employeeCode: "W-0001",
+      name: "김민지",
+      weeklyContractHours: 20,
+    },
+    {
+      legacyEmployeeCode: "W002",
+      employeeCode: "W-0002",
+      name: "박준호",
+      weeklyContractHours: 24,
+    },
+    {
+      legacyEmployeeCode: "W003",
+      employeeCode: "W-0003",
+      name: "이서연",
+      weeklyContractHours: 16,
+    },
+  ];
+
+  for (const worker of seedWorkers) {
+    const legacyWorker = await prisma.worker.findUnique({
+      where: {
+        organizationId_employeeCode: {
+          organizationId: organization.id,
+          employeeCode: worker.legacyEmployeeCode,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!legacyWorker) {
+      continue;
+    }
+
+    const formattedWorker = await prisma.worker.findUnique({
+      where: {
+        organizationId_employeeCode: {
+          organizationId: organization.id,
+          employeeCode: worker.employeeCode,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (formattedWorker) {
+      await prisma.worker.delete({
+        where: {
+          id: legacyWorker.id,
+        },
+      });
+      continue;
+    }
+
+    await prisma.worker.update({
+      where: {
+        id: legacyWorker.id,
+      },
+      data: {
+        employeeCode: worker.employeeCode,
+      },
+    });
+  }
+
   await Promise.all(
-    [
-      { employeeCode: "W-0001", name: "김민지", weeklyContractHours: 20 },
-      { employeeCode: "W-0002", name: "박준호", weeklyContractHours: 24 },
-      { employeeCode: "W-0003", name: "이서연", weeklyContractHours: 16 },
-    ].map((worker) =>
+    seedWorkers.map((worker) =>
       prisma.worker.upsert({
         where: {
           organizationId_employeeCode: {

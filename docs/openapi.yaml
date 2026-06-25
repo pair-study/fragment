@@ -623,6 +623,7 @@ components:
           example: "1"
         employeeCode:
           type: string
+          pattern: "^W-\\d{4}$"
           example: W-0001
         name:
           type: string

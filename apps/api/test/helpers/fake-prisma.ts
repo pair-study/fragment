@@ -51,6 +51,7 @@ type FakeScheduleAssignment = {
 };
 
 type CreateFakePrismaOptions = {
+  refreshTokens?: FakeRefreshToken[];
   scheduleAssignments?: FakeScheduleAssignment[];
   users?: FakeUser[];
   workers?: FakeWorker[];
@@ -65,27 +66,30 @@ const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => 
   openTime: cloneDate(businessHour.openTime),
 });
 
+const getNextId = <T extends { id: bigint }>(items: T[]) =>
+  items.reduce((nextId, item) => (item.id >= nextId ? item.id + BigInt(1) : nextId), BigInt(1));
+
 export function createFakePrisma({
   organizations = [],
+  refreshTokens = [],
   scheduleAssignments = [],
   users = [],
   workers = [],
 }: CreateFakePrismaOptions = {}) {
   const state = {
-    nextBusinessHourId: BigInt(100),
-    nextOrganizationId: BigInt(1),
-    nextRefreshTokenId: BigInt(1),
-    nextUserId: BigInt(1),
-    nextWorkerId: workers.reduce(
-      (nextWorkerId, worker) => (worker.id >= nextWorkerId ? worker.id + BigInt(1) : nextWorkerId),
-      BigInt(1),
+    nextBusinessHourId: getNextId(
+      organizations.flatMap((organization) => organization.businessHours),
     ),
+    nextOrganizationId: getNextId(organizations),
+    nextRefreshTokenId: getNextId(refreshTokens),
+    nextUserId: getNextId(users),
+    nextWorkerId: getNextId(workers),
     organizations: organizations.map((organization) => ({
       ...organization,
       lastWorkerSequence: organization.lastWorkerSequence ?? 0,
       businessHours: organization.businessHours.map(cloneBusinessHour),
     })),
-    refreshTokens: [] as FakeRefreshToken[],
+    refreshTokens: refreshTokens.map((refreshToken) => ({ ...refreshToken })),
     scheduleAssignments: scheduleAssignments.map((assignment) => ({ ...assignment })),
     users: [...users],
     workers: workers.map((worker) => ({ ...worker })),
