@@ -268,6 +268,8 @@ Response `204`: body 없음
 
 **Auth:** Bearer token
 
+현재 사용자의 조직에 속한 근무자 목록을 사번 오름차순으로 조회합니다.
+
 Response `200`:
 
 ```json
@@ -287,7 +289,7 @@ Response `200`:
 
 **Auth:** Bearer token
 
-사번은 서버가 자동 생성합니다.
+사번은 서버가 `W-0001` 형식으로 자동 생성합니다.
 
 Request:
 

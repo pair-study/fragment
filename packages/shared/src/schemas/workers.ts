@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { idSchema } from "./common";
 
+export const workerIdParamsSchema = z.object({
+  workerId: idSchema,
+});
+
 export const workerSchema = z.object({
   id: idSchema,
   employeeCode: z.string(),

@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@fragment/database";
+import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 
 type FakeUser = {
   id: bigint;
@@ -44,10 +45,20 @@ type FakeRefreshToken = {
   revokedAt: Date | null;
 };
 
+type FakeWorker = {
+  id: bigint;
+  organizationId: bigint;
+  employeeCode: string;
+  name: string;
+  weeklyContractHours: number;
+};
+
 type CreateFakePrismaOptions = {
   minimumStaffingRules?: FakeMinimumStaffingRule[];
   organizations?: FakeOrganization[];
+  refreshTokens?: FakeRefreshToken[];
   users?: FakeUser[];
+  workers?: FakeWorker[];
 };
 
 const cloneDate = (date: Date | null) => (date ? new Date(date.getTime()) : null);
@@ -69,23 +80,35 @@ const cloneMinimumStaffingRule = (
   updatedAt: cloneRequiredDate(minimumStaffingRule.updatedAt),
 });
 
+const getNextId = <T extends { id: bigint }>(items: T[]) =>
+  items.reduce((nextId, item) => (item.id >= nextId ? item.id + BigInt(1) : nextId), BigInt(1));
+
+const dayOfWeekOrder = Object.fromEntries(
+  DAY_OF_WEEK_VALUES.map((dayOfWeek, index) => [dayOfWeek, index]),
+) as Record<(typeof DAY_OF_WEEK_VALUES)[number], number>;
+
 export function createFakePrisma({
   minimumStaffingRules = [],
   organizations = [],
+  refreshTokens = [],
   users = [],
+  workers = [],
 }: CreateFakePrismaOptions = {}) {
   const state = {
-    nextBusinessHourId: BigInt(100),
-    nextOrganizationId: BigInt(1),
-    nextRefreshTokenId: BigInt(1),
-    nextUserId: BigInt(1),
+    nextBusinessHourId: getNextId(
+      organizations.flatMap((organization) => organization.businessHours),
+    ),
+    nextOrganizationId: getNextId(organizations),
+    nextRefreshTokenId: getNextId(refreshTokens),
+    nextUserId: getNextId(users),
     minimumStaffingRules: minimumStaffingRules.map(cloneMinimumStaffingRule),
     organizations: organizations.map((organization) => ({
       ...organization,
       businessHours: organization.businessHours.map(cloneBusinessHour),
     })),
-    refreshTokens: [] as FakeRefreshToken[],
+    refreshTokens: refreshTokens.map((refreshToken) => ({ ...refreshToken })),
     users: [...users],
+    workers: workers.map((worker) => ({ ...worker })),
   };
 
   const findOrganizationByUserId = (userId: bigint) =>
@@ -99,8 +122,12 @@ export function createFakePrisma({
       return null;
     }
 
-    if (options?.select?.id) {
-      return { id: organization.id };
+    if (options?.select) {
+      return Object.fromEntries(
+        Object.keys(options.select)
+          .filter((key) => options.select[key])
+          .map((key) => [key, organization[key as keyof FakeOrganization]]),
+      );
     }
 
     return {
@@ -110,7 +137,8 @@ export function createFakePrisma({
   };
 
   const prisma = {
-    $transaction: async (callback: (transaction: typeof prisma) => unknown) => callback(prisma),
+    $transaction: async <T>(callback: (transaction: PrismaClient) => T | Promise<T>) =>
+      callback(prisma as unknown as PrismaClient),
     organizationBusinessHour: {
       deleteMany: async ({ where }: any) => {
         const organization = findOrganizationById(where.organizationId);
@@ -126,10 +154,29 @@ export function createFakePrisma({
       },
     },
     minimumStaffingRule: {
-      findMany: async ({ where }: any) =>
-        state.minimumStaffingRules
+      findMany: async ({ orderBy, where }: any) => {
+        const rules = state.minimumStaffingRules
           .filter((rule) => rule.organizationId === where.organizationId)
-          .map(cloneMinimumStaffingRule),
+          .map(cloneMinimumStaffingRule);
+
+        if (Array.isArray(orderBy)) {
+          rules.sort((a, b) => {
+            for (const order of orderBy) {
+              if (order.dayOfWeek === "asc" && a.dayOfWeek !== b.dayOfWeek) {
+                return dayOfWeekOrder[a.dayOfWeek] - dayOfWeekOrder[b.dayOfWeek];
+              }
+
+              if (order.startTime === "asc" && a.startTime.getTime() !== b.startTime.getTime()) {
+                return a.startTime.getTime() - b.startTime.getTime();
+              }
+            }
+
+            return 0;
+          });
+        }
+
+        return rules;
+      },
     },
     organization: {
       create: async ({ data }: any) => {
@@ -157,7 +204,7 @@ export function createFakePrisma({
 
         return toOrganizationResult(organization, options);
       },
-      update: async ({ data, where }: any) => {
+      update: async ({ data, where, ...options }: any) => {
         const organization = findOrganizationById(where.id);
 
         if (!organization) {
@@ -176,7 +223,29 @@ export function createFakePrisma({
           }));
         }
 
-        return toOrganizationResult(organization);
+        return toOrganizationResult(organization, options);
+      },
+    },
+    worker: {
+      findMany: async ({ orderBy, where }: any) => {
+        const matchingWorkers = state.workers
+          .filter((worker) => {
+            if (
+              where.organizationId !== undefined &&
+              worker.organizationId !== where.organizationId
+            ) {
+              return false;
+            }
+
+            return true;
+          })
+          .map((worker) => ({ ...worker }));
+
+        if (orderBy?.employeeCode === "asc") {
+          matchingWorkers.sort((a, b) => a.employeeCode.localeCompare(b.employeeCode));
+        }
+
+        return matchingWorkers;
       },
     },
     refreshToken: {

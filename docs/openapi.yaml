@@ -214,6 +214,109 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /workers:
+    get:
+      tags:
+        - Workers
+      summary: 근무자 목록 조회
+      description: 현재 사용자의 조직에 속한 근무자 목록을 사번 오름차순으로 조회합니다.
+      operationId: listWorkers
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 근무자 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkersListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+
+    post:
+      tags:
+        - Workers
+      summary: 근무자 생성
+      description: 사번은 서버가 W-0001 형식으로 자동 생성합니다.
+      operationId: createWorker
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkerRequest"
+      responses:
+        "201":
+          description: 근무자 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+
+  /workers/{workerId}:
+    patch:
+      tags:
+        - Workers
+      summary: 근무자 수정
+      operationId: updateWorker
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkerRequest"
+      responses:
+        "200":
+          description: 근무자 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Workers
+      summary: 근무자 삭제
+      description: 근무자를 삭제합니다. 과거 스케줄 배정 기록의 worker_id는 null로 처리됩니다.
+      operationId: deleteWorker
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkerId"
+      responses:
+        "204":
+          description: 근무자 삭제 성공
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -244,6 +347,22 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    OrganizationRequired:
+      description: 조직 생성 필요
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  parameters:
+    WorkerId:
+      name: workerId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^\\d+$"
+      example: "1"
 
   schemas:
     ErrorResponse:
@@ -490,3 +609,64 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/OrganizationBusinessHourInput"
+
+    Worker:
+      type: object
+      required:
+        - id
+        - employeeCode
+        - name
+        - weeklyContractHours
+      properties:
+        id:
+          type: string
+          example: "1"
+        employeeCode:
+          type: string
+          pattern: "^W-\\d{4}$"
+          example: W-0001
+        name:
+          type: string
+          example: 김민수
+        weeklyContractHours:
+          type: integer
+          minimum: 1
+          example: 40
+
+    WorkersListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Worker"
+
+    CreateWorkerRequest:
+      type: object
+      required:
+        - name
+        - weeklyContractHours
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: 김민수
+        weeklyContractHours:
+          type: integer
+          minimum: 1
+          example: 40
+
+    UpdateWorkerRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: 김민준
+        weeklyContractHours:
+          type: integer
+          minimum: 1
+          example: 32
