@@ -215,7 +215,7 @@ export function MvpDashboardPage() {
             </Button>
           </div>
 
-          <div className="mt-6 grid gap-5 border-t border-border pt-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,0.55fr)] md:divide-x md:divide-border">
+          <div className="mt-6 grid gap-5 border-t border-border pt-5 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.55fr)] md:divide-x md:divide-border">
             <div className="flex min-w-0 gap-3 md:pr-5">
               <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-muted-foreground">
                 <Clock className="size-4" aria-hidden="true" />
