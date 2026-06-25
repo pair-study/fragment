@@ -205,4 +205,130 @@ describe("organization routes", () => {
       closeTime: null,
     });
   });
+
+  it("requires an organization when getting the active planning period", async () => {
+    const { prisma } = createFakePrisma();
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/organization/active-schedule-planning-period")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      errorCode: "ORGANIZATION_REQUIRED",
+      statusCode: 403,
+    });
+  });
+
+  it("returns null when there is no active planning period", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [
+        {
+          id: BigInt(1),
+          userId: BigInt(1),
+          name: "프래그먼트 카페",
+          businessHours: [],
+        },
+      ],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/organization/active-schedule-planning-period")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      period: null,
+    });
+  });
+
+  it("upserts and returns the active planning period", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [
+        {
+          id: BigInt(1),
+          userId: BigInt(1),
+          name: "프래그먼트 카페",
+          businessHours: [],
+        },
+      ],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .put("/api/organization/active-schedule-planning-period")
+      .set("Authorization", authHeader())
+      .send({
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      id: "1",
+      startDate: "2026-07-01",
+      endDate: "2026-07-31",
+    });
+  });
+
+  it("rejects an invalid active planning period date range", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [
+        {
+          id: BigInt(1),
+          userId: BigInt(1),
+          name: "프래그먼트 카페",
+          businessHours: [],
+        },
+      ],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .put("/api/organization/active-schedule-planning-period")
+      .set("Authorization", authHeader())
+      .send({
+        startDate: "2026-08-01",
+        endDate: "2026-07-31",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+      statusCode: 400,
+    });
+  });
+
+  it("deletes the active planning period", async () => {
+    const now = new Date("2026-06-25T00:00:00.000Z");
+    const { prisma } = createFakePrisma({
+      activeSchedulePlanningPeriods: [
+        {
+          id: BigInt(1),
+          organizationId: BigInt(1),
+          startDate: new Date("2026-07-01T00:00:00.000Z"),
+          endDate: new Date("2026-07-31T00:00:00.000Z"),
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      organizations: [
+        {
+          id: BigInt(1),
+          userId: BigInt(1),
+          name: "프래그먼트 카페",
+          businessHours: [],
+        },
+      ],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .delete("/api/organization/active-schedule-planning-period")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(204);
+  });
 });

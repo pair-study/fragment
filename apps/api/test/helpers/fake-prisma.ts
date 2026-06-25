@@ -25,6 +25,15 @@ type FakeOrganization = {
   businessHours: FakeBusinessHour[];
 };
 
+type FakeActiveSchedulePlanningPeriod = {
+  id: bigint;
+  organizationId: bigint;
+  startDate: Date;
+  endDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type FakeMinimumStaffingRule = {
   id: bigint;
   organizationId: bigint;
@@ -54,6 +63,7 @@ type FakeWorker = {
 };
 
 type CreateFakePrismaOptions = {
+  activeSchedulePlanningPeriods?: FakeActiveSchedulePlanningPeriod[];
   minimumStaffingRules?: FakeMinimumStaffingRule[];
   organizations?: FakeOrganization[];
   refreshTokens?: FakeRefreshToken[];
@@ -68,6 +78,16 @@ const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => 
   ...businessHour,
   closeTime: cloneDate(businessHour.closeTime),
   openTime: cloneDate(businessHour.openTime),
+});
+
+const cloneActiveSchedulePlanningPeriod = (
+  period: FakeActiveSchedulePlanningPeriod,
+): FakeActiveSchedulePlanningPeriod => ({
+  ...period,
+  createdAt: cloneRequiredDate(period.createdAt),
+  endDate: cloneRequiredDate(period.endDate),
+  startDate: cloneRequiredDate(period.startDate),
+  updatedAt: cloneRequiredDate(period.updatedAt),
 });
 
 const cloneMinimumStaffingRule = (
@@ -88,6 +108,7 @@ const dayOfWeekOrder = Object.fromEntries(
 ) as Record<(typeof DAY_OF_WEEK_VALUES)[number], number>;
 
 export function createFakePrisma({
+  activeSchedulePlanningPeriods = [],
   minimumStaffingRules = [],
   organizations = [],
   refreshTokens = [],
@@ -99,8 +120,12 @@ export function createFakePrisma({
       organizations.flatMap((organization) => organization.businessHours),
     ),
     nextOrganizationId: getNextId(organizations),
+    nextPlanningPeriodId: getNextId(activeSchedulePlanningPeriods),
     nextRefreshTokenId: getNextId(refreshTokens),
     nextUserId: getNextId(users),
+    activeSchedulePlanningPeriods: activeSchedulePlanningPeriods.map(
+      cloneActiveSchedulePlanningPeriod,
+    ),
     minimumStaffingRules: minimumStaffingRules.map(cloneMinimumStaffingRule),
     organizations: organizations.map((organization) => ({
       ...organization,
@@ -151,6 +176,50 @@ export function createFakePrisma({
         organization.businessHours = [];
 
         return { count };
+      },
+    },
+    activeSchedulePlanningPeriod: {
+      deleteMany: async ({ where }: any) => {
+        const initialCount = state.activeSchedulePlanningPeriods.length;
+        state.activeSchedulePlanningPeriods = state.activeSchedulePlanningPeriods.filter(
+          (period) => period.organizationId !== where.organizationId,
+        );
+
+        return { count: initialCount - state.activeSchedulePlanningPeriods.length };
+      },
+      findUnique: async ({ where }: any) => {
+        const period =
+          state.activeSchedulePlanningPeriods.find(
+            (currentPeriod) => currentPeriod.organizationId === where.organizationId,
+          ) ?? null;
+
+        return period ? cloneActiveSchedulePlanningPeriod(period) : null;
+      },
+      upsert: async ({ create, update, where }: any) => {
+        const existingPeriod = state.activeSchedulePlanningPeriods.find(
+          (period) => period.organizationId === where.organizationId,
+        );
+        const now = new Date("2026-06-25T00:00:00.000Z");
+
+        if (existingPeriod) {
+          Object.assign(existingPeriod, {
+            ...update,
+            updatedAt: now,
+          });
+
+          return cloneActiveSchedulePlanningPeriod(existingPeriod);
+        }
+
+        const period: FakeActiveSchedulePlanningPeriod = {
+          id: state.nextPlanningPeriodId++,
+          createdAt: now,
+          updatedAt: now,
+          ...create,
+        };
+
+        state.activeSchedulePlanningPeriods.push(period);
+
+        return cloneActiveSchedulePlanningPeriod(period);
       },
     },
     minimumStaffingRule: {
