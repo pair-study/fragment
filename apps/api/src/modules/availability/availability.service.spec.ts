@@ -1,0 +1,171 @@
+import type { PrismaClient } from "@fragment/database";
+import { describe, expect, it, jest } from "@jest/globals";
+
+import { ERROR_CODES } from "@/common/constants/error-codes";
+import { listAvailability } from "./availability.service";
+
+const dateOnly = (date: string) => new Date(`${date}T00:00:00.000Z`);
+const timestamp = new Date("2026-06-25T00:00:00.000Z");
+
+const createAvailabilityRow = ({
+  id = BigInt(10),
+  workerId = BigInt(1),
+  availableDate = dateOnly("2026-07-01"),
+  startsAt = new Date("2026-07-01T10:00:00.000Z"),
+  endsAt = new Date("2026-07-01T14:00:00.000Z"),
+} = {}) => ({
+  id,
+  workerId,
+  availableDate,
+  startsAt,
+  endsAt,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+});
+
+const createPrismaMock = ({
+  organization = { id: BigInt(1) },
+  worker = { id: BigInt(1) },
+  workerAvailableTime = {},
+}: {
+  organization?: { id: bigint } | null;
+  worker?: { id: bigint } | null;
+  workerAvailableTime?: {
+    findMany?: jest.Mock;
+  };
+} = {}) => {
+  const organizationFindUnique = jest
+    .fn<() => Promise<{ id: bigint } | null>>()
+    .mockResolvedValue(organization);
+  const workerFindFirst = jest.fn<() => Promise<{ id: bigint } | null>>().mockResolvedValue(worker);
+
+  return {
+    prisma: {
+      organization: {
+        findUnique: organizationFindUnique,
+      },
+      worker: {
+        findFirst: workerFindFirst,
+      },
+      workerAvailableTime: {
+        findMany: workerAvailableTime.findMany ?? jest.fn(),
+      },
+    } as unknown as PrismaClient,
+    organizationFindUnique,
+    workerFindFirst,
+  };
+};
+
+describe("listAvailability", () => {
+  it("rejects users without an organization", async () => {
+    const availableTimeFindMany = jest.fn();
+    const { prisma } = createPrismaMock({
+      organization: null,
+      workerAvailableTime: {
+        findMany: availableTimeFindMany,
+      },
+    });
+
+    await expect(
+      listAvailability(prisma, "1", {
+        workerId: "1",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.ORGANIZATION_REQUIRED,
+      statusCode: 403,
+    });
+    expect(availableTimeFindMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects workers outside the user's organization", async () => {
+    const availableTimeFindMany = jest.fn();
+    const { prisma, workerFindFirst } = createPrismaMock({
+      worker: null,
+      workerAvailableTime: {
+        findMany: availableTimeFindMany,
+      },
+    });
+
+    await expect(
+      listAvailability(prisma, "1", {
+        workerId: "10",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.WORKER_NOT_FOUND,
+      statusCode: 404,
+    });
+    expect(workerFindFirst).toHaveBeenCalledWith({
+      where: {
+        id: BigInt(10),
+        organizationId: BigInt(1),
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(availableTimeFindMany).not.toHaveBeenCalled();
+  });
+
+  it("lists availability in the selected date range ordered by date and start time", async () => {
+    const availableTimeFindMany = jest
+      .fn<() => Promise<ReturnType<typeof createAvailabilityRow>[]>>()
+      .mockResolvedValue([
+        createAvailabilityRow({
+          id: BigInt(11),
+          availableDate: dateOnly("2026-07-01"),
+          startsAt: new Date("2026-07-01T10:00:00.000Z"),
+          endsAt: new Date("2026-07-01T14:00:00.000Z"),
+        }),
+        createAvailabilityRow({
+          id: BigInt(12),
+          availableDate: dateOnly("2026-07-02"),
+          startsAt: new Date("2026-07-02T09:00:00.000Z"),
+          endsAt: new Date("2026-07-02T12:00:00.000Z"),
+        }),
+      ]);
+    const { prisma } = createPrismaMock({
+      workerAvailableTime: {
+        findMany: availableTimeFindMany,
+      },
+    });
+
+    await expect(
+      listAvailability(prisma, "1", {
+        workerId: "1",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          id: "11",
+          workerId: "1",
+          availableDate: "2026-07-01",
+          startsAt: "2026-07-01T10:00:00.000Z",
+          endsAt: "2026-07-01T14:00:00.000Z",
+        },
+        {
+          id: "12",
+          workerId: "1",
+          availableDate: "2026-07-02",
+          startsAt: "2026-07-02T09:00:00.000Z",
+          endsAt: "2026-07-02T12:00:00.000Z",
+        },
+      ],
+    });
+    expect(availableTimeFindMany).toHaveBeenCalledWith({
+      where: {
+        workerId: BigInt(1),
+        availableDate: {
+          gte: dateOnly("2026-07-01"),
+          lte: dateOnly("2026-07-31"),
+        },
+      },
+      orderBy: [{ availableDate: "asc" }, { startsAt: "asc" }],
+    });
+  });
+});

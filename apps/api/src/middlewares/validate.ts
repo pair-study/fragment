@@ -28,7 +28,7 @@ export function validate(schema: RequestSchema): RequestHandler {
     }
 
     if ("query" in result.data) {
-      req.query = result.data.query as typeof req.query;
+      Object.assign(req.query, result.data.query);
     }
 
     if ("params" in result.data) {

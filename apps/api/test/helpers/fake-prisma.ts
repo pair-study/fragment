@@ -46,6 +46,16 @@ type FakeMinimumStaffingRule = {
   updatedAt: Date;
 };
 
+type FakeWorkerAvailableTime = {
+  id: bigint;
+  workerId: bigint;
+  availableDate: Date;
+  startsAt: Date;
+  endsAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type FakeRefreshToken = {
   id: bigint;
   userId: bigint;
@@ -64,6 +74,7 @@ type FakeWorker = {
 
 type CreateFakePrismaOptions = {
   activeSchedulePlanningPeriods?: FakeActiveSchedulePlanningPeriod[];
+  availableTimes?: FakeWorkerAvailableTime[];
   minimumStaffingRules?: FakeMinimumStaffingRule[];
   organizations?: FakeOrganization[];
   refreshTokens?: FakeRefreshToken[];
@@ -100,6 +111,17 @@ const cloneMinimumStaffingRule = (
   updatedAt: cloneRequiredDate(minimumStaffingRule.updatedAt),
 });
 
+const cloneWorkerAvailableTime = (
+  availableTime: FakeWorkerAvailableTime,
+): FakeWorkerAvailableTime => ({
+  ...availableTime,
+  availableDate: cloneRequiredDate(availableTime.availableDate),
+  createdAt: cloneRequiredDate(availableTime.createdAt),
+  endsAt: cloneRequiredDate(availableTime.endsAt),
+  startsAt: cloneRequiredDate(availableTime.startsAt),
+  updatedAt: cloneRequiredDate(availableTime.updatedAt),
+});
+
 const getNextId = <T extends { id: bigint }>(items: T[]) =>
   items.reduce((nextId, item) => (item.id >= nextId ? item.id + BigInt(1) : nextId), BigInt(1));
 
@@ -109,6 +131,7 @@ const dayOfWeekOrder = Object.fromEntries(
 
 export function createFakePrisma({
   activeSchedulePlanningPeriods = [],
+  availableTimes = [],
   minimumStaffingRules = [],
   organizations = [],
   refreshTokens = [],
@@ -126,6 +149,7 @@ export function createFakePrisma({
     activeSchedulePlanningPeriods: activeSchedulePlanningPeriods.map(
       cloneActiveSchedulePlanningPeriod,
     ),
+    availableTimes: availableTimes.map(cloneWorkerAvailableTime),
     minimumStaffingRules: minimumStaffingRules.map(cloneMinimumStaffingRule),
     organizations: organizations.map((organization) => ({
       ...organization,
@@ -296,6 +320,33 @@ export function createFakePrisma({
       },
     },
     worker: {
+      findFirst: async ({ select, where }: any) => {
+        const worker =
+          state.workers.find((currentWorker) => {
+            if (where.id !== undefined && currentWorker.id !== where.id) {
+              return false;
+            }
+
+            if (
+              where.organizationId !== undefined &&
+              currentWorker.organizationId !== where.organizationId
+            ) {
+              return false;
+            }
+
+            return true;
+          }) ?? null;
+
+        if (!worker || !select) {
+          return worker ? { ...worker } : null;
+        }
+
+        return Object.fromEntries(
+          Object.keys(select)
+            .filter((key) => select[key])
+            .map((key) => [key, worker[key as keyof FakeWorker]]),
+        );
+      },
       findMany: async ({ orderBy, where }: any) => {
         const matchingWorkers = state.workers
           .filter((worker) => {
@@ -315,6 +366,54 @@ export function createFakePrisma({
         }
 
         return matchingWorkers;
+      },
+    },
+    workerAvailableTime: {
+      findMany: async ({ orderBy, where }: any) => {
+        const matchingAvailableTimes = state.availableTimes
+          .filter((availableTime) => {
+            if (where.workerId !== undefined && availableTime.workerId !== where.workerId) {
+              return false;
+            }
+
+            if (
+              where.availableDate?.gte !== undefined &&
+              availableTime.availableDate < where.availableDate.gte
+            ) {
+              return false;
+            }
+
+            if (
+              where.availableDate?.lte !== undefined &&
+              availableTime.availableDate > where.availableDate.lte
+            ) {
+              return false;
+            }
+
+            return true;
+          })
+          .map(cloneWorkerAvailableTime);
+
+        if (Array.isArray(orderBy)) {
+          matchingAvailableTimes.sort((a, b) => {
+            for (const order of orderBy) {
+              if (
+                order.availableDate === "asc" &&
+                a.availableDate.getTime() !== b.availableDate.getTime()
+              ) {
+                return a.availableDate.getTime() - b.availableDate.getTime();
+              }
+
+              if (order.startsAt === "asc" && a.startsAt.getTime() !== b.startsAt.getTime()) {
+                return a.startsAt.getTime() - b.startsAt.getTime();
+              }
+            }
+
+            return 0;
+          });
+        }
+
+        return matchingAvailableTimes;
       },
     },
     refreshToken: {
