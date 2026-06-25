@@ -29,14 +29,6 @@ type FakeOrganizationInput = Omit<FakeOrganization, "lastWorkerSequence"> & {
   lastWorkerSequence?: number;
 };
 
-type FakeWorker = {
-  id: bigint;
-  organizationId: bigint;
-  employeeCode: string;
-  name: string;
-  weeklyContractHours: number;
-};
-
 type FakeRefreshToken = {
   id: bigint;
   userId: bigint;
@@ -50,12 +42,20 @@ type FakeScheduleAssignment = {
   workerId: bigint | null;
 };
 
+type FakeWorker = {
+  id: bigint;
+  organizationId: bigint;
+  employeeCode: string;
+  name: string;
+  weeklyContractHours: number;
+};
+
 type CreateFakePrismaOptions = {
+  organizations?: FakeOrganizationInput[];
   refreshTokens?: FakeRefreshToken[];
   scheduleAssignments?: FakeScheduleAssignment[];
   users?: FakeUser[];
   workers?: FakeWorker[];
-  organizations?: FakeOrganizationInput[];
 };
 
 const cloneDate = (date: Date | null) => (date ? new Date(date.getTime()) : null);
@@ -164,7 +164,7 @@ export function createFakePrisma({
 
         return toOrganizationResult(organization, options);
       },
-      update: async ({ data, where }: any) => {
+      update: async ({ data, where, ...options }: any) => {
         const organization = findOrganizationById(where.id);
 
         if (!organization) {
@@ -176,8 +176,7 @@ export function createFakePrisma({
         }
 
         if (data.lastWorkerSequence?.increment !== undefined) {
-          organization.lastWorkerSequence =
-            (organization.lastWorkerSequence ?? 0) + data.lastWorkerSequence.increment;
+          organization.lastWorkerSequence += data.lastWorkerSequence.increment;
         }
 
         if (data.businessHours?.create) {
@@ -188,7 +187,7 @@ export function createFakePrisma({
           }));
         }
 
-        return toOrganizationResult(organization);
+        return toOrganizationResult(organization, options);
       },
     },
     worker: {
