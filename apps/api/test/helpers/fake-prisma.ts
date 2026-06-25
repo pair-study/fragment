@@ -29,6 +29,18 @@ type FakeOrganizationInput = Omit<FakeOrganization, "lastWorkerSequence"> & {
   lastWorkerSequence?: number;
 };
 
+type FakeMinimumStaffingRule = {
+  id: bigint;
+  organizationId: bigint;
+  dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+  startTime: Date;
+  endTime: Date;
+  endsNextDay: boolean;
+  requiredCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type FakeRefreshToken = {
   id: bigint;
   userId: bigint;
@@ -51,6 +63,7 @@ type FakeWorker = {
 };
 
 type CreateFakePrismaOptions = {
+  minimumStaffingRules?: FakeMinimumStaffingRule[];
   organizations?: FakeOrganizationInput[];
   refreshTokens?: FakeRefreshToken[];
   scheduleAssignments?: FakeScheduleAssignment[];
@@ -59,6 +72,7 @@ type CreateFakePrismaOptions = {
 };
 
 const cloneDate = (date: Date | null) => (date ? new Date(date.getTime()) : null);
+const cloneRequiredDate = (date: Date) => new Date(date.getTime());
 
 const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => ({
   ...businessHour,
@@ -66,10 +80,21 @@ const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => 
   openTime: cloneDate(businessHour.openTime),
 });
 
+const cloneMinimumStaffingRule = (
+  minimumStaffingRule: FakeMinimumStaffingRule,
+): FakeMinimumStaffingRule => ({
+  ...minimumStaffingRule,
+  createdAt: cloneRequiredDate(minimumStaffingRule.createdAt),
+  endTime: cloneRequiredDate(minimumStaffingRule.endTime),
+  startTime: cloneRequiredDate(minimumStaffingRule.startTime),
+  updatedAt: cloneRequiredDate(minimumStaffingRule.updatedAt),
+});
+
 const getNextId = <T extends { id: bigint }>(items: T[]) =>
   items.reduce((nextId, item) => (item.id >= nextId ? item.id + BigInt(1) : nextId), BigInt(1));
 
 export function createFakePrisma({
+  minimumStaffingRules = [],
   organizations = [],
   refreshTokens = [],
   scheduleAssignments = [],
@@ -80,10 +105,12 @@ export function createFakePrisma({
     nextBusinessHourId: getNextId(
       organizations.flatMap((organization) => organization.businessHours),
     ),
+    nextMinimumStaffingRuleId: getNextId(minimumStaffingRules),
     nextOrganizationId: getNextId(organizations),
     nextRefreshTokenId: getNextId(refreshTokens),
     nextUserId: getNextId(users),
     nextWorkerId: getNextId(workers),
+    minimumStaffingRules: minimumStaffingRules.map(cloneMinimumStaffingRule),
     organizations: organizations.map((organization) => ({
       ...organization,
       lastWorkerSequence: organization.lastWorkerSequence ?? 0,
@@ -135,6 +162,102 @@ export function createFakePrisma({
         organization.businessHours = [];
 
         return { count };
+      },
+    },
+    minimumStaffingRule: {
+      create: async ({ data }: any) => {
+        const now = new Date();
+        const minimumStaffingRule = {
+          id: state.nextMinimumStaffingRuleId++,
+          createdAt: now,
+          updatedAt: now,
+          ...data,
+        };
+
+        state.minimumStaffingRules.push(minimumStaffingRule);
+
+        return cloneMinimumStaffingRule(minimumStaffingRule);
+      },
+      deleteMany: async ({ where }: any) => {
+        const initialCount = state.minimumStaffingRules.length;
+        state.minimumStaffingRules = state.minimumStaffingRules.filter((rule) => {
+          if (where.id !== undefined && rule.id !== where.id) {
+            return true;
+          }
+
+          if (where.organizationId !== undefined && rule.organizationId !== where.organizationId) {
+            return true;
+          }
+
+          return false;
+        });
+
+        return { count: initialCount - state.minimumStaffingRules.length };
+      },
+      findFirst: async ({ select, where }: any) => {
+        const rule =
+          state.minimumStaffingRules.find((currentRule) => {
+            if (where.id !== undefined && currentRule.id !== where.id) {
+              return false;
+            }
+
+            if (
+              where.organizationId !== undefined &&
+              currentRule.organizationId !== where.organizationId
+            ) {
+              return false;
+            }
+
+            return true;
+          }) ?? null;
+
+        if (!rule) {
+          return null;
+        }
+
+        if (select) {
+          return Object.fromEntries(
+            Object.keys(select)
+              .filter((key) => select[key])
+              .map((key) => [key, rule[key as keyof FakeMinimumStaffingRule]]),
+          );
+        }
+
+        return cloneMinimumStaffingRule(rule);
+      },
+      findMany: async ({ orderBy, where }: any) => {
+        const rules = state.minimumStaffingRules
+          .filter((rule) => rule.organizationId === where.organizationId)
+          .map(cloneMinimumStaffingRule);
+
+        if (Array.isArray(orderBy)) {
+          rules.sort((a, b) => {
+            for (const order of orderBy) {
+              if (order.dayOfWeek === "asc" && a.dayOfWeek !== b.dayOfWeek) {
+                return a.dayOfWeek.localeCompare(b.dayOfWeek);
+              }
+
+              if (order.startTime === "asc" && a.startTime.getTime() !== b.startTime.getTime()) {
+                return a.startTime.getTime() - b.startTime.getTime();
+              }
+            }
+
+            return 0;
+          });
+        }
+
+        return rules;
+      },
+      update: async ({ data, where }: any) => {
+        const rule = state.minimumStaffingRules.find((currentRule) => currentRule.id === where.id);
+
+        if (!rule) {
+          return null;
+        }
+
+        Object.assign(rule, data, { updatedAt: new Date() });
+
+        return cloneMinimumStaffingRule(rule);
       },
     },
     organization: {

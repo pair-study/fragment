@@ -429,6 +429,16 @@ Response `201`: `MinimumStaffingRule`
 
 **Auth:** Bearer token
 
+Request:
+
+```json
+{
+  "requiredCount": 3
+}
+```
+
+수정 가능한 필드는 `dayOfWeek`, `startTime`, `endTime`, `endsNextDay`, `requiredCount`입니다. 모든 필드는 선택이며, 하나 이상의 수정 필드를 포함해야 합니다.
+
 Response `200`: `MinimumStaffingRule`
 
 ### DELETE /staffing-rules/:ruleId

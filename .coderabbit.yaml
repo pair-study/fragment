@@ -70,7 +70,7 @@ reviews:
         - Express Router → Service → Prisma 계층을 기본으로 하는지 확인
         - Router는 요청/응답 처리와 미들웨어 연결만 담당하고, 도메인 로직은 service 함수에 위치해야 함
         - 별도 Repository 추상화는 중복 제거 필요성이 명확할 때만 허용
-        - 공통 미들웨어, 에러 핸들러, 에러 코드 상수는 common/ 아래에 모아 재사용
+        - 공통 미들웨어는 middlewares/, 공통 에러 클래스는 errors/, 공통 상수는 common/ 아래에 모아 재사용
 
         [Prisma 사용]
         - apps/api 내부에 Prisma 관련 파일(schema, migration, seed) 직접 생성 금지
@@ -113,10 +113,10 @@ reviews:
 
     - path: "apps/api/test/**/*.ts"
       instructions: |
-        E2E 테스트 리뷰 기준:
-        - DATABASE_URL_TEST 환경 변수 사용 확인 (프로덕션 DB 사용 금지)
-        - 각 테스트 전후 DB 초기화 로직 포함 여부 확인
-        - Supertest를 이용해 Express app의 HTTP 요청/응답 검증
+        API 통합 테스트 리뷰 기준:
+        - Supertest로 Express app의 HTTP 요청/응답을 검증
+        - Prisma는 fake/mocked client를 주입해 프로덕션 DB 접근을 차단
+        - 실제 DB를 사용하는 테스트를 추가하는 경우 DATABASE_URL_TEST 환경 변수와 테스트 전후 DB 초기화 로직 포함 여부 확인
         - 인증 후 조직 존재 여부에 따른 접근 제어와 리다이렉트/오류 흐름 확인
 
     - path: "apps/web/**/*.tsx"
