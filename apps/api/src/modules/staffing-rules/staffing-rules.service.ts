@@ -35,12 +35,8 @@ const dateToTimeString = (time: Date): string => {
   return `${hour}:${minute}`;
 };
 
-const createNotImplementedError = () =>
-  new HttpError(
-    500,
-    ERROR_CODES.INTERNAL_SERVER_ERROR,
-    "최소 인원 조건 API가 구현되지 않았습니다.",
-  );
+const createMinimumStaffingRuleNotFoundError = () =>
+  new HttpError(404, ERROR_CODES.NOT_FOUND, "최소 인원 조건을 찾을 수 없습니다.");
 
 const findOrganizationIdByUserId = async (prisma: PrismaClient, userId: string) => {
   const organization = await prisma.organization.findUnique({
@@ -127,11 +123,31 @@ export async function updateMinimumStaffingRule(
   ruleId: string,
   input: UpdateMinimumStaffingRuleRequest,
 ): Promise<MinimumStaffingRule> {
-  await findOrganizationIdByUserId(prisma, userId);
-  toPrismaId(ruleId);
-  createMinimumStaffingRuleUpdateData(input);
+  const organizationId = await findOrganizationIdByUserId(prisma, userId);
+  const ruleDatabaseId = toPrismaId(ruleId);
 
-  throw createNotImplementedError();
+  const existingRule = await prisma.minimumStaffingRule.findFirst({
+    where: {
+      id: ruleDatabaseId,
+      organizationId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!existingRule) {
+    throw createMinimumStaffingRuleNotFoundError();
+  }
+
+  const updatedRule = await prisma.minimumStaffingRule.update({
+    where: {
+      id: existingRule.id,
+    },
+    data: createMinimumStaffingRuleUpdateData(input),
+  });
+
+  return toMinimumStaffingRule(updatedRule);
 }
 
 export async function deleteMinimumStaffingRule(
@@ -139,8 +155,15 @@ export async function deleteMinimumStaffingRule(
   userId: string,
   ruleId: string,
 ): Promise<void> {
-  await findOrganizationIdByUserId(prisma, userId);
-  toPrismaId(ruleId);
+  const organizationId = await findOrganizationIdByUserId(prisma, userId);
+  const result = await prisma.minimumStaffingRule.deleteMany({
+    where: {
+      id: toPrismaId(ruleId),
+      organizationId,
+    },
+  });
 
-  throw createNotImplementedError();
+  if (result.count === 0) {
+    throw createMinimumStaffingRuleNotFoundError();
+  }
 }
