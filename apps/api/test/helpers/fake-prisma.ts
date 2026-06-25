@@ -21,7 +21,20 @@ type FakeOrganization = {
   id: bigint;
   userId: bigint;
   name: string;
+  lastWorkerSequence: number;
   businessHours: FakeBusinessHour[];
+};
+
+type FakeOrganizationInput = Omit<FakeOrganization, "lastWorkerSequence"> & {
+  lastWorkerSequence?: number;
+};
+
+type FakeWorker = {
+  id: bigint;
+  organizationId: bigint;
+  employeeCode: string;
+  name: string;
+  weeklyContractHours: number;
 };
 
 type FakeRefreshToken = {
@@ -32,9 +45,16 @@ type FakeRefreshToken = {
   revokedAt: Date | null;
 };
 
+type FakeScheduleAssignment = {
+  id: bigint;
+  workerId: bigint | null;
+};
+
 type CreateFakePrismaOptions = {
+  scheduleAssignments?: FakeScheduleAssignment[];
   users?: FakeUser[];
-  organizations?: FakeOrganization[];
+  workers?: FakeWorker[];
+  organizations?: FakeOrganizationInput[];
 };
 
 const cloneDate = (date: Date | null) => (date ? new Date(date.getTime()) : null);
@@ -45,18 +65,30 @@ const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => 
   openTime: cloneDate(businessHour.openTime),
 });
 
-export function createFakePrisma({ organizations = [], users = [] }: CreateFakePrismaOptions = {}) {
+export function createFakePrisma({
+  organizations = [],
+  scheduleAssignments = [],
+  users = [],
+  workers = [],
+}: CreateFakePrismaOptions = {}) {
   const state = {
     nextBusinessHourId: BigInt(100),
     nextOrganizationId: BigInt(1),
     nextRefreshTokenId: BigInt(1),
     nextUserId: BigInt(1),
+    nextWorkerId: workers.reduce(
+      (nextWorkerId, worker) => (worker.id >= nextWorkerId ? worker.id + BigInt(1) : nextWorkerId),
+      BigInt(1),
+    ),
     organizations: organizations.map((organization) => ({
       ...organization,
+      lastWorkerSequence: organization.lastWorkerSequence ?? 0,
       businessHours: organization.businessHours.map(cloneBusinessHour),
     })),
     refreshTokens: [] as FakeRefreshToken[],
+    scheduleAssignments: scheduleAssignments.map((assignment) => ({ ...assignment })),
     users: [...users],
+    workers: workers.map((worker) => ({ ...worker })),
   };
 
   const findOrganizationByUserId = (userId: bigint) =>
@@ -70,8 +102,12 @@ export function createFakePrisma({ organizations = [], users = [] }: CreateFakeP
       return null;
     }
 
-    if (options?.select?.id) {
-      return { id: organization.id };
+    if (options?.select) {
+      return Object.fromEntries(
+        Object.keys(options.select)
+          .filter((key) => options.select[key])
+          .map((key) => [key, organization[key as keyof FakeOrganization]]),
+      );
     }
 
     return {
@@ -81,7 +117,8 @@ export function createFakePrisma({ organizations = [], users = [] }: CreateFakeP
   };
 
   const prisma = {
-    $transaction: async (callback: (transaction: typeof prisma) => unknown) => callback(prisma),
+    $transaction: async <T>(callback: (transaction: PrismaClient) => T | Promise<T>) =>
+      callback(prisma as unknown as PrismaClient),
     organizationBusinessHour: {
       deleteMany: async ({ where }: any) => {
         const organization = findOrganizationById(where.organizationId);
@@ -102,6 +139,7 @@ export function createFakePrisma({ organizations = [], users = [] }: CreateFakeP
           id: state.nextOrganizationId,
           name: data.name,
           userId: data.userId,
+          lastWorkerSequence: 0,
           businessHours: data.businessHours.create.map((businessHour: any) => ({
             ...businessHour,
             id: state.nextBusinessHourId++,
@@ -133,6 +171,11 @@ export function createFakePrisma({ organizations = [], users = [] }: CreateFakeP
           organization.name = data.name;
         }
 
+        if (data.lastWorkerSequence?.increment !== undefined) {
+          organization.lastWorkerSequence =
+            (organization.lastWorkerSequence ?? 0) + data.lastWorkerSequence.increment;
+        }
+
         if (data.businessHours?.create) {
           organization.businessHours = data.businessHours.create.map((businessHour: any) => ({
             ...businessHour,
@@ -142,6 +185,91 @@ export function createFakePrisma({ organizations = [], users = [] }: CreateFakeP
         }
 
         return toOrganizationResult(organization);
+      },
+    },
+    worker: {
+      create: async ({ data }: any) => {
+        const worker = {
+          id: state.nextWorkerId++,
+          ...data,
+        };
+
+        state.workers.push(worker);
+
+        return { ...worker };
+      },
+      delete: async ({ where }: any) => {
+        const workerIndex = state.workers.findIndex((worker) => worker.id === where.id);
+
+        if (workerIndex === -1) {
+          return null;
+        }
+
+        const [worker] = state.workers.splice(workerIndex, 1);
+
+        state.scheduleAssignments.forEach((assignment) => {
+          if (assignment.workerId === worker.id) {
+            assignment.workerId = null;
+          }
+        });
+
+        return { ...worker };
+      },
+      findFirst: async ({ where }: any) => {
+        const worker =
+          state.workers.find((currentWorker) => {
+            if (where.id !== undefined && currentWorker.id !== where.id) {
+              return false;
+            }
+
+            if (
+              where.organizationId !== undefined &&
+              currentWorker.organizationId !== where.organizationId
+            ) {
+              return false;
+            }
+
+            return true;
+          }) ?? null;
+
+        return worker ? { ...worker } : null;
+      },
+      findMany: async ({ orderBy, where }: any) => {
+        const matchingWorkers = state.workers
+          .filter((worker) => {
+            if (
+              where.organizationId !== undefined &&
+              worker.organizationId !== where.organizationId
+            ) {
+              return false;
+            }
+
+            return true;
+          })
+          .map((worker) => ({ ...worker }));
+
+        if (orderBy?.employeeCode === "asc") {
+          matchingWorkers.sort((a, b) => a.employeeCode.localeCompare(b.employeeCode));
+        }
+
+        return matchingWorkers;
+      },
+      update: async ({ data, where }: any) => {
+        const worker = state.workers.find((currentWorker) => currentWorker.id === where.id);
+
+        if (!worker) {
+          return null;
+        }
+
+        if (data.name !== undefined) {
+          worker.name = data.name;
+        }
+
+        if (data.weeklyContractHours !== undefined) {
+          worker.weeklyContractHours = data.weeklyContractHours;
+        }
+
+        return { ...worker };
       },
     },
     refreshToken: {
