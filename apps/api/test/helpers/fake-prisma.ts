@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@fragment/database";
+import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 
 type FakeUser = {
   id: bigint;
@@ -82,6 +83,10 @@ const cloneMinimumStaffingRule = (
 const getNextId = <T extends { id: bigint }>(items: T[]) =>
   items.reduce((nextId, item) => (item.id >= nextId ? item.id + BigInt(1) : nextId), BigInt(1));
 
+const dayOfWeekOrder = Object.fromEntries(
+  DAY_OF_WEEK_VALUES.map((dayOfWeek, index) => [dayOfWeek, index]),
+) as Record<(typeof DAY_OF_WEEK_VALUES)[number], number>;
+
 export function createFakePrisma({
   minimumStaffingRules = [],
   organizations = [],
@@ -158,7 +163,7 @@ export function createFakePrisma({
           rules.sort((a, b) => {
             for (const order of orderBy) {
               if (order.dayOfWeek === "asc" && a.dayOfWeek !== b.dayOfWeek) {
-                return a.dayOfWeek.localeCompare(b.dayOfWeek);
+                return dayOfWeekOrder[a.dayOfWeek] - dayOfWeekOrder[b.dayOfWeek];
               }
 
               if (order.startTime === "asc" && a.startTime.getTime() !== b.startTime.getTime()) {
