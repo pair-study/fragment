@@ -3,13 +3,23 @@ import request from "supertest";
 
 import { createApp } from "@/app";
 import { createAccessToken } from "@/modules/auth/auth.tokens";
-import { createFakePrisma } from "./helpers/fake-prisma";
+import { createFakePrisma, createTimeDate } from "./helpers/fake-prisma";
 
 const createOrganization = () => ({
   id: BigInt(1),
   userId: BigInt(1),
   name: "프래그먼트 카페",
-  businessHours: [],
+  businessHours: [
+    {
+      id: BigInt(1),
+      organizationId: BigInt(1),
+      dayOfWeek: "WED" as const,
+      isClosed: false,
+      openTime: createTimeDate("09:00"),
+      closeTime: createTimeDate("18:00"),
+      closesNextDay: false,
+    },
+  ],
 });
 
 const createWorker = () => ({
@@ -188,9 +198,9 @@ describe("availability routes", () => {
         endDate: "2026-07-31",
         items: [
           {
-            availableDate: "2026-07-02",
-            startsAt: "2026-07-02T09:00:00.000Z",
-            endsAt: "2026-07-02T12:00:00.000Z",
+            availableDate: "2026-07-01",
+            startsAt: "2026-07-01T13:00:00.000Z",
+            endsAt: "2026-07-01T15:00:00.000Z",
           },
         ],
       });
@@ -201,9 +211,9 @@ describe("availability routes", () => {
         {
           id: "2",
           workerId: "1",
-          availableDate: "2026-07-02",
-          startsAt: "2026-07-02T09:00:00.000Z",
-          endsAt: "2026-07-02T12:00:00.000Z",
+          availableDate: "2026-07-01",
+          startsAt: "2026-07-01T13:00:00.000Z",
+          endsAt: "2026-07-01T15:00:00.000Z",
         },
       ],
     });
