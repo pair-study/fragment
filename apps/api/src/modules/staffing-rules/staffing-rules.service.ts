@@ -28,6 +28,27 @@ const dateToTimeString = (time: Date): string => {
 const createMinimumStaffingRuleNotFoundError = () =>
   new HttpError(404, ERROR_CODES.NOT_FOUND, "최소 인원 조건을 찾을 수 없습니다.");
 
+const createMinimumStaffingRuleValidationError = () =>
+  new HttpError(400, ERROR_CODES.VALIDATION_ERROR, "요청 형식이 올바르지 않습니다.");
+
+const assertMinimumStaffingRuleTimeRange = ({
+  endTime,
+  endsNextDay,
+  startTime,
+}: Pick<MinimumStaffingRule, "endTime" | "endsNextDay" | "startTime">) => {
+  if (startTime === endTime) {
+    throw createMinimumStaffingRuleValidationError();
+  }
+
+  if (!endsNextDay && startTime > endTime) {
+    throw createMinimumStaffingRuleValidationError();
+  }
+
+  if (endsNextDay && startTime < endTime) {
+    throw createMinimumStaffingRuleValidationError();
+  }
+};
+
 const findOrganizationIdByUserId = async (prisma: PrismaClient, userId: string) => {
   const organization = await prisma.organization.findUnique({
     where: {
@@ -122,13 +143,22 @@ export async function updateMinimumStaffingRule(
       organizationId,
     },
     select: {
+      endTime: true,
+      endsNextDay: true,
       id: true,
+      startTime: true,
     },
   });
 
   if (!existingRule) {
     throw createMinimumStaffingRuleNotFoundError();
   }
+
+  assertMinimumStaffingRuleTimeRange({
+    startTime: input.startTime ?? dateToTimeString(existingRule.startTime),
+    endTime: input.endTime ?? dateToTimeString(existingRule.endTime),
+    endsNextDay: input.endsNextDay ?? existingRule.endsNextDay,
+  });
 
   const updatedRule = await prisma.minimumStaffingRule.update({
     where: {
