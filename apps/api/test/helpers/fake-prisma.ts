@@ -143,6 +143,7 @@ export function createFakePrisma({
       organizations.flatMap((organization) => organization.businessHours),
     ),
     nextOrganizationId: getNextId(organizations),
+    nextAvailableTimeId: getNextId(availableTimes),
     nextPlanningPeriodId: getNextId(activeSchedulePlanningPeriods),
     nextRefreshTokenId: getNextId(refreshTokens),
     nextUserId: getNextId(users),
@@ -369,6 +370,44 @@ export function createFakePrisma({
       },
     },
     workerAvailableTime: {
+      createMany: async ({ data }: any) => {
+        const availableTimesToCreate = data.map((availableTime: any) => ({
+          id: state.nextAvailableTimeId++,
+          createdAt: new Date("2026-06-25T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-25T00:00:00.000Z"),
+          ...availableTime,
+        }));
+
+        state.availableTimes.push(...availableTimesToCreate);
+
+        return { count: availableTimesToCreate.length };
+      },
+      deleteMany: async ({ where }: any) => {
+        const initialCount = state.availableTimes.length;
+        state.availableTimes = state.availableTimes.filter((availableTime) => {
+          if (where.workerId !== undefined && availableTime.workerId !== where.workerId) {
+            return true;
+          }
+
+          if (
+            where.availableDate?.gte !== undefined &&
+            availableTime.availableDate < where.availableDate.gte
+          ) {
+            return true;
+          }
+
+          if (
+            where.availableDate?.lte !== undefined &&
+            availableTime.availableDate > where.availableDate.lte
+          ) {
+            return true;
+          }
+
+          return false;
+        });
+
+        return { count: initialCount - state.availableTimes.length };
+      },
       findMany: async ({ orderBy, where }: any) => {
         const matchingAvailableTimes = state.availableTimes
           .filter((availableTime) => {

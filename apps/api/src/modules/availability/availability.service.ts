@@ -3,7 +3,12 @@ import type {
   PrismaClient,
   WorkerAvailableTime as PrismaWorkerAvailableTime,
 } from "@fragment/database";
-import type { Availability, AvailabilityListResponse, AvailabilityQuery } from "@fragment/shared";
+import type {
+  Availability,
+  AvailabilityListResponse,
+  AvailabilityQuery,
+  ReplaceAvailabilityRequest,
+} from "@fragment/shared";
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
@@ -12,6 +17,8 @@ import { toApiId, toPrismaId } from "@/utils/mapper";
 type AvailabilityDatabaseClient = PrismaClient | Prisma.TransactionClient;
 
 const dateStringToDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
+
+const dateTimeStringToDate = (dateTime: string) => new Date(dateTime);
 
 const dateToDateString = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -82,4 +89,55 @@ export async function listAvailability(
   return {
     items: items.map(toAvailability),
   };
+}
+
+export async function replaceAvailability(
+  prisma: PrismaClient,
+  userId: string,
+  input: ReplaceAvailabilityRequest,
+): Promise<AvailabilityListResponse> {
+  const organizationId = await findOrganizationIdByUserId(prisma, userId);
+  const workerId = toPrismaId(input.workerId);
+  const worker = await findWorkerByOrganization(prisma, organizationId, workerId);
+
+  if (!worker) {
+    throw new HttpError(404, ERROR_CODES.WORKER_NOT_FOUND, "근무자를 찾을 수 없습니다.");
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    const dateRange = {
+      gte: dateStringToDate(input.startDate),
+      lte: dateStringToDate(input.endDate),
+    };
+
+    await transaction.workerAvailableTime.deleteMany({
+      where: {
+        workerId,
+        availableDate: dateRange,
+      },
+    });
+
+    if (input.items.length > 0) {
+      await transaction.workerAvailableTime.createMany({
+        data: input.items.map((item) => ({
+          workerId,
+          availableDate: dateStringToDate(item.availableDate),
+          startsAt: dateTimeStringToDate(item.startsAt),
+          endsAt: dateTimeStringToDate(item.endsAt),
+        })),
+      });
+    }
+
+    const items = await transaction.workerAvailableTime.findMany({
+      where: {
+        workerId,
+        availableDate: dateRange,
+      },
+      orderBy: [{ availableDate: "asc" }, { startsAt: "asc" }],
+    });
+
+    return {
+      items: items.map(toAvailability),
+    };
+  });
 }

@@ -2,7 +2,7 @@ import type { PrismaClient } from "@fragment/database";
 import { describe, expect, it, jest } from "@jest/globals";
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
-import { listAvailability } from "./availability.service";
+import { listAvailability, replaceAvailability } from "./availability.service";
 
 const dateOnly = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const timestamp = new Date("2026-06-25T00:00:00.000Z");
@@ -31,6 +31,8 @@ const createPrismaMock = ({
   organization?: { id: bigint } | null;
   worker?: { id: bigint } | null;
   workerAvailableTime?: {
+    createMany?: jest.Mock;
+    deleteMany?: jest.Mock;
     findMany?: jest.Mock;
   };
 } = {}) => {
@@ -41,6 +43,15 @@ const createPrismaMock = ({
 
   return {
     prisma: {
+      $transaction: jest.fn(async (callback: (transaction: unknown) => unknown) =>
+        callback({
+          workerAvailableTime: {
+            createMany: workerAvailableTime.createMany ?? jest.fn(),
+            deleteMany: workerAvailableTime.deleteMany ?? jest.fn(),
+            findMany: workerAvailableTime.findMany ?? jest.fn(),
+          },
+        }),
+      ),
       organization: {
         findUnique: organizationFindUnique,
       },
@@ -48,6 +59,8 @@ const createPrismaMock = ({
         findFirst: workerFindFirst,
       },
       workerAvailableTime: {
+        createMany: workerAvailableTime.createMany ?? jest.fn(),
+        deleteMany: workerAvailableTime.deleteMany ?? jest.fn(),
         findMany: workerAvailableTime.findMany ?? jest.fn(),
       },
     } as unknown as PrismaClient,
@@ -166,6 +179,104 @@ describe("listAvailability", () => {
         },
       },
       orderBy: [{ availableDate: "asc" }, { startsAt: "asc" }],
+    });
+  });
+});
+
+describe("replaceAvailability", () => {
+  it("rejects workers outside the user's organization", async () => {
+    const availableTimeCreateMany = jest.fn();
+    const availableTimeDeleteMany = jest.fn();
+    const { prisma } = createPrismaMock({
+      worker: null,
+      workerAvailableTime: {
+        createMany: availableTimeCreateMany,
+        deleteMany: availableTimeDeleteMany,
+      },
+    });
+
+    await expect(
+      replaceAvailability(prisma, "1", {
+        workerId: "10",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+        items: [],
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.WORKER_NOT_FOUND,
+      statusCode: 404,
+    });
+    expect(availableTimeDeleteMany).not.toHaveBeenCalled();
+    expect(availableTimeCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("replaces the selected date range with requested availability", async () => {
+    const availableTimeDeleteMany = jest.fn<() => Promise<{ count: number }>>().mockResolvedValue({
+      count: 2,
+    });
+    const availableTimeCreateMany = jest.fn<() => Promise<{ count: number }>>().mockResolvedValue({
+      count: 1,
+    });
+    const availableTimeFindMany = jest
+      .fn<() => Promise<ReturnType<typeof createAvailabilityRow>[]>>()
+      .mockResolvedValue([
+        createAvailabilityRow({
+          id: BigInt(20),
+          availableDate: dateOnly("2026-07-02"),
+          startsAt: new Date("2026-07-02T09:00:00.000Z"),
+          endsAt: new Date("2026-07-02T12:00:00.000Z"),
+        }),
+      ]);
+    const { prisma } = createPrismaMock({
+      workerAvailableTime: {
+        createMany: availableTimeCreateMany,
+        deleteMany: availableTimeDeleteMany,
+        findMany: availableTimeFindMany,
+      },
+    });
+
+    await expect(
+      replaceAvailability(prisma, "1", {
+        workerId: "1",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+        items: [
+          {
+            availableDate: "2026-07-02",
+            startsAt: "2026-07-02T09:00:00.000Z",
+            endsAt: "2026-07-02T12:00:00.000Z",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          id: "20",
+          workerId: "1",
+          availableDate: "2026-07-02",
+          startsAt: "2026-07-02T09:00:00.000Z",
+          endsAt: "2026-07-02T12:00:00.000Z",
+        },
+      ],
+    });
+    expect(availableTimeDeleteMany).toHaveBeenCalledWith({
+      where: {
+        workerId: BigInt(1),
+        availableDate: {
+          gte: dateOnly("2026-07-01"),
+          lte: dateOnly("2026-07-31"),
+        },
+      },
+    });
+    expect(availableTimeCreateMany).toHaveBeenCalledWith({
+      data: [
+        {
+          workerId: BigInt(1),
+          availableDate: dateOnly("2026-07-02"),
+          startsAt: new Date("2026-07-02T09:00:00.000Z"),
+          endsAt: new Date("2026-07-02T12:00:00.000Z"),
+        },
+      ],
     });
   });
 });

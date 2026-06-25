@@ -136,4 +136,76 @@ describe("availability routes", () => {
       ],
     });
   });
+
+  it("rejects invalid bulk save body", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [createOrganization()],
+      workers: [createWorker()],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .put("/api/availability/bulk")
+      .set("Authorization", authHeader())
+      .send({
+        workerId: "1",
+        startDate: "2026-07-31",
+        endDate: "2026-07-01",
+        items: [],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+      statusCode: 400,
+    });
+  });
+
+  it("replaces availability for the selected date range", async () => {
+    const { prisma } = createFakePrisma({
+      availableTimes: [
+        {
+          id: BigInt(1),
+          workerId: BigInt(1),
+          availableDate: new Date("2026-07-01T00:00:00.000Z"),
+          startsAt: new Date("2026-07-01T10:00:00.000Z"),
+          endsAt: new Date("2026-07-01T12:00:00.000Z"),
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      organizations: [createOrganization()],
+      workers: [createWorker()],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .put("/api/availability/bulk")
+      .set("Authorization", authHeader())
+      .send({
+        workerId: "1",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+        items: [
+          {
+            availableDate: "2026-07-02",
+            startsAt: "2026-07-02T09:00:00.000Z",
+            endsAt: "2026-07-02T12:00:00.000Z",
+          },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      items: [
+        {
+          id: "2",
+          workerId: "1",
+          availableDate: "2026-07-02",
+          startsAt: "2026-07-02T09:00:00.000Z",
+          endsAt: "2026-07-02T12:00:00.000Z",
+        },
+      ],
+    });
+  });
 });
