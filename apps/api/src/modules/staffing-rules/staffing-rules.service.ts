@@ -1,4 +1,7 @@
-import type { PrismaClient } from "@fragment/database";
+import type {
+  MinimumStaffingRule as PrismaMinimumStaffingRule,
+  PrismaClient,
+} from "@fragment/database";
 import type {
   CreateMinimumStaffingRuleRequest,
   MinimumStaffingRule,
@@ -8,6 +11,29 @@ import type {
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
+import { toApiId, toPrismaId } from "@/utils/mapper";
+
+type MinimumStaffingRuleCreateData = {
+  organizationId: bigint;
+  dayOfWeek: CreateMinimumStaffingRuleRequest["dayOfWeek"];
+  startTime: Date;
+  endTime: Date;
+  endsNextDay: boolean;
+  requiredCount: number;
+};
+
+type MinimumStaffingRuleUpdateData = Partial<Omit<MinimumStaffingRuleCreateData, "organizationId">>;
+
+const timeStringToDate = (time: string): Date => {
+  const [hour, minute] = time.split(":").map(Number);
+  return new Date(Date.UTC(1970, 0, 1, hour, minute, 0));
+};
+
+const dateToTimeString = (time: Date): string => {
+  const hour = String(time.getUTCHours()).padStart(2, "0");
+  const minute = String(time.getUTCMinutes()).padStart(2, "0");
+  return `${hour}:${minute}`;
+};
 
 const createNotImplementedError = () =>
   new HttpError(
@@ -16,12 +42,59 @@ const createNotImplementedError = () =>
     "최소 인원 조건 API가 구현되지 않았습니다.",
   );
 
+const findOrganizationIdByUserId = async (prisma: PrismaClient, userId: string) => {
+  const organization = await prisma.organization.findUnique({
+    where: {
+      userId: toPrismaId(userId),
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!organization) {
+    throw new HttpError(403, ERROR_CODES.ORGANIZATION_REQUIRED, "조직 생성 후 이용할 수 있습니다.");
+  }
+
+  return organization.id;
+};
+
+export const toMinimumStaffingRule = (rule: PrismaMinimumStaffingRule): MinimumStaffingRule => ({
+  id: toApiId(rule.id),
+  dayOfWeek: rule.dayOfWeek,
+  startTime: dateToTimeString(rule.startTime),
+  endTime: dateToTimeString(rule.endTime),
+  endsNextDay: rule.endsNextDay,
+  requiredCount: rule.requiredCount,
+});
+
+const createMinimumStaffingRuleData = (
+  organizationId: bigint,
+  input: CreateMinimumStaffingRuleRequest,
+): MinimumStaffingRuleCreateData => ({
+  organizationId,
+  dayOfWeek: input.dayOfWeek,
+  startTime: timeStringToDate(input.startTime),
+  endTime: timeStringToDate(input.endTime),
+  endsNextDay: input.endsNextDay,
+  requiredCount: input.requiredCount,
+});
+
+const createMinimumStaffingRuleUpdateData = (
+  input: UpdateMinimumStaffingRuleRequest,
+): MinimumStaffingRuleUpdateData => ({
+  ...(input.dayOfWeek !== undefined ? { dayOfWeek: input.dayOfWeek } : {}),
+  ...(input.startTime !== undefined ? { startTime: timeStringToDate(input.startTime) } : {}),
+  ...(input.endTime !== undefined ? { endTime: timeStringToDate(input.endTime) } : {}),
+  ...(input.endsNextDay !== undefined ? { endsNextDay: input.endsNextDay } : {}),
+  ...(input.requiredCount !== undefined ? { requiredCount: input.requiredCount } : {}),
+});
+
 export async function getMinimumStaffingRules(
   prisma: PrismaClient,
   userId: string,
 ): Promise<MinimumStaffingRulesListResponse> {
-  void prisma;
-  void userId;
+  await findOrganizationIdByUserId(prisma, userId);
 
   throw createNotImplementedError();
 }
@@ -31,9 +104,8 @@ export async function createMinimumStaffingRule(
   userId: string,
   input: CreateMinimumStaffingRuleRequest,
 ): Promise<MinimumStaffingRule> {
-  void prisma;
-  void userId;
-  void input;
+  const organizationId = await findOrganizationIdByUserId(prisma, userId);
+  createMinimumStaffingRuleData(organizationId, input);
 
   throw createNotImplementedError();
 }
@@ -44,10 +116,9 @@ export async function updateMinimumStaffingRule(
   ruleId: string,
   input: UpdateMinimumStaffingRuleRequest,
 ): Promise<MinimumStaffingRule> {
-  void prisma;
-  void userId;
-  void ruleId;
-  void input;
+  await findOrganizationIdByUserId(prisma, userId);
+  toPrismaId(ruleId);
+  createMinimumStaffingRuleUpdateData(input);
 
   throw createNotImplementedError();
 }
@@ -57,9 +128,8 @@ export async function deleteMinimumStaffingRule(
   userId: string,
   ruleId: string,
 ): Promise<void> {
-  void prisma;
-  void userId;
-  void ruleId;
+  await findOrganizationIdByUserId(prisma, userId);
+  toPrismaId(ruleId);
 
   throw createNotImplementedError();
 }
