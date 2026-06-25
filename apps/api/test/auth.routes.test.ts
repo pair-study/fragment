@@ -175,6 +175,32 @@ describe("auth routes", () => {
     expect(response.headers["set-cookie"]?.[0]).toContain("refreshToken=");
   });
 
+  it("rejects reusing a consumed refresh cookie", async () => {
+    const { prisma } = createFakePrisma();
+    const app = createApp({ prisma });
+    const signupResponse = await request(app).post("/api/auth/signup").send({
+      name: "홍길동",
+      email: "owner@example.com",
+      password: "password123",
+      passwordConfirm: "password123",
+    });
+    const initialRefreshCookie = signupResponse.headers["set-cookie"];
+
+    const firstRefreshResponse = await request(app)
+      .post("/api/auth/refresh")
+      .set("Cookie", initialRefreshCookie);
+    const secondRefreshResponse = await request(app)
+      .post("/api/auth/refresh")
+      .set("Cookie", initialRefreshCookie);
+
+    expect(firstRefreshResponse.status).toBe(200);
+    expect(secondRefreshResponse.status).toBe(401);
+    expect(secondRefreshResponse.body).toMatchObject({
+      errorCode: "UNAUTHORIZED",
+      statusCode: 401,
+    });
+  });
+
   it("logs out with the refresh cookie and clears it", async () => {
     const { prisma } = createFakePrisma();
     const app = createApp({ prisma });
