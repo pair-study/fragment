@@ -100,10 +100,10 @@ MVP에서는 Railway 안에서 API와 PostgreSQL을 함께 운영해 배포 복�
 
 | 단계 | 선택 |
 | --- | --- |
-| MVP 개발 중 | Notion 또는 Markdown 기반 API 명세 |
-| 엔드포인트 안정 후 | OpenAPI/Swagger 문서화 |
+| MVP 개발 중 | `docs/API.md` 기준 Markdown API 명세 |
+| OpenAPI/Swagger | `docs/openapi.yaml`에 포함된 endpoint부터 점진 관리 |
 
-MVP에서는 프론트와 API 작업자가 먼저 요청/응답 계약을 빠르게 맞추는 것이 우선입니다. OpenAPI/Swagger는 엔드포인트 구조가 안정된 뒤 도입합니다.
+MVP에서는 프론트와 API 작업자가 먼저 `docs/API.md`로 요청/응답 계약을 맞춥니다. `docs/openapi.yaml`에 포함된 endpoint를 변경하는 경우 OpenAPI 문서도 함께 갱신합니다.
 
 ## 7. Workspace Structure
 
