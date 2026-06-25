@@ -24,6 +24,18 @@ type FakeOrganization = {
   businessHours: FakeBusinessHour[];
 };
 
+type FakeMinimumStaffingRule = {
+  id: bigint;
+  organizationId: bigint;
+  dayOfWeek: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+  startTime: Date;
+  endTime: Date;
+  endsNextDay: boolean;
+  requiredCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type FakeRefreshToken = {
   id: bigint;
   userId: bigint;
@@ -33,11 +45,13 @@ type FakeRefreshToken = {
 };
 
 type CreateFakePrismaOptions = {
-  users?: FakeUser[];
+  minimumStaffingRules?: FakeMinimumStaffingRule[];
   organizations?: FakeOrganization[];
+  users?: FakeUser[];
 };
 
 const cloneDate = (date: Date | null) => (date ? new Date(date.getTime()) : null);
+const cloneRequiredDate = (date: Date) => new Date(date.getTime());
 
 const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => ({
   ...businessHour,
@@ -45,12 +59,27 @@ const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => 
   openTime: cloneDate(businessHour.openTime),
 });
 
-export function createFakePrisma({ organizations = [], users = [] }: CreateFakePrismaOptions = {}) {
+const cloneMinimumStaffingRule = (
+  minimumStaffingRule: FakeMinimumStaffingRule,
+): FakeMinimumStaffingRule => ({
+  ...minimumStaffingRule,
+  createdAt: cloneRequiredDate(minimumStaffingRule.createdAt),
+  endTime: cloneRequiredDate(minimumStaffingRule.endTime),
+  startTime: cloneRequiredDate(minimumStaffingRule.startTime),
+  updatedAt: cloneRequiredDate(minimumStaffingRule.updatedAt),
+});
+
+export function createFakePrisma({
+  minimumStaffingRules = [],
+  organizations = [],
+  users = [],
+}: CreateFakePrismaOptions = {}) {
   const state = {
     nextBusinessHourId: BigInt(100),
     nextOrganizationId: BigInt(1),
     nextRefreshTokenId: BigInt(1),
     nextUserId: BigInt(1),
+    minimumStaffingRules: minimumStaffingRules.map(cloneMinimumStaffingRule),
     organizations: organizations.map((organization) => ({
       ...organization,
       businessHours: organization.businessHours.map(cloneBusinessHour),
@@ -95,6 +124,12 @@ export function createFakePrisma({ organizations = [], users = [] }: CreateFakeP
 
         return { count };
       },
+    },
+    minimumStaffingRule: {
+      findMany: async ({ where }: any) =>
+        state.minimumStaffingRules
+          .filter((rule) => rule.organizationId === where.organizationId)
+          .map(cloneMinimumStaffingRule),
     },
     organization: {
       create: async ({ data }: any) => {
