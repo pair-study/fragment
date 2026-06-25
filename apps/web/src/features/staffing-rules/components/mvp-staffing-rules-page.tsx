@@ -1,9 +1,14 @@
 "use client";
 
-import type { MinimumStaffingRule } from "@fragment/shared";
-import { useMemo, useState } from "react";
+import {
+  createMinimumStaffingRuleRequestSchema,
+  type CreateMinimumStaffingRuleRequest,
+  type MinimumStaffingRule,
+} from "@fragment/shared";
+import { useState } from "react";
 import { Button } from "@moyeorak/design-system";
 import { Plus } from "lucide-react";
+import { Controller, type FieldErrors, type Resolver, useForm } from "react-hook-form";
 
 import { AdminTableSection } from "@/components/admin/admin-table-section";
 import { CrudFormDialog } from "@/components/admin/crud-form-dialog";
@@ -29,7 +34,7 @@ import {
 
 type DayOfWeek = MinimumStaffingRule["dayOfWeek"];
 
-type StaffingRuleDraft = {
+type StaffingRuleFormValues = {
   dayOfWeek: DayOfWeek | "";
   startTime: string;
   endTime: string;
@@ -46,14 +51,14 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   SUN: "일요일",
 };
 
-const EMPTY_DRAFT: StaffingRuleDraft = {
+const EMPTY_FORM_VALUES: StaffingRuleFormValues = {
   dayOfWeek: "",
   startTime: "",
   endTime: "",
   requiredCount: "",
 };
 
-function createDraftFromRule(rule: MinimumStaffingRule): StaffingRuleDraft {
+function createFormValuesFromRule(rule: MinimumStaffingRule): StaffingRuleFormValues {
   return {
     dayOfWeek: rule.dayOfWeek,
     startTime: rule.startTime,
@@ -62,40 +67,94 @@ function createDraftFromRule(rule: MinimumStaffingRule): StaffingRuleDraft {
   };
 }
 
-function validateStaffingRuleDraft(draft: StaffingRuleDraft) {
-  const requiredCount = Number(draft.requiredCount);
-
+function createMinimumStaffingRuleRequestFromForm(
+  values: StaffingRuleFormValues,
+): CreateMinimumStaffingRuleRequest {
   return {
-    dayOfWeek: !draft.dayOfWeek ? "요일을 선택하세요." : "",
-    startTime: !draft.startTime ? "시작 시간을 선택하세요." : "",
-    endTime: !draft.endTime
-      ? "종료 시간을 선택하세요."
-      : draft.startTime && draft.endTime === draft.startTime
-        ? "시작 시간과 종료 시간은 같을 수 없습니다."
-        : "",
-    requiredCount:
-      !Number.isFinite(requiredCount) || requiredCount < 1
-        ? "최소 인원은 1 이상의 숫자로 입력하세요."
-        : "",
+    dayOfWeek: values.dayOfWeek as DayOfWeek,
+    startTime: values.startTime,
+    endTime: values.endTime,
+    endsNextDay: values.endTime < values.startTime,
+    requiredCount: Number(values.requiredCount),
   };
 }
+
+const staffingRuleFormResolver: Resolver<StaffingRuleFormValues> = (values) => {
+  const request = createMinimumStaffingRuleRequestFromForm(values);
+  const result = createMinimumStaffingRuleRequestSchema.safeParse(request);
+
+  if (result.success) {
+    return {
+      errors: {},
+      values,
+    };
+  }
+
+  const errors: FieldErrors<StaffingRuleFormValues> = {};
+
+  result.error.issues.forEach((issue) => {
+    const [field] = issue.path;
+
+    if (field === "dayOfWeek") {
+      errors.dayOfWeek = {
+        type: "manual",
+        message: "요일을 선택하세요.",
+      };
+      return;
+    }
+
+    if (field === "startTime") {
+      errors.startTime = {
+        type: "manual",
+        message: values.startTime ? issue.message : "시작 시간을 선택하세요.",
+      };
+      return;
+    }
+
+    if (field === "endTime") {
+      errors.endTime = {
+        type: "manual",
+        message: values.endTime ? issue.message : "종료 시간을 선택하세요.",
+      };
+      return;
+    }
+
+    if (field === "requiredCount") {
+      errors.requiredCount = {
+        type: "manual",
+        message: "최소 인원은 1 이상의 숫자로 입력하세요.",
+      };
+    }
+  });
+
+  return {
+    errors,
+    values: {},
+  };
+};
 
 export function MvpStaffingRulesPage() {
   const staffingRulesQuery = useMinimumStaffingRulesQuery();
   const createMinimumStaffingRuleMutation = useCreateMinimumStaffingRuleMutation();
   const updateMinimumStaffingRuleMutation = useUpdateMinimumStaffingRuleMutation();
   const deleteMinimumStaffingRuleMutation = useDeleteMinimumStaffingRuleMutation();
+  const {
+    control,
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+  } = useForm<StaffingRuleFormValues>({
+    defaultValues: EMPTY_FORM_VALUES,
+    resolver: staffingRuleFormResolver,
+  });
   const [formOpen, setFormOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MinimumStaffingRule | null>(null);
-  const [draft, setDraft] = useState<StaffingRuleDraft>(EMPTY_DRAFT);
-  const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
   const rules = staffingRulesQuery.data?.items ?? [];
-  const errors = useMemo(() => validateStaffingRuleDraft(draft), [draft]);
-  const hasErrors = Object.values(errors).some(Boolean);
   const isEditing = editingRuleId !== null;
   const formTitle = isEditing ? "조건 수정" : "조건 추가";
   const isSaving =
@@ -111,43 +170,33 @@ export function MvpStaffingRulesPage() {
 
   function openCreateForm() {
     setEditingRuleId(null);
-    setDraft(EMPTY_DRAFT);
-    setSubmitted(false);
+    reset(EMPTY_FORM_VALUES);
     setFormError("");
     setFormOpen(true);
   }
 
   function openEditForm(rule: MinimumStaffingRule) {
     setEditingRuleId(rule.id);
-    setDraft(createDraftFromRule(rule));
-    setSubmitted(false);
+    reset(createFormValuesFromRule(rule));
     setFormError("");
     setFormOpen(true);
   }
 
   function closeForm() {
     setFormOpen(false);
-    setSubmitted(false);
     setEditingRuleId(null);
-    setDraft(EMPTY_DRAFT);
+    reset(EMPTY_FORM_VALUES);
     setFormError("");
   }
 
-  async function saveRule() {
-    setSubmitted(true);
+  async function saveRule(values: StaffingRuleFormValues) {
     setFormError("");
 
-    if (hasErrors || !draft.dayOfWeek || isSaving) {
+    if (isSaving) {
       return;
     }
 
-    const request = {
-      dayOfWeek: draft.dayOfWeek,
-      startTime: draft.startTime,
-      endTime: draft.endTime,
-      endsNextDay: draft.endTime < draft.startTime,
-      requiredCount: Number(draft.requiredCount),
-    };
+    const request = createMinimumStaffingRuleRequestFromForm(values);
 
     try {
       if (editingRuleId) {
@@ -244,32 +293,30 @@ export function MvpStaffingRulesPage() {
         description="특정 요일과 시간대에 필요한 최소 근무 인원을 입력하세요."
         isSaving={isSaving}
         onClose={closeForm}
-        onSave={saveRule}
+        onSave={handleSubmit(saveRule)}
       >
         <div className="space-y-2">
           <Label htmlFor="staffing-rule-day">요일</Label>
-          <Select
-            value={draft.dayOfWeek}
-            onValueChange={(value) =>
-              setDraft((current) => ({ ...current, dayOfWeek: value as DayOfWeek }))
-            }
-          >
-            <SelectTrigger
-              id="staffing-rule-day"
-              aria-invalid={submitted && Boolean(errors.dayOfWeek)}
-            >
-              <SelectValue placeholder="요일을 선택하세요" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(DAY_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {submitted && errors.dayOfWeek ? (
-            <p className="text-sm text-destructive">{errors.dayOfWeek}</p>
+          <Controller
+            control={control}
+            name="dayOfWeek"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="staffing-rule-day" aria-invalid={Boolean(errors.dayOfWeek)}>
+                  <SelectValue placeholder="요일을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(DAY_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.dayOfWeek ? (
+            <p className="text-sm text-destructive">{errors.dayOfWeek.message}</p>
           ) : null}
         </div>
 
@@ -279,14 +326,11 @@ export function MvpStaffingRulesPage() {
             <Input
               id="staffing-rule-start-time"
               type="time"
-              value={draft.startTime}
-              aria-invalid={submitted && Boolean(errors.startTime)}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, startTime: event.target.value }))
-              }
+              aria-invalid={Boolean(errors.startTime)}
+              {...register("startTime")}
             />
-            {submitted && errors.startTime ? (
-              <p className="text-sm text-destructive">{errors.startTime}</p>
+            {errors.startTime ? (
+              <p className="text-sm text-destructive">{errors.startTime.message}</p>
             ) : null}
           </div>
 
@@ -295,14 +339,11 @@ export function MvpStaffingRulesPage() {
             <Input
               id="staffing-rule-end-time"
               type="time"
-              value={draft.endTime}
-              aria-invalid={submitted && Boolean(errors.endTime)}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, endTime: event.target.value }))
-              }
+              aria-invalid={Boolean(errors.endTime)}
+              {...register("endTime")}
             />
-            {submitted && errors.endTime ? (
-              <p className="text-sm text-destructive">{errors.endTime}</p>
+            {errors.endTime ? (
+              <p className="text-sm text-destructive">{errors.endTime.message}</p>
             ) : null}
           </div>
         </div>
@@ -313,15 +354,12 @@ export function MvpStaffingRulesPage() {
             id="minimum-workers"
             type="number"
             min={1}
-            value={draft.requiredCount}
             placeholder="예: 2"
-            aria-invalid={submitted && Boolean(errors.requiredCount)}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, requiredCount: event.target.value }))
-            }
+            aria-invalid={Boolean(errors.requiredCount)}
+            {...register("requiredCount")}
           />
-          {submitted && errors.requiredCount ? (
-            <p className="text-sm text-destructive">{errors.requiredCount}</p>
+          {errors.requiredCount ? (
+            <p className="text-sm text-destructive">{errors.requiredCount.message}</p>
           ) : null}
         </div>
         {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
