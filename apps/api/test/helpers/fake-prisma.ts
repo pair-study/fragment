@@ -105,7 +105,6 @@ export function createFakePrisma({
     nextBusinessHourId: getNextId(
       organizations.flatMap((organization) => organization.businessHours),
     ),
-    nextMinimumStaffingRuleId: getNextId(minimumStaffingRules),
     nextOrganizationId: getNextId(organizations),
     nextRefreshTokenId: getNextId(refreshTokens),
     nextUserId: getNextId(users),
@@ -165,66 +164,6 @@ export function createFakePrisma({
       },
     },
     minimumStaffingRule: {
-      create: async ({ data }: any) => {
-        const now = new Date();
-        const minimumStaffingRule = {
-          id: state.nextMinimumStaffingRuleId++,
-          createdAt: now,
-          updatedAt: now,
-          ...data,
-        };
-
-        state.minimumStaffingRules.push(minimumStaffingRule);
-
-        return cloneMinimumStaffingRule(minimumStaffingRule);
-      },
-      deleteMany: async ({ where }: any) => {
-        const initialCount = state.minimumStaffingRules.length;
-        state.minimumStaffingRules = state.minimumStaffingRules.filter((rule) => {
-          if (where.id !== undefined && rule.id !== where.id) {
-            return true;
-          }
-
-          if (where.organizationId !== undefined && rule.organizationId !== where.organizationId) {
-            return true;
-          }
-
-          return false;
-        });
-
-        return { count: initialCount - state.minimumStaffingRules.length };
-      },
-      findFirst: async ({ select, where }: any) => {
-        const rule =
-          state.minimumStaffingRules.find((currentRule) => {
-            if (where.id !== undefined && currentRule.id !== where.id) {
-              return false;
-            }
-
-            if (
-              where.organizationId !== undefined &&
-              currentRule.organizationId !== where.organizationId
-            ) {
-              return false;
-            }
-
-            return true;
-          }) ?? null;
-
-        if (!rule) {
-          return null;
-        }
-
-        if (select) {
-          return Object.fromEntries(
-            Object.keys(select)
-              .filter((key) => select[key])
-              .map((key) => [key, rule[key as keyof FakeMinimumStaffingRule]]),
-          );
-        }
-
-        return cloneMinimumStaffingRule(rule);
-      },
       findMany: async ({ orderBy, where }: any) => {
         const rules = state.minimumStaffingRules
           .filter((rule) => rule.organizationId === where.organizationId)
@@ -247,17 +186,6 @@ export function createFakePrisma({
         }
 
         return rules;
-      },
-      update: async ({ data, where }: any) => {
-        const rule = state.minimumStaffingRules.find((currentRule) => currentRule.id === where.id);
-
-        if (!rule) {
-          return null;
-        }
-
-        Object.assign(rule, data, { updatedAt: new Date() });
-
-        return cloneMinimumStaffingRule(rule);
       },
     },
     organization: {
