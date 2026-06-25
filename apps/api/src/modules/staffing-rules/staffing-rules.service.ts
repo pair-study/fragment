@@ -94,9 +94,18 @@ export async function getMinimumStaffingRules(
   prisma: PrismaClient,
   userId: string,
 ): Promise<MinimumStaffingRulesListResponse> {
-  await findOrganizationIdByUserId(prisma, userId);
+  const organizationId = await findOrganizationIdByUserId(prisma, userId);
 
-  throw createNotImplementedError();
+  const rules = await prisma.minimumStaffingRule.findMany({
+    where: {
+      organizationId,
+    },
+    orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+  });
+
+  return {
+    items: rules.map(toMinimumStaffingRule),
+  };
 }
 
 export async function createMinimumStaffingRule(
@@ -105,9 +114,11 @@ export async function createMinimumStaffingRule(
   input: CreateMinimumStaffingRuleRequest,
 ): Promise<MinimumStaffingRule> {
   const organizationId = await findOrganizationIdByUserId(prisma, userId);
-  createMinimumStaffingRuleData(organizationId, input);
+  const rule = await prisma.minimumStaffingRule.create({
+    data: createMinimumStaffingRuleData(organizationId, input),
+  });
 
-  throw createNotImplementedError();
+  return toMinimumStaffingRule(rule);
 }
 
 export async function updateMinimumStaffingRule(
