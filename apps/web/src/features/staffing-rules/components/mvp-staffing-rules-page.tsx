@@ -1,5 +1,6 @@
 "use client";
 
+import type { MinimumStaffingRule } from "@fragment/shared";
 import { useMemo, useState } from "react";
 import { Button } from "@moyeorak/design-system";
 import { Plus } from "lucide-react";
@@ -9,8 +10,15 @@ import { CrudFormDialog } from "@/components/admin/crud-form-dialog";
 import { DeleteConfirmDialog } from "@/components/common/delete-confirm-dialog";
 import { RowActions } from "@/components/common/row-actions";
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import {
+  useCreateMinimumStaffingRuleMutation,
+  useDeleteMinimumStaffingRuleMutation,
+  useMinimumStaffingRulesQuery,
+  useUpdateMinimumStaffingRuleMutation,
+} from "@/features/staffing-rules/queries/staffing-rules-queries";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import {
   Select,
   SelectContent,
@@ -19,24 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type DayOfWeek = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
-
-type StaffingRule = {
-  id: string;
-  dayOfWeek: DayOfWeek;
-  startTime: string;
-  endTime: string;
-  minimumWorkers: number;
-};
+type DayOfWeek = MinimumStaffingRule["dayOfWeek"];
 
 type StaffingRuleDraft = {
   dayOfWeek: DayOfWeek | "";
   startTime: string;
   endTime: string;
-  minimumWorkers: string;
+  requiredCount: string;
 };
-
-type StaffingRuleFormMode = "create" | "edit";
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
   MON: "월요일",
@@ -48,90 +46,82 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   SUN: "일요일",
 };
 
-const INITIAL_RULES: StaffingRule[] = [
-  {
-    id: "rule-1",
-    dayOfWeek: "MON",
-    startTime: "18:00",
-    endTime: "22:00",
-    minimumWorkers: 2,
-  },
-  {
-    id: "rule-2",
-    dayOfWeek: "FRI",
-    startTime: "18:00",
-    endTime: "22:00",
-    minimumWorkers: 3,
-  },
-  {
-    id: "rule-3",
-    dayOfWeek: "SAT",
-    startTime: "10:00",
-    endTime: "16:00",
-    minimumWorkers: 2,
-  },
-];
-
 const EMPTY_DRAFT: StaffingRuleDraft = {
   dayOfWeek: "",
   startTime: "",
   endTime: "",
-  minimumWorkers: "",
+  requiredCount: "",
 };
 
-function createDraftFromRule(rule: StaffingRule): StaffingRuleDraft {
+function createDraftFromRule(rule: MinimumStaffingRule): StaffingRuleDraft {
   return {
     dayOfWeek: rule.dayOfWeek,
     startTime: rule.startTime,
     endTime: rule.endTime,
-    minimumWorkers: String(rule.minimumWorkers),
+    requiredCount: String(rule.requiredCount),
   };
 }
 
 function validateStaffingRuleDraft(draft: StaffingRuleDraft) {
-  const minimumWorkers = Number(draft.minimumWorkers);
+  const requiredCount = Number(draft.requiredCount);
 
   return {
     dayOfWeek: !draft.dayOfWeek ? "요일을 선택하세요." : "",
     startTime: !draft.startTime ? "시작 시간을 선택하세요." : "",
     endTime: !draft.endTime
       ? "종료 시간을 선택하세요."
-      : draft.startTime && draft.endTime <= draft.startTime
-        ? "종료 시간은 시작 시간보다 늦어야 합니다."
+      : draft.startTime && draft.endTime === draft.startTime
+        ? "시작 시간과 종료 시간은 같을 수 없습니다."
         : "",
-    minimumWorkers:
-      !Number.isFinite(minimumWorkers) || minimumWorkers < 1
+    requiredCount:
+      !Number.isFinite(requiredCount) || requiredCount < 1
         ? "최소 인원은 1 이상의 숫자로 입력하세요."
         : "",
   };
 }
 
 export function MvpStaffingRulesPage() {
-  const [rules, setRules] = useState<StaffingRule[]>(INITIAL_RULES);
+  const staffingRulesQuery = useMinimumStaffingRulesQuery();
+  const createMinimumStaffingRuleMutation = useCreateMinimumStaffingRuleMutation();
+  const updateMinimumStaffingRuleMutation = useUpdateMinimumStaffingRuleMutation();
+  const deleteMinimumStaffingRuleMutation = useDeleteMinimumStaffingRuleMutation();
   const [formOpen, setFormOpen] = useState(false);
-  const [formMode, setFormMode] = useState<StaffingRuleFormMode>("create");
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<StaffingRule | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MinimumStaffingRule | null>(null);
   const [draft, setDraft] = useState<StaffingRuleDraft>(EMPTY_DRAFT);
   const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
+  const rules = staffingRulesQuery.data?.items ?? [];
   const errors = useMemo(() => validateStaffingRuleDraft(draft), [draft]);
   const hasErrors = Object.values(errors).some(Boolean);
-  const formTitle = formMode === "create" ? "조건 추가" : "조건 수정";
+  const isEditing = editingRuleId !== null;
+  const formTitle = isEditing ? "조건 수정" : "조건 추가";
+  const isSaving =
+    createMinimumStaffingRuleMutation.isPending || updateMinimumStaffingRuleMutation.isPending;
+  const tableMessage = staffingRulesQuery.isPending
+    ? "조건 목록을 불러오는 중입니다."
+    : staffingRulesQuery.isError
+      ? getApiErrorMessage(
+          staffingRulesQuery.error,
+          "조건 목록을 불러오지 못했습니다. 다시 시도해 주세요.",
+        )
+      : "";
 
   function openCreateForm() {
-    setFormMode("create");
     setEditingRuleId(null);
     setDraft(EMPTY_DRAFT);
     setSubmitted(false);
+    setFormError("");
     setFormOpen(true);
   }
 
-  function openEditForm(rule: StaffingRule) {
-    setFormMode("edit");
+  function openEditForm(rule: MinimumStaffingRule) {
     setEditingRuleId(rule.id);
     setDraft(createDraftFromRule(rule));
     setSubmitted(false);
+    setFormError("");
     setFormOpen(true);
   }
 
@@ -140,45 +130,41 @@ export function MvpStaffingRulesPage() {
     setSubmitted(false);
     setEditingRuleId(null);
     setDraft(EMPTY_DRAFT);
+    setFormError("");
   }
 
-  function saveRule() {
+  async function saveRule() {
     setSubmitted(true);
+    setFormError("");
 
-    if (hasErrors || !draft.dayOfWeek) {
+    if (hasErrors || !draft.dayOfWeek || isSaving) {
       return;
     }
 
-    const dayOfWeek = draft.dayOfWeek;
+    const request = {
+      dayOfWeek: draft.dayOfWeek,
+      startTime: draft.startTime,
+      endTime: draft.endTime,
+      endsNextDay: draft.endTime < draft.startTime,
+      requiredCount: Number(draft.requiredCount),
+    };
 
-    if (formMode === "create") {
-      setRules((currentRules) => [
-        ...currentRules,
-        {
-          id: `rule-${Date.now()}`,
-          dayOfWeek,
-          startTime: draft.startTime,
-          endTime: draft.endTime,
-          minimumWorkers: Number(draft.minimumWorkers),
-        },
-      ]);
-    } else if (editingRuleId) {
-      setRules((currentRules) =>
-        currentRules.map((rule) =>
-          rule.id === editingRuleId
-            ? {
-                ...rule,
-                dayOfWeek,
-                startTime: draft.startTime,
-                endTime: draft.endTime,
-                minimumWorkers: Number(draft.minimumWorkers),
-              }
-            : rule,
-        ),
+    try {
+      if (editingRuleId) {
+        await updateMinimumStaffingRuleMutation.mutateAsync({
+          ruleId: editingRuleId,
+          request,
+        });
+      } else {
+        await createMinimumStaffingRuleMutation.mutateAsync(request);
+      }
+
+      closeForm();
+    } catch (error) {
+      setFormError(
+        getApiErrorMessage(error, "최소 인원 조건을 저장하지 못했습니다. 다시 시도해 주세요."),
       );
     }
-
-    closeForm();
   }
 
   return (
@@ -186,7 +172,12 @@ export function MvpStaffingRulesPage() {
       title="최소 인원 조건"
       description="조직 운영에 필요한 요일과 시간대별 최소 근무 인원을 관리합니다."
       actions={
-        <Button type="button" variant="brand" onClick={openCreateForm}>
+        <Button
+          type="button"
+          variant="brand"
+          onClick={openCreateForm}
+          disabled={staffingRulesQuery.isPending}
+        >
           <Plus className="size-4" aria-hidden="true" />
           조건 추가
         </Button>
@@ -196,46 +187,56 @@ export function MvpStaffingRulesPage() {
     >
       <AdminTableSection
         title="조건 목록"
-        isEmpty={rules.length === 0}
+        isEmpty={!staffingRulesQuery.isPending && !staffingRulesQuery.isError && rules.length === 0}
         emptyTitle="등록된 최소 인원 조건이 없습니다."
         emptyDescription="조건을 추가하면 추천 생성 시 해당 시간대의 필요 인원으로 사용됩니다."
       >
-        <table className="w-full min-w-max border-collapse text-left text-sm">
-          <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
-            <tr>
-              <th className="px-2 py-3 sm:px-4 lg:px-6">요일</th>
-              <th className="px-2 py-3 sm:px-4 lg:px-6">시작 시간</th>
-              <th className="px-2 py-3 sm:px-4 lg:px-6">종료 시간</th>
-              <th className="px-2 py-3 sm:px-4 lg:px-6">최소 인원</th>
-              <th className="px-2 py-3 text-right sm:px-4 lg:px-6">
-                <span className="sr-only">액션</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rules.map((rule) => (
-              <tr key={rule.id} className="bg-card">
-                <td className="px-2 py-4 font-medium text-foreground sm:px-4 lg:px-6">
-                  {DAY_LABELS[rule.dayOfWeek]}
-                </td>
-                <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">
-                  {rule.startTime}
-                </td>
-                <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">{rule.endTime}</td>
-                <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">
-                  {rule.minimumWorkers}명
-                </td>
-                <td className="px-2 py-4 sm:px-4 lg:px-6">
-                  <RowActions
-                    onEdit={() => openEditForm(rule)}
-                    onDelete={() => setDeleteTarget(rule)}
-                  />
-                </td>
+        {tableMessage ? (
+          <div className="px-6 py-10 text-center text-sm text-muted-foreground">{tableMessage}</div>
+        ) : (
+          <table className="w-full min-w-max border-collapse text-left text-sm">
+            <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
+              <tr>
+                <th className="px-2 py-3 sm:px-4 lg:px-6">요일</th>
+                <th className="px-2 py-3 sm:px-4 lg:px-6">시작 시간</th>
+                <th className="px-2 py-3 sm:px-4 lg:px-6">종료 시간</th>
+                <th className="px-2 py-3 sm:px-4 lg:px-6">최소 인원</th>
+                <th className="px-2 py-3 text-right sm:px-4 lg:px-6">
+                  <span className="sr-only">액션</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rules.map((rule) => (
+                <tr key={rule.id} className="bg-card">
+                  <td className="px-2 py-4 font-medium text-foreground sm:px-4 lg:px-6">
+                    {DAY_LABELS[rule.dayOfWeek]}
+                  </td>
+                  <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">
+                    {rule.startTime}
+                  </td>
+                  <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">
+                    {rule.endTime}
+                  </td>
+                  <td className="px-2 py-4 text-muted-foreground sm:px-4 lg:px-6">
+                    {rule.requiredCount}명
+                  </td>
+                  <td className="px-2 py-4 sm:px-4 lg:px-6">
+                    <RowActions
+                      onEdit={() => openEditForm(rule)}
+                      onDelete={() => {
+                        setDeleteError("");
+                        setDeleteTarget(rule);
+                      }}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </AdminTableSection>
+      {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
 
       <CrudFormDialog
         open={formOpen}
@@ -311,17 +312,18 @@ export function MvpStaffingRulesPage() {
             id="minimum-workers"
             type="number"
             min={1}
-            value={draft.minimumWorkers}
+            value={draft.requiredCount}
             placeholder="예: 2"
-            aria-invalid={submitted && Boolean(errors.minimumWorkers)}
+            aria-invalid={submitted && Boolean(errors.requiredCount)}
             onChange={(event) =>
-              setDraft((current) => ({ ...current, minimumWorkers: event.target.value }))
+              setDraft((current) => ({ ...current, requiredCount: event.target.value }))
             }
           />
-          {submitted && errors.minimumWorkers ? (
-            <p className="text-sm text-destructive">{errors.minimumWorkers}</p>
+          {submitted && errors.requiredCount ? (
+            <p className="text-sm text-destructive">{errors.requiredCount}</p>
           ) : null}
         </div>
+        {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
       </CrudFormDialog>
 
       <DeleteConfirmDialog
@@ -329,13 +331,24 @@ export function MvpStaffingRulesPage() {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="조건 삭제"
         description="이 조건을 삭제하면 추천 생성 시 해당 시간대의 최소 인원 기준에서 제외됩니다."
-        onConfirm={() => {
-          if (!deleteTarget) {
+        onConfirm={async () => {
+          if (!deleteTarget || deleteMinimumStaffingRuleMutation.isPending) {
             return;
           }
 
-          setRules((currentRules) => currentRules.filter((rule) => rule.id !== deleteTarget.id));
-          setDeleteTarget(null);
+          setDeleteError("");
+
+          try {
+            await deleteMinimumStaffingRuleMutation.mutateAsync(deleteTarget.id);
+            setDeleteTarget(null);
+          } catch (error) {
+            setDeleteError(
+              getApiErrorMessage(
+                error,
+                "최소 인원 조건을 삭제하지 못했습니다. 다시 시도해 주세요.",
+              ),
+            );
+          }
         }}
       />
     </AdminPageShell>
