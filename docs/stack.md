@@ -67,10 +67,11 @@
 
 | 영역 | 선택 | MVP 적용 범위 |
 | --- | --- | --- |
-| Frontend | Vitest `4.x`, React Testing Library `16.x`, jest-dom `6.x`, jsdom `29.x` | 폼 검증, 주요 컴포넌트 렌더링, 사용자 액션 |
+| Frontend | Vitest `4.x`, React Testing Library `16.x`, jest-dom `6.x`, jsdom `29.x` | 복잡한 유틸 또는 hook 검증 |
 | API | Jest `29.x`, Supertest `7.x` | 주요 엔드포인트 요청/응답, 인증, 검증 실패 |
 
 테스트 라이브러리는 테스트 설정 파일과 첫 테스트 코드가 들어가는 작업에서 `package.json`에 함께 추가합니다.
+Frontend는 기본적으로 typecheck/lint를 우선하고, 복잡한 유틸 또는 hook을 추가할 때 테스트를 작성합니다.
 프론트 API mocking은 필요해지는 테스트 범위가 확정될 때 MSW 도입 여부와 버전을 함께 결정합니다.
 
 ### 테스트 우선순위
@@ -99,10 +100,10 @@ MVP에서는 Railway 안에서 API와 PostgreSQL을 함께 운영해 배포 복�
 
 | 단계 | 선택 |
 | --- | --- |
-| MVP 개발 중 | Notion 또는 Markdown 기반 API 명세 |
-| 엔드포인트 안정 후 | OpenAPI/Swagger 문서화 |
+| MVP 개발 중 | `docs/API.md` 기준 Markdown API 명세 |
+| OpenAPI/Swagger | `docs/openapi.yaml`에 포함된 endpoint부터 점진 관리 |
 
-MVP에서는 프론트와 API 작업자가 먼저 요청/응답 계약을 빠르게 맞추는 것이 우선입니다. OpenAPI/Swagger는 엔드포인트 구조가 안정된 뒤 도입합니다.
+MVP에서는 프론트와 API 작업자가 먼저 `docs/API.md`로 요청/응답 계약을 맞춥니다. `docs/openapi.yaml`에 포함된 endpoint를 변경하는 경우 OpenAPI 문서도 함께 갱신합니다.
 
 ## 7. Workspace Structure
 

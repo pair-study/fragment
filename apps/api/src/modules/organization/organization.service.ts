@@ -8,6 +8,7 @@ import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
+import { nullableDateToTimeString, nullableTimeStringToDate } from "@/utils/date-time";
 import { toApiId, toPrismaId } from "@/utils/mapper";
 
 type OrganizationDatabaseClient = PrismaClient | Prisma.TransactionClient;
@@ -17,25 +18,6 @@ type OrganizationWithBusinessHours = Prisma.OrganizationGetPayload<{
     businessHours: true;
   };
 }>;
-
-const toTimeDate = (time: string | null): Date | null => {
-  if (time === null) {
-    return null;
-  }
-
-  const [hour, minute] = time.split(":").map(Number);
-  return new Date(Date.UTC(1970, 0, 1, hour, minute, 0));
-};
-
-const toTimeString = (time: Date | null): string | null => {
-  if (time === null) {
-    return null;
-  }
-
-  const hour = String(time.getUTCHours()).padStart(2, "0");
-  const minute = String(time.getUTCMinutes()).padStart(2, "0");
-  return `${hour}:${minute}`;
-};
 
 const getBusinessHourOrder = (dayOfWeek: DayOfWeek) => DAY_OF_WEEK_VALUES.indexOf(dayOfWeek);
 
@@ -55,8 +37,8 @@ const toOrganizationDetail = (organization: OrganizationWithBusinessHours): Orga
       id: toApiId(businessHour.id),
       dayOfWeek: businessHour.dayOfWeek,
       isClosed: businessHour.isClosed,
-      openTime: toTimeString(businessHour.openTime),
-      closeTime: toTimeString(businessHour.closeTime),
+      openTime: nullableDateToTimeString(businessHour.openTime),
+      closeTime: nullableDateToTimeString(businessHour.closeTime),
       closesNextDay: businessHour.closesNextDay,
     })),
 });
@@ -65,8 +47,8 @@ const createBusinessHoursData = (businessHours: CreateOrganizationRequest["busin
   businessHours.map((businessHour) => ({
     dayOfWeek: businessHour.dayOfWeek,
     isClosed: businessHour.isClosed,
-    openTime: toTimeDate(businessHour.openTime),
-    closeTime: toTimeDate(businessHour.closeTime),
+    openTime: nullableTimeStringToDate(businessHour.openTime),
+    closeTime: nullableTimeStringToDate(businessHour.closeTime),
     closesNextDay: getClosesNextDay(businessHour),
   }));
 

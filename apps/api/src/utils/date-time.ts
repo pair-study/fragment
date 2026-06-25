@@ -3,6 +3,23 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export const isValidTimeString = (value: unknown): value is string =>
   typeof value === "string" && TIME_PATTERN.test(value);
 
+export const timeStringToDate = (time: string): Date => {
+  const [hour, minute] = time.split(":").map(Number);
+  return new Date(Date.UTC(1970, 0, 1, hour, minute, 0));
+};
+
+export const dateToTimeString = (time: Date): string => {
+  const hour = String(time.getUTCHours()).padStart(2, "0");
+  const minute = String(time.getUTCMinutes()).padStart(2, "0");
+  return `${hour}:${minute}`;
+};
+
+export const nullableTimeStringToDate = (time: string | null): Date | null =>
+  time === null ? null : timeStringToDate(time);
+
+export const nullableDateToTimeString = (time: Date | null): string | null =>
+  time === null ? null : dateToTimeString(time);
+
 export const parseTimeToMinutes = (time: string): number => {
   const match = time.match(TIME_PATTERN);
 
