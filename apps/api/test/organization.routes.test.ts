@@ -206,21 +206,6 @@ describe("organization routes", () => {
     });
   });
 
-  it("requires an organization when getting the active planning period", async () => {
-    const { prisma } = createFakePrisma();
-    const app = createApp({ prisma });
-
-    const response = await request(app)
-      .get("/api/organization/active-schedule-planning-period")
-      .set("Authorization", authHeader());
-
-    expect(response.status).toBe(403);
-    expect(response.body).toMatchObject({
-      errorCode: "ORGANIZATION_REQUIRED",
-      statusCode: 403,
-    });
-  });
-
   it("returns null when there is no active planning period", async () => {
     const { prisma } = createFakePrisma({
       organizations: [

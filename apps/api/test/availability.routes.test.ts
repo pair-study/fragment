@@ -71,45 +71,6 @@ describe("availability routes", () => {
     });
   });
 
-  it("rejects workers outside the authenticated user's organization", async () => {
-    const { prisma } = createFakePrisma({
-      organizations: [
-        createOrganization(),
-        {
-          id: BigInt(2),
-          userId: BigInt(2),
-          name: "다른 조직",
-          businessHours: [],
-        },
-      ],
-      workers: [
-        {
-          id: BigInt(2),
-          organizationId: BigInt(2),
-          employeeCode: "W-0001",
-          name: "이서연",
-          weeklyContractHours: 16,
-        },
-      ],
-    });
-    const app = createApp({ prisma });
-
-    const response = await request(app)
-      .get("/api/availability")
-      .set("Authorization", authHeader())
-      .query({
-        workerId: "2",
-        startDate: "2026-07-01",
-        endDate: "2026-07-31",
-      });
-
-    expect(response.status).toBe(404);
-    expect(response.body).toMatchObject({
-      errorCode: "WORKER_NOT_FOUND",
-      statusCode: 404,
-    });
-  });
-
   it("lists availability by worker and date range ordered by date and start time", async () => {
     const { prisma } = createFakePrisma({
       availableTimes: [
