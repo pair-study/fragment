@@ -21,12 +21,7 @@ type FakeOrganization = {
   id: bigint;
   userId: bigint;
   name: string;
-  lastWorkerSequence: number;
   businessHours: FakeBusinessHour[];
-};
-
-type FakeOrganizationInput = Omit<FakeOrganization, "lastWorkerSequence"> & {
-  lastWorkerSequence?: number;
 };
 
 type FakeMinimumStaffingRule = {
@@ -49,11 +44,6 @@ type FakeRefreshToken = {
   revokedAt: Date | null;
 };
 
-type FakeScheduleAssignment = {
-  id: bigint;
-  workerId: bigint | null;
-};
-
 type FakeWorker = {
   id: bigint;
   organizationId: bigint;
@@ -64,9 +54,8 @@ type FakeWorker = {
 
 type CreateFakePrismaOptions = {
   minimumStaffingRules?: FakeMinimumStaffingRule[];
-  organizations?: FakeOrganizationInput[];
+  organizations?: FakeOrganization[];
   refreshTokens?: FakeRefreshToken[];
-  scheduleAssignments?: FakeScheduleAssignment[];
   users?: FakeUser[];
   workers?: FakeWorker[];
 };
@@ -97,7 +86,6 @@ export function createFakePrisma({
   minimumStaffingRules = [],
   organizations = [],
   refreshTokens = [],
-  scheduleAssignments = [],
   users = [],
   workers = [],
 }: CreateFakePrismaOptions = {}) {
@@ -108,15 +96,12 @@ export function createFakePrisma({
     nextOrganizationId: getNextId(organizations),
     nextRefreshTokenId: getNextId(refreshTokens),
     nextUserId: getNextId(users),
-    nextWorkerId: getNextId(workers),
     minimumStaffingRules: minimumStaffingRules.map(cloneMinimumStaffingRule),
     organizations: organizations.map((organization) => ({
       ...organization,
-      lastWorkerSequence: organization.lastWorkerSequence ?? 0,
       businessHours: organization.businessHours.map(cloneBusinessHour),
     })),
     refreshTokens: refreshTokens.map((refreshToken) => ({ ...refreshToken })),
-    scheduleAssignments: scheduleAssignments.map((assignment) => ({ ...assignment })),
     users: [...users],
     workers: workers.map((worker) => ({ ...worker })),
   };
@@ -194,7 +179,6 @@ export function createFakePrisma({
           id: state.nextOrganizationId,
           name: data.name,
           userId: data.userId,
-          lastWorkerSequence: 0,
           businessHours: data.businessHours.create.map((businessHour: any) => ({
             ...businessHour,
             id: state.nextBusinessHourId++,
@@ -226,10 +210,6 @@ export function createFakePrisma({
           organization.name = data.name;
         }
 
-        if (data.lastWorkerSequence?.increment !== undefined) {
-          organization.lastWorkerSequence += data.lastWorkerSequence.increment;
-        }
-
         if (data.businessHours?.create) {
           organization.businessHours = data.businessHours.create.map((businessHour: any) => ({
             ...businessHour,
@@ -242,52 +222,6 @@ export function createFakePrisma({
       },
     },
     worker: {
-      create: async ({ data }: any) => {
-        const worker = {
-          id: state.nextWorkerId++,
-          ...data,
-        };
-
-        state.workers.push(worker);
-
-        return { ...worker };
-      },
-      delete: async ({ where }: any) => {
-        const workerIndex = state.workers.findIndex((worker) => worker.id === where.id);
-
-        if (workerIndex === -1) {
-          return null;
-        }
-
-        const [worker] = state.workers.splice(workerIndex, 1);
-
-        state.scheduleAssignments.forEach((assignment) => {
-          if (assignment.workerId === worker.id) {
-            assignment.workerId = null;
-          }
-        });
-
-        return { ...worker };
-      },
-      findFirst: async ({ where }: any) => {
-        const worker =
-          state.workers.find((currentWorker) => {
-            if (where.id !== undefined && currentWorker.id !== where.id) {
-              return false;
-            }
-
-            if (
-              where.organizationId !== undefined &&
-              currentWorker.organizationId !== where.organizationId
-            ) {
-              return false;
-            }
-
-            return true;
-          }) ?? null;
-
-        return worker ? { ...worker } : null;
-      },
       findMany: async ({ orderBy, where }: any) => {
         const matchingWorkers = state.workers
           .filter((worker) => {
@@ -307,23 +241,6 @@ export function createFakePrisma({
         }
 
         return matchingWorkers;
-      },
-      update: async ({ data, where }: any) => {
-        const worker = state.workers.find((currentWorker) => currentWorker.id === where.id);
-
-        if (!worker) {
-          return null;
-        }
-
-        if (data.name !== undefined) {
-          worker.name = data.name;
-        }
-
-        if (data.weeklyContractHours !== undefined) {
-          worker.weeklyContractHours = data.weeklyContractHours;
-        }
-
-        return { ...worker };
       },
     },
     refreshToken: {
