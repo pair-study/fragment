@@ -134,7 +134,7 @@ shadcn/ui (보조):
 
 ## 테스트
 
-테스트 설정과 첫 테스트 코드를 추가하는 작업에서 Vitest + React Testing Library를 `apps/web/package.json`에 함께 추가합니다.
+Web은 기본적으로 typecheck/lint를 우선하고, 복잡한 유틸 또는 hook을 추가할 때만 테스트를 작성합니다.
 
 - 테스트 파일은 별도 `test/` 디렉터리 없이 대상 파일 옆에 코로케이션합니다. (`ScheduleCard.tsx` → `ScheduleCard.test.tsx`)
 - 커스텀 훅은 `renderHook`으로 단독 테스트합니다.
