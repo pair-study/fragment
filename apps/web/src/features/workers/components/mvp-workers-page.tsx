@@ -302,6 +302,7 @@ export function MvpWorkersPage() {
             await deleteWorkerMutation.mutateAsync(deleteTarget.id);
             setDeleteTarget(null);
           } catch (error) {
+            setDeleteTarget(null);
             setDeleteError(
               getApiErrorMessage(error, "근무자를 삭제하지 못했습니다. 다시 시도해 주세요."),
             );
