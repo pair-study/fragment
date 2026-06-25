@@ -31,9 +31,12 @@ export const isDateTimeBefore = (startDateTime: string, endDateTime: string) =>
   Date.parse(startDateTime) < Date.parse(endDateTime);
 
 export const isDateTimeOnThirtyMinuteBoundary = (dateTime: string) => {
-  const minute = Number(dateTime.match(/T\d{2}:(\d{2})/)?.[1]);
+  const date = new Date(dateTime);
+  const minute = date.getUTCMinutes();
 
-  return minute === 0 || minute === 30;
+  return (
+    (minute === 0 || minute === 30) && date.getUTCSeconds() === 0 && date.getUTCMilliseconds() === 0
+  );
 };
 
 export const DAY_OF_WEEK_VALUES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;

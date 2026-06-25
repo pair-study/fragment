@@ -171,6 +171,36 @@ describe("availability routes", () => {
     });
   });
 
+  it("rejects bulk save times off the 30-minute boundary", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [createOrganization()],
+      workers: [createWorker()],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .put("/api/availability/bulk")
+      .set("Authorization", authHeader())
+      .send({
+        workerId: "1",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+        items: [
+          {
+            availableDate: "2026-07-01",
+            startsAt: "2026-07-01T10:00:15.000Z",
+            endsAt: "2026-07-01T12:00:00.000Z",
+          },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+      statusCode: 400,
+    });
+  });
+
   it("replaces availability for the selected date range", async () => {
     const { prisma } = createFakePrisma({
       availableTimes: [
