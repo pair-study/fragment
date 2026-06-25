@@ -12,18 +12,8 @@ import type {
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
+import { dateToTimeString, timeStringToDate } from "@/utils/date-time";
 import { toApiId, toPrismaId } from "@/utils/mapper";
-
-const timeStringToDate = (time: string): Date => {
-  const [hour, minute] = time.split(":").map(Number);
-  return new Date(Date.UTC(1970, 0, 1, hour, minute, 0));
-};
-
-const dateToTimeString = (time: Date): string => {
-  const hour = String(time.getUTCHours()).padStart(2, "0");
-  const minute = String(time.getUTCMinutes()).padStart(2, "0");
-  return `${hour}:${minute}`;
-};
 
 const createMinimumStaffingRuleNotFoundError = () =>
   new HttpError(404, ERROR_CODES.NOT_FOUND, "최소 인원 조건을 찾을 수 없습니다.");
