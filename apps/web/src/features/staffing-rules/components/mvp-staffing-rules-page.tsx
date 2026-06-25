@@ -242,6 +242,7 @@ export function MvpStaffingRulesPage() {
         open={formOpen}
         title={formTitle}
         description="특정 요일과 시간대에 필요한 최소 근무 인원을 입력하세요."
+        isSaving={isSaving}
         onClose={closeForm}
         onSave={saveRule}
       >
@@ -331,6 +332,7 @@ export function MvpStaffingRulesPage() {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="조건 삭제"
         description="이 조건을 삭제하면 추천 생성 시 해당 시간대의 최소 인원 기준에서 제외됩니다."
+        isDeleting={deleteMinimumStaffingRuleMutation.isPending}
         onConfirm={async () => {
           if (!deleteTarget || deleteMinimumStaffingRuleMutation.isPending) {
             return;

@@ -18,8 +18,9 @@ type CrudFormDialogProps = {
   title: string;
   description: string;
   children: ReactNode;
+  isSaving?: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
 };
 
 export function CrudFormDialog({
@@ -27,18 +28,22 @@ export function CrudFormDialog({
   title,
   description,
   children,
+  isSaving = false,
   onClose,
   onSave,
 }: CrudFormDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && !isSaving && onClose()}>
       <DialogContent>
         <div className="flex items-start justify-between gap-4">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
-          <DialogClose className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <DialogClose
+            disabled={isSaving}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+          >
             <span className="sr-only">닫기</span>
             <X className="size-5" aria-hidden="true" />
           </DialogClose>
@@ -47,11 +52,11 @@ export function CrudFormDialog({
         <div className="mt-6 space-y-5">{children}</div>
 
         <DialogFooter className="mt-8">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
             취소
           </Button>
-          <Button type="button" variant="brand" onClick={onSave}>
-            저장
+          <Button type="button" variant="brand" onClick={onSave} disabled={isSaving}>
+            {isSaving ? "저장 중..." : "저장"}
           </Button>
         </DialogFooter>
       </DialogContent>
