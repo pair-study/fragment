@@ -1,12 +1,20 @@
 "use client";
 
-import type { Availability, AvailabilityQuery, Worker } from "@fragment/shared";
+import type {
+  Availability,
+  AvailabilityQuery,
+  ReplaceAvailabilityRequest,
+  Worker,
+} from "@fragment/shared";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
 import { Check } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
-import { useAvailabilityQuery } from "@/features/availability/queries/availability-queries";
+import {
+  useAvailabilityQuery,
+  useReplaceAvailabilityMutation,
+} from "@/features/availability/queries/availability-queries";
 import { useActiveSchedulePlanningPeriodQuery } from "@/features/organization/queries/organization-queries";
 import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
 import { Input } from "@/components/ui/input";
@@ -18,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn } from "@/lib/utils";
 
 type AvailabilitySlot = {
@@ -97,6 +106,10 @@ function formatDateLabel(date: string) {
 
 function formatWeekday(date: string) {
   return WEEKDAY_FORMATTER.format(new Date(`${date}T00:00:00+09:00`));
+}
+
+function createLocalDateTime(date: string, time: string) {
+  return new Date(`${date}T${time}:00.000Z`).toISOString();
 }
 
 function getSlotKey(workerId: string, date: string, startTime: string) {
@@ -179,9 +192,20 @@ function summarizeAvailabilityByDate(slots: AvailabilitySlot[]) {
     });
 }
 
+function createAvailabilityItems(slots: AvailabilitySlot[]) {
+  return summarizeAvailabilityByDate(slots).flatMap((group) =>
+    group.ranges.map((range) => ({
+      availableDate: group.date,
+      endsAt: createLocalDateTime(group.date, range.endTime),
+      startsAt: createLocalDateTime(group.date, range.startTime),
+    })),
+  );
+}
+
 export function MvpAvailabilityPage() {
   const workersQuery = useWorkersQuery();
   const planningPeriodQuery = useActiveSchedulePlanningPeriodQuery();
+  const replaceAvailabilityMutation = useReplaceAvailabilityMutation();
   const workers = workersQuery.data?.items ?? EMPTY_WORKERS;
   const activePlanningPeriod = planningPeriodQuery.data?.period ?? null;
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
@@ -262,6 +286,8 @@ export function MvpAvailabilityPage() {
     selectedDraftAvailability.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
   );
   const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
+  const canSaveAvailability =
+    hasUnsavedChanges && Boolean(selectedWorkerId && workStartDate && workEndDate);
 
   function toggleSlot(date: string, startTime: string) {
     if (!selectedWorkerId) {
@@ -292,9 +318,28 @@ export function MvpAvailabilityPage() {
     setSaveMessage("");
   }
 
-  function saveAvailability() {
-    setSavedAvailability(draftAvailability);
-    setSaveMessage("가능 시간이 저장되었습니다.");
+  async function saveAvailability() {
+    if (!canSaveAvailability) {
+      return;
+    }
+
+    const request: ReplaceAvailabilityRequest = {
+      endDate: workEndDate,
+      items: createAvailabilityItems(selectedDraftAvailability),
+      startDate: workStartDate,
+      workerId: selectedWorkerId,
+    };
+
+    try {
+      const response = await replaceAvailabilityMutation.mutateAsync(request);
+      const slots = availabilityToSlots(response.items);
+
+      setSavedAvailability(slots);
+      setDraftAvailability(slots);
+      setSaveMessage("가능 시간이 저장되었습니다.");
+    } catch (error) {
+      setSaveMessage(getApiErrorMessage(error, "가능 시간 저장에 실패했습니다."));
+    }
   }
 
   return (
@@ -306,7 +351,7 @@ export function MvpAvailabilityPage() {
           <Button
             type="button"
             variant="outline"
-            disabled={!hasUnsavedChanges}
+            disabled={!hasUnsavedChanges || replaceAvailabilityMutation.isPending}
             onClick={() => {
               setDraftAvailability(savedAvailability);
               setSaveMessage("");
@@ -317,10 +362,12 @@ export function MvpAvailabilityPage() {
           <Button
             type="button"
             variant="brand"
-            disabled={!hasUnsavedChanges}
-            onClick={saveAvailability}
+            disabled={!canSaveAvailability || replaceAvailabilityMutation.isPending}
+            onClick={() => {
+              void saveAvailability();
+            }}
           >
-            변경사항 저장
+            {replaceAvailabilityMutation.isPending ? "저장 중" : "변경사항 저장"}
           </Button>
         </div>
       }
