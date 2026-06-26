@@ -1,10 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  DAY_OF_WEEK_VALUES,
+  type OrganizationDetail,
+  Availability,
+  AvailabilityQuery,
+  ReplaceAvailabilityRequest,
+  Worker,
+} from "@fragment/shared";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
 import { Check } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import {
+  useAvailabilityQuery,
+  useReplaceAvailabilityMutation,
+} from "@/features/availability/queries/availability-queries";
+import {
+  useActiveSchedulePlanningPeriodQuery,
+  useOrganizationQuery,
+  useUpsertActiveSchedulePlanningPeriodMutation,
+} from "@/features/organization/queries/organization-queries";
+import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,45 +32,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn } from "@/lib/utils";
-
-type Worker = {
-  id: string;
-  name: string;
-  weeklyContractHours: number;
-};
 
 type AvailabilitySlot = {
   workerId: string;
   date: string;
-  startTime: string;
+  startMinutes: number;
 };
 
-const WORKERS: Worker[] = [
-  { id: "worker-1", name: "김민지", weeklyContractHours: 15 },
-  { id: "worker-2", name: "박준호", weeklyContractHours: 20 },
-  { id: "worker-3", name: "이서연", weeklyContractHours: 12 },
-];
+type BusinessHour = OrganizationDetail["businessHours"][number];
 
-const DEFAULT_WORK_START_DATE = "2026-06-20";
-const DEFAULT_WORK_END_DATE = "2026-07-05";
-const ORGANIZATION_OPEN_TIME = "09:00";
-const ORGANIZATION_CLOSE_TIME = "22:00";
-const HOLIDAY_DATES = ["2026-06-21", "2026-06-28", "2026-07-05"];
+const SLOT_INTERVAL_MINUTES = 30;
 const TIMETABLE_DATE_COLUMN_WIDTH = 76;
-
-const INITIAL_AVAILABILITY: AvailabilitySlot[] = [
-  { workerId: "worker-1", date: "2026-06-20", startTime: "10:00" },
-  { workerId: "worker-1", date: "2026-06-20", startTime: "10:30" },
-  { workerId: "worker-1", date: "2026-06-20", startTime: "11:00" },
-  { workerId: "worker-1", date: "2026-06-24", startTime: "18:00" },
-  { workerId: "worker-1", date: "2026-06-24", startTime: "18:30" },
-  { workerId: "worker-2", date: "2026-06-26", startTime: "14:00" },
-  { workerId: "worker-2", date: "2026-06-26", startTime: "14:30" },
-  { workerId: "worker-2", date: "2026-06-26", startTime: "15:00" },
-  { workerId: "worker-3", date: "2026-07-02", startTime: "16:00" },
-  { workerId: "worker-3", date: "2026-07-02", startTime: "16:30" },
-];
+const TIMETABLE_TIME_COLUMN_WIDTH = 64;
+const DEFAULT_TIMETABLE_START_MINUTES = 9 * 60;
+const DEFAULT_TIMETABLE_END_MINUTES = 22 * 60;
+const EMPTY_WORKERS: Worker[] = [];
+const EMPTY_BUSINESS_HOURS: BusinessHour[] = [];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   month: "2-digit",
@@ -71,9 +68,18 @@ function timeToMinutes(time: string) {
 }
 
 function minutesToTime(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const restMinutes = minutes % 60;
+  const minutesInDay = 24 * 60;
+  const normalizedMinutes = ((minutes % minutesInDay) + minutesInDay) % minutesInDay;
+  const hours = Math.floor(normalizedMinutes / 60);
+  const restMinutes = normalizedMinutes % 60;
   return `${String(hours).padStart(2, "0")}:${String(restMinutes).padStart(2, "0")}`;
+}
+
+function dateTimeToStartMinutes(availableDate: string, dateTime: string) {
+  const baseDate = new Date(`${availableDate}T00:00:00.000Z`);
+  const targetDate = new Date(dateTime);
+
+  return Math.round((targetDate.getTime() - baseDate.getTime()) / 60000);
 }
 
 function addDays(date: string, days: number) {
@@ -98,14 +104,72 @@ function createDateRange(startDate: string, endDate: string) {
   return dates;
 }
 
-function createTimeSlots(openTime: string, closeTime: string) {
-  const slots: string[] = [];
+function createTimeSlots(startMinutes: number, endMinutes: number) {
+  const slots: number[] = [];
 
-  for (let minutes = timeToMinutes(openTime); minutes < timeToMinutes(closeTime); minutes += 30) {
-    slots.push(minutesToTime(minutes));
+  for (let minutes = startMinutes; minutes < endMinutes; minutes += SLOT_INTERVAL_MINUTES) {
+    slots.push(minutes);
   }
 
   return slots;
+}
+
+function getDayOfWeek(date: string) {
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+  const mondayFirstDay = day === 0 ? 6 : day - 1;
+
+  return DAY_OF_WEEK_VALUES[mondayFirstDay];
+}
+
+function getBusinessHourForDate(businessHours: BusinessHour[], date: string) {
+  return businessHours.find((businessHour) => businessHour.dayOfWeek === getDayOfWeek(date));
+}
+
+function getBusinessHourRange(businessHour: BusinessHour | undefined) {
+  if (businessHour?.isClosed || !businessHour?.openTime || !businessHour.closeTime) {
+    return null;
+  }
+
+  const startMinutes = timeToMinutes(businessHour.openTime);
+  const endMinutes =
+    timeToMinutes(businessHour.closeTime) + (businessHour.closesNextDay ? 24 * 60 : 0);
+
+  return {
+    endMinutes,
+    startMinutes,
+  };
+}
+
+function getTimetableRange(businessHours: BusinessHour[], dateRange: string[]) {
+  const ranges = dateRange
+    .map((date) => getBusinessHourRange(getBusinessHourForDate(businessHours, date)))
+    .filter((range): range is NonNullable<typeof range> => Boolean(range));
+
+  if (ranges.length === 0) {
+    return {
+      endMinutes: DEFAULT_TIMETABLE_END_MINUTES,
+      startMinutes: DEFAULT_TIMETABLE_START_MINUTES,
+    };
+  }
+
+  return {
+    endMinutes: Math.max(...ranges.map((range) => range.endMinutes)),
+    startMinutes: Math.min(...ranges.map((range) => range.startMinutes)),
+  };
+}
+
+function isClosedDate(businessHours: BusinessHour[], date: string) {
+  return !getBusinessHourRange(getBusinessHourForDate(businessHours, date));
+}
+
+function isSlotInBusinessHours(businessHours: BusinessHour[], date: string, startMinutes: number) {
+  const range = getBusinessHourRange(getBusinessHourForDate(businessHours, date));
+
+  if (!range) {
+    return false;
+  }
+
+  return startMinutes >= range.startMinutes && startMinutes < range.endMinutes;
 }
 
 function formatDateLabel(date: string) {
@@ -116,16 +180,44 @@ function formatWeekday(date: string) {
   return WEEKDAY_FORMATTER.format(new Date(`${date}T00:00:00+09:00`));
 }
 
-function getSlotKey(workerId: string, date: string, startTime: string) {
-  return `${workerId}:${date}:${startTime}`;
+function createLocalDateTime(date: string, minutes: number) {
+  const [year, month, day] = date.split("-").map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day, 0, minutes)).toISOString();
+}
+
+function formatSlotTime(minutes: number) {
+  return minutes >= 24 * 60 ? `${minutesToTime(minutes)}+1` : minutesToTime(minutes);
+}
+
+function getSlotKey(workerId: string, date: string, startMinutes: number) {
+  return `${workerId}:${date}:${startMinutes}`;
+}
+
+function availabilityToSlots(items: Availability[]) {
+  return items.flatMap((item) => {
+    const slots: AvailabilitySlot[] = [];
+    const startMinutes = dateTimeToStartMinutes(item.availableDate, item.startsAt);
+    const endMinutes = dateTimeToStartMinutes(item.availableDate, item.endsAt);
+
+    for (let minutes = startMinutes; minutes < endMinutes; minutes += SLOT_INTERVAL_MINUTES) {
+      slots.push({
+        date: item.availableDate,
+        startMinutes: minutes,
+        workerId: item.workerId,
+      });
+    }
+
+    return slots;
+  });
 }
 
 function hasSameSlots(firstSlots: AvailabilitySlot[], secondSlots: AvailabilitySlot[]) {
   const firstKeys = new Set(
-    firstSlots.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
+    firstSlots.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startMinutes)),
   );
   const secondKeys = new Set(
-    secondSlots.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
+    secondSlots.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startMinutes)),
   );
 
   if (firstKeys.size !== secondKeys.size) {
@@ -136,16 +228,16 @@ function hasSameSlots(firstSlots: AvailabilitySlot[], secondSlots: AvailabilityS
 }
 
 function summarizeAvailabilityByDate(slots: AvailabilitySlot[]) {
-  const slotsByDate = slots.reduce<Record<string, string[]>>((acc, slot) => {
-    acc[slot.date] = [...(acc[slot.date] ?? []), slot.startTime];
+  const slotsByDate = slots.reduce<Record<string, number[]>>((acc, slot) => {
+    acc[slot.date] = [...(acc[slot.date] ?? []), slot.startMinutes];
     return acc;
   }, {});
 
   return Object.entries(slotsByDate)
     .sort(([firstDate], [secondDate]) => firstDate.localeCompare(secondDate))
-    .map(([date, startTimes]) => {
-      const sortedMinutes = [...new Set(startTimes.map(timeToMinutes))].sort((a, b) => a - b);
-      const ranges: { startTime: string; endTime: string }[] = [];
+    .map(([date, startMinutes]) => {
+      const sortedMinutes = [...new Set(startMinutes)].sort((a, b) => a - b);
+      const ranges: { endMinutes: number; startMinutes: number }[] = [];
 
       let rangeStart = sortedMinutes[0];
       let previous = sortedMinutes[0];
@@ -157,8 +249,8 @@ function summarizeAvailabilityByDate(slots: AvailabilitySlot[]) {
         }
 
         ranges.push({
-          startTime: minutesToTime(rangeStart),
-          endTime: minutesToTime(previous + 30),
+          endMinutes: previous + SLOT_INTERVAL_MINUTES,
+          startMinutes: rangeStart,
         });
         rangeStart = current;
         previous = current;
@@ -166,8 +258,8 @@ function summarizeAvailabilityByDate(slots: AvailabilitySlot[]) {
 
       if (rangeStart !== undefined && previous !== undefined) {
         ranges.push({
-          startTime: minutesToTime(rangeStart),
-          endTime: minutesToTime(previous + 30),
+          endMinutes: previous + SLOT_INTERVAL_MINUTES,
+          startMinutes: rangeStart,
         });
       }
 
@@ -178,26 +270,105 @@ function summarizeAvailabilityByDate(slots: AvailabilitySlot[]) {
     });
 }
 
+function createAvailabilityItems(slots: AvailabilitySlot[]) {
+  return summarizeAvailabilityByDate(slots).flatMap((group) =>
+    group.ranges.map((range) => ({
+      availableDate: group.date,
+      endsAt: createLocalDateTime(group.date, range.endMinutes),
+      startsAt: createLocalDateTime(group.date, range.startMinutes),
+    })),
+  );
+}
+
 export function MvpAvailabilityPage() {
-  const [selectedWorkerId, setSelectedWorkerId] = useState(WORKERS[0]?.id ?? "");
+  const workersQuery = useWorkersQuery();
+  const organizationQuery = useOrganizationQuery();
+  const planningPeriodQuery = useActiveSchedulePlanningPeriodQuery();
+  const upsertPlanningPeriodMutation = useUpsertActiveSchedulePlanningPeriodMutation();
+  const replaceAvailabilityMutation = useReplaceAvailabilityMutation();
+  const workers = workersQuery.data?.items ?? EMPTY_WORKERS;
+  const businessHours = organizationQuery.data?.businessHours ?? EMPTY_BUSINESS_HOURS;
+  const activePlanningPeriod = planningPeriodQuery.data?.period ?? null;
+  const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [selectedAvailabilityDate, setSelectedAvailabilityDate] = useState("");
-  const [workStartDate, setWorkStartDate] = useState(DEFAULT_WORK_START_DATE);
-  const [workEndDate, setWorkEndDate] = useState(DEFAULT_WORK_END_DATE);
-  const [savedAvailability, setSavedAvailability] =
-    useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
-  const [draftAvailability, setDraftAvailability] =
-    useState<AvailabilitySlot[]>(INITIAL_AVAILABILITY);
+  const [workStartDate, setWorkStartDate] = useState("");
+  const [workEndDate, setWorkEndDate] = useState("");
+  const [savedAvailability, setSavedAvailability] = useState<AvailabilitySlot[]>([]);
+  const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
   const [saveMessage, setSaveMessage] = useState("");
+  const availabilityQuery: AvailabilityQuery = useMemo(
+    () => ({
+      endDate: workEndDate,
+      startDate: workStartDate,
+      workerId: selectedWorkerId,
+    }),
+    [selectedWorkerId, workEndDate, workStartDate],
+  );
+  const canFetchAvailability =
+    Boolean(selectedWorkerId && workStartDate && workEndDate) && workStartDate <= workEndDate;
+  const availabilityResult = useAvailabilityQuery(availabilityQuery, canFetchAvailability);
+  const isPageLoading =
+    organizationQuery.isLoading || planningPeriodQuery.isLoading || workersQuery.isLoading;
+  const queryError =
+    organizationQuery.error ??
+    planningPeriodQuery.error ??
+    workersQuery.error ??
+    availabilityResult.error;
+  const queryErrorMessage = queryError
+    ? getApiErrorMessage(queryError, "가능 시간 정보를 불러오지 못했습니다.")
+    : "";
+  const hasValidDateRange = Boolean(workStartDate && workEndDate) && workStartDate <= workEndDate;
   const dateRange = useMemo(
     () => createDateRange(workStartDate, workEndDate),
     [workEndDate, workStartDate],
   );
+  const timetableRange = useMemo(
+    () => getTimetableRange(businessHours, dateRange),
+    [businessHours, dateRange],
+  );
   const timeSlots = useMemo(
-    () => createTimeSlots(ORGANIZATION_OPEN_TIME, ORGANIZATION_CLOSE_TIME),
-    [],
+    () => createTimeSlots(timetableRange.startMinutes, timetableRange.endMinutes),
+    [timetableRange],
   );
 
-  const selectedWorker = WORKERS.find((worker) => worker.id === selectedWorkerId) ?? WORKERS[0];
+  useEffect(() => {
+    if (!planningPeriodQuery.data) {
+      return;
+    }
+
+    if (!activePlanningPeriod) {
+      setWorkStartDate("");
+      setWorkEndDate("");
+      return;
+    }
+
+    setWorkStartDate(activePlanningPeriod.startDate);
+    setWorkEndDate(activePlanningPeriod.endDate);
+  }, [activePlanningPeriod, planningPeriodQuery.data]);
+
+  useEffect(() => {
+    if (workers.length === 0) {
+      setSelectedWorkerId("");
+      return;
+    }
+
+    if (!workers.some((worker) => worker.id === selectedWorkerId)) {
+      setSelectedWorkerId(workers[0].id);
+      setSelectedAvailabilityDate("");
+      setSaveMessage("");
+    }
+  }, [selectedWorkerId, workers]);
+
+  useEffect(() => {
+    const slots = availabilityToSlots(availabilityResult.data?.items ?? []);
+
+    setSavedAvailability(slots);
+    setDraftAvailability(slots);
+    setSelectedAvailabilityDate("");
+    setSaveMessage("");
+  }, [availabilityResult.data]);
+
+  const selectedWorker = workers.find((worker) => worker.id === selectedWorkerId);
   const selectedDraftAvailability = draftAvailability.filter(
     (slot) =>
       slot.workerId === selectedWorkerId && slot.date >= workStartDate && slot.date <= workEndDate,
@@ -214,38 +385,94 @@ export function MvpAvailabilityPage() {
     0,
   );
   const draftSlotKeys = new Set(
-    selectedDraftAvailability.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startTime)),
+    selectedDraftAvailability.map((slot) =>
+      getSlotKey(slot.workerId, slot.date, slot.startMinutes),
+    ),
   );
   const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
+  const canSaveAvailability =
+    hasUnsavedChanges &&
+    hasValidDateRange &&
+    Boolean(selectedWorkerId) &&
+    !availabilityResult.isFetching &&
+    !queryErrorMessage;
 
-  function toggleSlot(date: string, startTime: string) {
-    if (HOLIDAY_DATES.includes(date)) {
+  function toggleSlot(date: string, startMinutes: number) {
+    if (!selectedWorkerId || queryErrorMessage || availabilityResult.isFetching) {
       return;
     }
 
-    const key = getSlotKey(selectedWorkerId, date, startTime);
+    if (!isSlotInBusinessHours(businessHours, date, startMinutes)) {
+      return;
+    }
+
+    const key = getSlotKey(selectedWorkerId, date, startMinutes);
     const selected = draftSlotKeys.has(key);
 
     setDraftAvailability((currentAvailability) =>
       selected
         ? currentAvailability.filter(
-            (slot) => getSlotKey(slot.workerId, slot.date, slot.startTime) !== key,
+            (slot) => getSlotKey(slot.workerId, slot.date, slot.startMinutes) !== key,
           )
         : [
             ...currentAvailability,
             {
               workerId: selectedWorkerId,
               date,
-              startTime,
+              startMinutes,
             },
           ],
     );
     setSaveMessage("");
   }
 
-  function saveAvailability() {
-    setSavedAvailability(draftAvailability);
-    setSaveMessage("가능 시간이 저장되었습니다.");
+  async function saveAvailability() {
+    if (!canSaveAvailability) {
+      return;
+    }
+
+    const request: ReplaceAvailabilityRequest = {
+      endDate: workEndDate,
+      items: createAvailabilityItems(selectedDraftAvailability),
+      startDate: workStartDate,
+      workerId: selectedWorkerId,
+    };
+
+    try {
+      const response = await replaceAvailabilityMutation.mutateAsync(request);
+      const slots = availabilityToSlots(response.items);
+
+      setSavedAvailability(slots);
+      setDraftAvailability(slots);
+      setSaveMessage("가능 시간이 저장되었습니다.");
+    } catch (error) {
+      setSaveMessage(getApiErrorMessage(error, "가능 시간 저장에 실패했습니다."));
+    }
+  }
+
+  function savePlanningPeriod(nextStartDate: string, nextEndDate: string) {
+    if (!nextStartDate || !nextEndDate || nextEndDate < nextStartDate) {
+      return;
+    }
+
+    if (
+      activePlanningPeriod?.startDate === nextStartDate &&
+      activePlanningPeriod.endDate === nextEndDate
+    ) {
+      return;
+    }
+
+    upsertPlanningPeriodMutation.mutate(
+      {
+        endDate: nextEndDate,
+        startDate: nextStartDate,
+      },
+      {
+        onError: (error) => {
+          setSaveMessage(getApiErrorMessage(error, "근무 기간 저장에 실패했습니다."));
+        },
+      },
+    );
   }
 
   return (
@@ -257,7 +484,7 @@ export function MvpAvailabilityPage() {
           <Button
             type="button"
             variant="outline"
-            disabled={!hasUnsavedChanges}
+            disabled={!hasUnsavedChanges || replaceAvailabilityMutation.isPending}
             onClick={() => {
               setDraftAvailability(savedAvailability);
               setSaveMessage("");
@@ -268,16 +495,30 @@ export function MvpAvailabilityPage() {
           <Button
             type="button"
             variant="brand"
-            disabled={!hasUnsavedChanges}
-            onClick={saveAvailability}
+            disabled={!canSaveAvailability || replaceAvailabilityMutation.isPending}
+            onClick={() => {
+              void saveAvailability();
+            }}
           >
-            변경사항 저장
+            {replaceAvailabilityMutation.isPending ? "저장 중" : "변경사항 저장"}
           </Button>
         </div>
       }
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
+      {isPageLoading ? (
+        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
+          가능 시간 정보를 불러오는 중입니다.
+        </div>
+      ) : null}
+
+      {queryErrorMessage ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {queryErrorMessage}
+        </div>
+      ) : null}
+
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -292,11 +533,15 @@ export function MvpAvailabilityPage() {
               <Input
                 id="availability-work-start-date"
                 type="date"
+                disabled={isPageLoading}
                 value={workStartDate}
                 onChange={(event) => {
-                  setWorkStartDate(event.target.value);
+                  const nextStartDate = event.target.value;
+
+                  setWorkStartDate(nextStartDate);
                   setSelectedAvailabilityDate("");
                   setSaveMessage("");
+                  savePlanningPeriod(nextStartDate, workEndDate);
                 }}
               />
             </div>
@@ -305,11 +550,15 @@ export function MvpAvailabilityPage() {
               <Input
                 id="availability-work-end-date"
                 type="date"
+                disabled={isPageLoading}
                 value={workEndDate}
                 onChange={(event) => {
-                  setWorkEndDate(event.target.value);
+                  const nextEndDate = event.target.value;
+
+                  setWorkEndDate(nextEndDate);
                   setSelectedAvailabilityDate("");
                   setSaveMessage("");
+                  savePlanningPeriod(workStartDate, nextEndDate);
                 }}
               />
             </div>
@@ -323,6 +572,7 @@ export function MvpAvailabilityPage() {
             <Label htmlFor="worker-select">근무자 선택</Label>
             <Select
               value={selectedWorkerId}
+              disabled={isPageLoading || workers.length === 0}
               onValueChange={(value) => {
                 setSelectedWorkerId(value);
                 setSelectedAvailabilityDate("");
@@ -333,7 +583,7 @@ export function MvpAvailabilityPage() {
                 <SelectValue placeholder="근무자를 선택하세요" />
               </SelectTrigger>
               <SelectContent>
-                {WORKERS.map((worker) => (
+                {workers.map((worker) => (
                   <SelectItem key={worker.id} value={worker.id}>
                     {worker.name}
                   </SelectItem>
@@ -343,11 +593,17 @@ export function MvpAvailabilityPage() {
           </div>
 
           <div className="rounded-lg bg-surface-secondary px-4 py-3">
-            <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 운영 시간:{" "}
-              {ORGANIZATION_OPEN_TIME}-{ORGANIZATION_CLOSE_TIME}
-            </p>
+            {selectedWorker ? (
+              <>
+                <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 운영 시간은 요일별
+                  조직 설정을 따릅니다.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">등록된 근무자가 없습니다.</p>
+            )}
           </div>
         </div>
       </section>
@@ -397,10 +653,10 @@ export function MvpAvailabilityPage() {
               <div className="mt-3 flex flex-wrap gap-2">
                 {activeAvailabilityRanges.map((range) => (
                   <span
-                    key={`${activeAvailabilityDate}-${range.startTime}`}
+                    key={`${activeAvailabilityDate}-${range.startMinutes}`}
                     className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground"
                   >
-                    {range.startTime}~{range.endTime}
+                    {formatSlotTime(range.startMinutes)}~{formatSlotTime(range.endMinutes)}
                   </span>
                 ))}
               </div>
@@ -428,6 +684,9 @@ export function MvpAvailabilityPage() {
               </p>
             </div>
             {hasUnsavedChanges ? <Badge variant="brand-weak">저장 전 변경 있음</Badge> : null}
+            {availabilityResult.isFetching ? (
+              <Badge variant="neutral-weak">불러오는 중</Badge>
+            ) : null}
           </div>
         </div>
 
@@ -436,7 +695,7 @@ export function MvpAvailabilityPage() {
             <div
               className="grid gap-1"
               style={{
-                gridTemplateColumns: `56px repeat(${dateRange.length}, ${TIMETABLE_DATE_COLUMN_WIDTH}px)`,
+                gridTemplateColumns: `${TIMETABLE_TIME_COLUMN_WIDTH}px repeat(${dateRange.length}, ${TIMETABLE_DATE_COLUMN_WIDTH}px)`,
               }}
             >
               <div />
@@ -446,7 +705,7 @@ export function MvpAvailabilityPage() {
                     {formatWeekday(date)}
                   </p>
                   <p className="mt-1 text-sm font-bold text-foreground">{formatDateLabel(date)}</p>
-                  {HOLIDAY_DATES.includes(date) ? (
+                  {isClosedDate(businessHours, date) ? (
                     <Badge variant="neutral-weak" size="sm" className="mt-2">
                       휴무
                     </Badge>
@@ -454,34 +713,43 @@ export function MvpAvailabilityPage() {
                 </div>
               ))}
 
-              {timeSlots.map((time) => {
-                const showHourLabel = time.endsWith(":00");
+              {timeSlots.map((startMinutes) => {
+                const showHourLabel = startMinutes % 60 === 0;
+                const timeLabel = formatSlotTime(startMinutes);
 
                 return (
-                  <div key={time} className="contents">
+                  <div key={startMinutes} className="contents">
                     <div className="h-8 pr-2 text-right text-sm text-muted-foreground">
-                      {showHourLabel ? Number(time.slice(0, 2)) : ""}
+                      {showHourLabel ? timeLabel : ""}
                     </div>
                     {dateRange.map((date) => {
-                      const disabled = HOLIDAY_DATES.includes(date);
-                      const selected = draftSlotKeys.has(getSlotKey(selectedWorkerId, date, time));
+                      const disabled = !isSlotInBusinessHours(businessHours, date, startMinutes);
+                      const selected = draftSlotKeys.has(
+                        getSlotKey(selectedWorkerId, date, startMinutes),
+                      );
+                      const disabledByState =
+                        disabled ||
+                        !selectedWorkerId ||
+                        !hasValidDateRange ||
+                        Boolean(queryErrorMessage) ||
+                        availabilityResult.isFetching;
 
                       return (
                         <button
-                          key={`${date}-${time}`}
+                          key={`${date}-${startMinutes}`}
                           type="button"
-                          disabled={disabled}
+                          disabled={disabledByState}
                           aria-pressed={selected}
-                          aria-label={`${date} ${time} 가능 시간 ${selected ? "해제" : "선택"}`}
+                          aria-label={`${date} ${timeLabel} 가능 시간 ${selected ? "해제" : "선택"}`}
                           className={cn(
                             "flex h-8 items-center justify-center rounded-md border text-[10px] transition-colors",
-                            disabled
+                            disabledByState
                               ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
                               : selected
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
                           )}
-                          onClick={() => toggleSlot(date, time)}
+                          onClick={() => toggleSlot(date, startMinutes)}
                         >
                           {selected ? <Check className="size-3" aria-hidden="true" /> : null}
                         </button>
