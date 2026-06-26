@@ -214,6 +214,130 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /organization/active-schedule-planning-period:
+    get:
+      tags:
+        - Organization
+      summary: 현재 스케줄링 기간 조회
+      description: 현재 사용자의 조직에 설정된 active schedule planning period를 조회합니다.
+      operationId: getActiveSchedulePlanningPeriod
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 현재 스케줄링 기간 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveSchedulePlanningPeriodResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+
+    put:
+      tags:
+        - Organization
+      summary: 현재 스케줄링 기간 저장
+      description: 현재 사용자의 조직에 설정된 active schedule planning period를 생성하거나 교체합니다.
+      operationId: upsertActiveSchedulePlanningPeriod
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertActiveSchedulePlanningPeriodRequest"
+      responses:
+        "200":
+          description: 현재 스케줄링 기간 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveSchedulePlanningPeriod"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+
+    delete:
+      tags:
+        - Organization
+      summary: 현재 스케줄링 기간 삭제
+      operationId: deleteActiveSchedulePlanningPeriod
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: 현재 스케줄링 기간 삭제 성공
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+
+  /availability:
+    get:
+      tags:
+        - Availability
+      summary: 가능 시간 조회
+      description: 특정 근무자의 선택 기간 가능 시간을 조회합니다.
+      operationId: listAvailability
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AvailabilityWorkerId"
+        - $ref: "#/components/parameters/StartDate"
+        - $ref: "#/components/parameters/EndDate"
+      responses:
+        "200":
+          description: 가능 시간 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /availability/bulk:
+    put:
+      tags:
+        - Availability
+      summary: 가능 시간 일괄 저장
+      description: 선택 범위의 특정 근무자 가능 시간을 요청값으로 전체 교체합니다.
+      operationId: replaceAvailability
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceAvailabilityRequest"
+      responses:
+        "200":
+          description: 가능 시간 일괄 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /workers:
     get:
       tags:
@@ -363,6 +487,30 @@ components:
         type: string
         pattern: "^\\d+$"
       example: "1"
+    AvailabilityWorkerId:
+      name: workerId
+      in: query
+      required: true
+      schema:
+        type: string
+        pattern: "^\\d+$"
+      example: "1"
+    StartDate:
+      name: startDate
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      example: "2026-07-01"
+    EndDate:
+      name: endDate
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      example: "2026-07-31"
 
   schemas:
     ErrorResponse:
@@ -609,6 +757,133 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/OrganizationBusinessHourInput"
+
+    ActiveSchedulePlanningPeriod:
+      type: object
+      required:
+        - id
+        - startDate
+        - endDate
+      properties:
+        id:
+          type: string
+          example: "1"
+        startDate:
+          type: string
+          format: date
+          example: "2026-07-01"
+        endDate:
+          type: string
+          format: date
+          example: "2026-07-31"
+
+    ActiveSchedulePlanningPeriodResponse:
+      type: object
+      required:
+        - period
+      properties:
+        period:
+          oneOf:
+            - $ref: "#/components/schemas/ActiveSchedulePlanningPeriod"
+            - type: "null"
+
+    UpsertActiveSchedulePlanningPeriodRequest:
+      type: object
+      required:
+        - startDate
+        - endDate
+      properties:
+        startDate:
+          type: string
+          format: date
+          example: "2026-07-01"
+        endDate:
+          type: string
+          format: date
+          example: "2026-07-31"
+
+    Availability:
+      type: object
+      required:
+        - id
+        - workerId
+        - availableDate
+        - startsAt
+        - endsAt
+      properties:
+        id:
+          type: string
+          example: "1"
+        workerId:
+          type: string
+          example: "1"
+        availableDate:
+          type: string
+          format: date
+          example: "2026-07-01"
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-07-01T10:00:00.000Z"
+        endsAt:
+          type: string
+          format: date-time
+          example: "2026-07-01T14:00:00.000Z"
+
+    AvailabilityInput:
+      type: object
+      required:
+        - availableDate
+        - startsAt
+        - endsAt
+      properties:
+        availableDate:
+          type: string
+          format: date
+          example: "2026-07-01"
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-07-01T10:00:00.000Z"
+        endsAt:
+          type: string
+          format: date-time
+          example: "2026-07-01T14:00:00.000Z"
+
+    AvailabilityListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Availability"
+
+    ReplaceAvailabilityRequest:
+      type: object
+      required:
+        - workerId
+        - startDate
+        - endDate
+        - items
+      properties:
+        workerId:
+          type: string
+          pattern: "^\\d+$"
+          example: "1"
+        startDate:
+          type: string
+          format: date
+          example: "2026-07-01"
+        endDate:
+          type: string
+          format: date
+          example: "2026-07-31"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailabilityInput"
 
     Worker:
       type: object

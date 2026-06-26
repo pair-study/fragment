@@ -4,6 +4,7 @@ export const idSchema = z.string().regex(/^\d+$/, "ID는 숫자 문자열이어�
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+const dateTimeTimePattern = /T\d{2}:(\d{2}):(\d{2})(?:\.(\d+))?(?:Z|[+-]\d{2}:\d{2})$/;
 
 const isValidDate = (value: string) => {
   if (!datePattern.test(value)) {
@@ -31,9 +32,15 @@ export const isDateTimeBefore = (startDateTime: string, endDateTime: string) =>
   Date.parse(startDateTime) < Date.parse(endDateTime);
 
 export const isDateTimeOnThirtyMinuteBoundary = (dateTime: string) => {
-  const minute = Number(dateTime.match(/T\d{2}:(\d{2})/)?.[1]);
+  const match = dateTime.match(dateTimeTimePattern);
 
-  return minute === 0 || minute === 30;
+  if (!match) {
+    return false;
+  }
+
+  const [, minute, second, fraction = "0"] = match;
+
+  return (minute === "00" || minute === "30") && second === "00" && /^0+$/.test(fraction);
 };
 
 export const DAY_OF_WEEK_VALUES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;

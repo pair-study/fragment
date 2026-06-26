@@ -25,6 +25,15 @@ type FakeOrganization = {
   businessHours: FakeBusinessHour[];
 };
 
+type FakeActiveSchedulePlanningPeriod = {
+  id: bigint;
+  organizationId: bigint;
+  startDate: Date;
+  endDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type FakeMinimumStaffingRule = {
   id: bigint;
   organizationId: bigint;
@@ -33,6 +42,16 @@ type FakeMinimumStaffingRule = {
   endTime: Date;
   endsNextDay: boolean;
   requiredCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type FakeWorkerAvailableTime = {
+  id: bigint;
+  workerId: bigint;
+  availableDate: Date;
+  startsAt: Date;
+  endsAt: Date;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -54,6 +73,8 @@ type FakeWorker = {
 };
 
 type CreateFakePrismaOptions = {
+  activeSchedulePlanningPeriods?: FakeActiveSchedulePlanningPeriod[];
+  availableTimes?: FakeWorkerAvailableTime[];
   minimumStaffingRules?: FakeMinimumStaffingRule[];
   organizations?: FakeOrganization[];
   refreshTokens?: FakeRefreshToken[];
@@ -70,6 +91,16 @@ const cloneBusinessHour = (businessHour: FakeBusinessHour): FakeBusinessHour => 
   openTime: cloneDate(businessHour.openTime),
 });
 
+const cloneActiveSchedulePlanningPeriod = (
+  period: FakeActiveSchedulePlanningPeriod,
+): FakeActiveSchedulePlanningPeriod => ({
+  ...period,
+  createdAt: cloneRequiredDate(period.createdAt),
+  endDate: cloneRequiredDate(period.endDate),
+  startDate: cloneRequiredDate(period.startDate),
+  updatedAt: cloneRequiredDate(period.updatedAt),
+});
+
 const cloneMinimumStaffingRule = (
   minimumStaffingRule: FakeMinimumStaffingRule,
 ): FakeMinimumStaffingRule => ({
@@ -80,6 +111,17 @@ const cloneMinimumStaffingRule = (
   updatedAt: cloneRequiredDate(minimumStaffingRule.updatedAt),
 });
 
+const cloneWorkerAvailableTime = (
+  availableTime: FakeWorkerAvailableTime,
+): FakeWorkerAvailableTime => ({
+  ...availableTime,
+  availableDate: cloneRequiredDate(availableTime.availableDate),
+  createdAt: cloneRequiredDate(availableTime.createdAt),
+  endsAt: cloneRequiredDate(availableTime.endsAt),
+  startsAt: cloneRequiredDate(availableTime.startsAt),
+  updatedAt: cloneRequiredDate(availableTime.updatedAt),
+});
+
 const getNextId = <T extends { id: bigint }>(items: T[]) =>
   items.reduce((nextId, item) => (item.id >= nextId ? item.id + BigInt(1) : nextId), BigInt(1));
 
@@ -88,6 +130,8 @@ const dayOfWeekOrder = Object.fromEntries(
 ) as Record<(typeof DAY_OF_WEEK_VALUES)[number], number>;
 
 export function createFakePrisma({
+  activeSchedulePlanningPeriods = [],
+  availableTimes = [],
   minimumStaffingRules = [],
   organizations = [],
   refreshTokens = [],
@@ -99,8 +143,14 @@ export function createFakePrisma({
       organizations.flatMap((organization) => organization.businessHours),
     ),
     nextOrganizationId: getNextId(organizations),
+    nextAvailableTimeId: getNextId(availableTimes),
+    nextPlanningPeriodId: getNextId(activeSchedulePlanningPeriods),
     nextRefreshTokenId: getNextId(refreshTokens),
     nextUserId: getNextId(users),
+    activeSchedulePlanningPeriods: activeSchedulePlanningPeriods.map(
+      cloneActiveSchedulePlanningPeriod,
+    ),
+    availableTimes: availableTimes.map(cloneWorkerAvailableTime),
     minimumStaffingRules: minimumStaffingRules.map(cloneMinimumStaffingRule),
     organizations: organizations.map((organization) => ({
       ...organization,
@@ -151,6 +201,50 @@ export function createFakePrisma({
         organization.businessHours = [];
 
         return { count };
+      },
+    },
+    activeSchedulePlanningPeriod: {
+      deleteMany: async ({ where }: any) => {
+        const initialCount = state.activeSchedulePlanningPeriods.length;
+        state.activeSchedulePlanningPeriods = state.activeSchedulePlanningPeriods.filter(
+          (period) => period.organizationId !== where.organizationId,
+        );
+
+        return { count: initialCount - state.activeSchedulePlanningPeriods.length };
+      },
+      findUnique: async ({ where }: any) => {
+        const period =
+          state.activeSchedulePlanningPeriods.find(
+            (currentPeriod) => currentPeriod.organizationId === where.organizationId,
+          ) ?? null;
+
+        return period ? cloneActiveSchedulePlanningPeriod(period) : null;
+      },
+      upsert: async ({ create, update, where }: any) => {
+        const existingPeriod = state.activeSchedulePlanningPeriods.find(
+          (period) => period.organizationId === where.organizationId,
+        );
+        const now = new Date("2026-06-25T00:00:00.000Z");
+
+        if (existingPeriod) {
+          Object.assign(existingPeriod, {
+            ...update,
+            updatedAt: now,
+          });
+
+          return cloneActiveSchedulePlanningPeriod(existingPeriod);
+        }
+
+        const period: FakeActiveSchedulePlanningPeriod = {
+          id: state.nextPlanningPeriodId++,
+          createdAt: now,
+          updatedAt: now,
+          ...create,
+        };
+
+        state.activeSchedulePlanningPeriods.push(period);
+
+        return cloneActiveSchedulePlanningPeriod(period);
       },
     },
     minimumStaffingRule: {
@@ -227,6 +321,33 @@ export function createFakePrisma({
       },
     },
     worker: {
+      findFirst: async ({ select, where }: any) => {
+        const worker =
+          state.workers.find((currentWorker) => {
+            if (where.id !== undefined && currentWorker.id !== where.id) {
+              return false;
+            }
+
+            if (
+              where.organizationId !== undefined &&
+              currentWorker.organizationId !== where.organizationId
+            ) {
+              return false;
+            }
+
+            return true;
+          }) ?? null;
+
+        if (!worker || !select) {
+          return worker ? { ...worker } : null;
+        }
+
+        return Object.fromEntries(
+          Object.keys(select)
+            .filter((key) => select[key])
+            .map((key) => [key, worker[key as keyof FakeWorker]]),
+        );
+      },
       findMany: async ({ orderBy, where }: any) => {
         const matchingWorkers = state.workers
           .filter((worker) => {
@@ -246,6 +367,92 @@ export function createFakePrisma({
         }
 
         return matchingWorkers;
+      },
+    },
+    workerAvailableTime: {
+      createMany: async ({ data }: any) => {
+        const availableTimesToCreate = data.map((availableTime: any) => ({
+          id: state.nextAvailableTimeId++,
+          createdAt: new Date("2026-06-25T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-25T00:00:00.000Z"),
+          ...availableTime,
+        }));
+
+        state.availableTimes.push(...availableTimesToCreate);
+
+        return { count: availableTimesToCreate.length };
+      },
+      deleteMany: async ({ where }: any) => {
+        const initialCount = state.availableTimes.length;
+        state.availableTimes = state.availableTimes.filter((availableTime) => {
+          if (where.workerId !== undefined && availableTime.workerId !== where.workerId) {
+            return true;
+          }
+
+          if (
+            where.availableDate?.gte !== undefined &&
+            availableTime.availableDate < where.availableDate.gte
+          ) {
+            return true;
+          }
+
+          if (
+            where.availableDate?.lte !== undefined &&
+            availableTime.availableDate > where.availableDate.lte
+          ) {
+            return true;
+          }
+
+          return false;
+        });
+
+        return { count: initialCount - state.availableTimes.length };
+      },
+      findMany: async ({ orderBy, where }: any) => {
+        const matchingAvailableTimes = state.availableTimes
+          .filter((availableTime) => {
+            if (where.workerId !== undefined && availableTime.workerId !== where.workerId) {
+              return false;
+            }
+
+            if (
+              where.availableDate?.gte !== undefined &&
+              availableTime.availableDate < where.availableDate.gte
+            ) {
+              return false;
+            }
+
+            if (
+              where.availableDate?.lte !== undefined &&
+              availableTime.availableDate > where.availableDate.lte
+            ) {
+              return false;
+            }
+
+            return true;
+          })
+          .map(cloneWorkerAvailableTime);
+
+        if (Array.isArray(orderBy)) {
+          matchingAvailableTimes.sort((a, b) => {
+            for (const order of orderBy) {
+              if (
+                order.availableDate === "asc" &&
+                a.availableDate.getTime() !== b.availableDate.getTime()
+              ) {
+                return a.availableDate.getTime() - b.availableDate.getTime();
+              }
+
+              if (order.startsAt === "asc" && a.startsAt.getTime() !== b.startsAt.getTime()) {
+                return a.startsAt.getTime() - b.startsAt.getTime();
+              }
+            }
+
+            return 0;
+          });
+        }
+
+        return matchingAvailableTimes;
       },
     },
     refreshToken: {
