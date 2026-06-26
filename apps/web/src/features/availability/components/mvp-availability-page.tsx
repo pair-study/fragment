@@ -19,7 +19,6 @@ import {
 } from "@/features/availability/queries/availability-queries";
 import {
   useActiveSchedulePlanningPeriodQuery,
-  useDeleteActiveSchedulePlanningPeriodMutation,
   useOrganizationQuery,
   useUpsertActiveSchedulePlanningPeriodMutation,
 } from "@/features/organization/queries/organization-queries";
@@ -286,7 +285,6 @@ export function MvpAvailabilityPage() {
   const organizationQuery = useOrganizationQuery();
   const planningPeriodQuery = useActiveSchedulePlanningPeriodQuery();
   const upsertPlanningPeriodMutation = useUpsertActiveSchedulePlanningPeriodMutation();
-  const deletePlanningPeriodMutation = useDeleteActiveSchedulePlanningPeriodMutation();
   const replaceAvailabilityMutation = useReplaceAvailabilityMutation();
   const workers = workersQuery.data?.items ?? EMPTY_WORKERS;
   const businessHours = organizationQuery.data?.businessHours ?? EMPTY_BUSINESS_HOURS;
@@ -297,7 +295,6 @@ export function MvpAvailabilityPage() {
   const [workEndDate, setWorkEndDate] = useState("");
   const [savedAvailability, setSavedAvailability] = useState<AvailabilitySlot[]>([]);
   const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
-  const [periodMessage, setPeriodMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const availabilityQuery: AvailabilityQuery = useMemo(
     () => ({
@@ -321,11 +318,6 @@ export function MvpAvailabilityPage() {
     ? getApiErrorMessage(queryError, "가능 시간 정보를 불러오지 못했습니다.")
     : "";
   const hasValidDateRange = Boolean(workStartDate && workEndDate) && workStartDate <= workEndDate;
-  const hasPlanningPeriodChanges =
-    activePlanningPeriod?.startDate !== workStartDate ||
-    activePlanningPeriod?.endDate !== workEndDate;
-  const isPlanningPeriodPending =
-    upsertPlanningPeriodMutation.isPending || deletePlanningPeriodMutation.isPending;
   const dateRange = useMemo(
     () => createDateRange(workStartDate, workEndDate),
     [workEndDate, workStartDate],
@@ -458,36 +450,29 @@ export function MvpAvailabilityPage() {
     }
   }
 
-  async function savePlanningPeriod() {
-    if (!hasValidDateRange) {
-      setPeriodMessage("근무 시작 날짜와 종료 날짜를 올바르게 입력하세요.");
+  function savePlanningPeriod(nextStartDate: string, nextEndDate: string) {
+    if (!nextStartDate || !nextEndDate || nextEndDate < nextStartDate) {
       return;
     }
 
-    try {
-      await upsertPlanningPeriodMutation.mutateAsync({
-        endDate: workEndDate,
-        startDate: workStartDate,
-      });
-      setPeriodMessage("근무 기간이 저장되었습니다.");
-    } catch (error) {
-      setPeriodMessage(getApiErrorMessage(error, "근무 기간 저장에 실패했습니다."));
+    if (
+      activePlanningPeriod?.startDate === nextStartDate &&
+      activePlanningPeriod.endDate === nextEndDate
+    ) {
+      return;
     }
-  }
 
-  async function deletePlanningPeriod() {
-    try {
-      await deletePlanningPeriodMutation.mutateAsync();
-      setWorkStartDate("");
-      setWorkEndDate("");
-      setSavedAvailability([]);
-      setDraftAvailability([]);
-      setSelectedAvailabilityDate("");
-      setPeriodMessage("근무 기간이 삭제되었습니다.");
-      setSaveMessage("");
-    } catch (error) {
-      setPeriodMessage(getApiErrorMessage(error, "근무 기간 삭제에 실패했습니다."));
-    }
+    upsertPlanningPeriodMutation.mutate(
+      {
+        endDate: nextEndDate,
+        startDate: nextStartDate,
+      },
+      {
+        onError: (error) => {
+          setSaveMessage(getApiErrorMessage(error, "근무 기간 저장에 실패했습니다."));
+        },
+      },
+    );
   }
 
   return (
@@ -548,13 +533,15 @@ export function MvpAvailabilityPage() {
               <Input
                 id="availability-work-start-date"
                 type="date"
-                disabled={isPageLoading || isPlanningPeriodPending}
+                disabled={isPageLoading}
                 value={workStartDate}
                 onChange={(event) => {
-                  setWorkStartDate(event.target.value);
+                  const nextStartDate = event.target.value;
+
+                  setWorkStartDate(nextStartDate);
                   setSelectedAvailabilityDate("");
-                  setPeriodMessage("");
                   setSaveMessage("");
+                  savePlanningPeriod(nextStartDate, workEndDate);
                 }}
               />
             </div>
@@ -563,44 +550,19 @@ export function MvpAvailabilityPage() {
               <Input
                 id="availability-work-end-date"
                 type="date"
-                disabled={isPageLoading || isPlanningPeriodPending}
+                disabled={isPageLoading}
                 value={workEndDate}
                 onChange={(event) => {
-                  setWorkEndDate(event.target.value);
+                  const nextEndDate = event.target.value;
+
+                  setWorkEndDate(nextEndDate);
                   setSelectedAvailabilityDate("");
-                  setPeriodMessage("");
                   setSaveMessage("");
+                  savePlanningPeriod(workStartDate, nextEndDate);
                 }}
               />
             </div>
           </div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-          {periodMessage ? (
-            <p className="mr-auto text-sm text-muted-foreground">{periodMessage}</p>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!activePlanningPeriod || isPlanningPeriodPending}
-            onClick={() => {
-              void deletePlanningPeriod();
-            }}
-          >
-            기간 삭제
-          </Button>
-          <Button
-            type="button"
-            variant="brand"
-            disabled={
-              !hasPlanningPeriodChanges || !workStartDate || !workEndDate || isPlanningPeriodPending
-            }
-            onClick={() => {
-              void savePlanningPeriod();
-            }}
-          >
-            {upsertPlanningPeriodMutation.isPending ? "저장 중" : "기간 저장"}
-          </Button>
         </div>
       </section>
 
