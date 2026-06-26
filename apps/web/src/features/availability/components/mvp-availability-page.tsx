@@ -19,7 +19,9 @@ import {
 } from "@/features/availability/queries/availability-queries";
 import {
   useActiveSchedulePlanningPeriodQuery,
+  useDeleteActiveSchedulePlanningPeriodMutation,
   useOrganizationQuery,
+  useUpsertActiveSchedulePlanningPeriodMutation,
 } from "@/features/organization/queries/organization-queries";
 import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
 import { Input } from "@/components/ui/input";
@@ -283,6 +285,8 @@ export function MvpAvailabilityPage() {
   const workersQuery = useWorkersQuery();
   const organizationQuery = useOrganizationQuery();
   const planningPeriodQuery = useActiveSchedulePlanningPeriodQuery();
+  const upsertPlanningPeriodMutation = useUpsertActiveSchedulePlanningPeriodMutation();
+  const deletePlanningPeriodMutation = useDeleteActiveSchedulePlanningPeriodMutation();
   const replaceAvailabilityMutation = useReplaceAvailabilityMutation();
   const workers = workersQuery.data?.items ?? EMPTY_WORKERS;
   const businessHours = organizationQuery.data?.businessHours ?? EMPTY_BUSINESS_HOURS;
@@ -293,6 +297,7 @@ export function MvpAvailabilityPage() {
   const [workEndDate, setWorkEndDate] = useState("");
   const [savedAvailability, setSavedAvailability] = useState<AvailabilitySlot[]>([]);
   const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
+  const [periodMessage, setPeriodMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const availabilityQuery: AvailabilityQuery = useMemo(
     () => ({
@@ -305,6 +310,22 @@ export function MvpAvailabilityPage() {
   const canFetchAvailability =
     Boolean(selectedWorkerId && workStartDate && workEndDate) && workStartDate <= workEndDate;
   const availabilityResult = useAvailabilityQuery(availabilityQuery, canFetchAvailability);
+  const isPageLoading =
+    organizationQuery.isLoading || planningPeriodQuery.isLoading || workersQuery.isLoading;
+  const queryError =
+    organizationQuery.error ??
+    planningPeriodQuery.error ??
+    workersQuery.error ??
+    availabilityResult.error;
+  const queryErrorMessage = queryError
+    ? getApiErrorMessage(queryError, "가능 시간 정보를 불러오지 못했습니다.")
+    : "";
+  const hasValidDateRange = Boolean(workStartDate && workEndDate) && workStartDate <= workEndDate;
+  const hasPlanningPeriodChanges =
+    activePlanningPeriod?.startDate !== workStartDate ||
+    activePlanningPeriod?.endDate !== workEndDate;
+  const isPlanningPeriodPending =
+    upsertPlanningPeriodMutation.isPending || deletePlanningPeriodMutation.isPending;
   const dateRange = useMemo(
     () => createDateRange(workStartDate, workEndDate),
     [workEndDate, workStartDate],
@@ -319,13 +340,19 @@ export function MvpAvailabilityPage() {
   );
 
   useEffect(() => {
+    if (!planningPeriodQuery.data) {
+      return;
+    }
+
     if (!activePlanningPeriod) {
+      setWorkStartDate("");
+      setWorkEndDate("");
       return;
     }
 
     setWorkStartDate(activePlanningPeriod.startDate);
     setWorkEndDate(activePlanningPeriod.endDate);
-  }, [activePlanningPeriod]);
+  }, [activePlanningPeriod, planningPeriodQuery.data]);
 
   useEffect(() => {
     if (workers.length === 0) {
@@ -372,10 +399,14 @@ export function MvpAvailabilityPage() {
   );
   const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
   const canSaveAvailability =
-    hasUnsavedChanges && Boolean(selectedWorkerId && workStartDate && workEndDate);
+    hasUnsavedChanges &&
+    hasValidDateRange &&
+    Boolean(selectedWorkerId) &&
+    !availabilityResult.isFetching &&
+    !queryErrorMessage;
 
   function toggleSlot(date: string, startMinutes: number) {
-    if (!selectedWorkerId) {
+    if (!selectedWorkerId || queryErrorMessage || availabilityResult.isFetching) {
       return;
     }
 
@@ -427,6 +458,38 @@ export function MvpAvailabilityPage() {
     }
   }
 
+  async function savePlanningPeriod() {
+    if (!hasValidDateRange) {
+      setPeriodMessage("근무 시작 날짜와 종료 날짜를 올바르게 입력하세요.");
+      return;
+    }
+
+    try {
+      await upsertPlanningPeriodMutation.mutateAsync({
+        endDate: workEndDate,
+        startDate: workStartDate,
+      });
+      setPeriodMessage("근무 기간이 저장되었습니다.");
+    } catch (error) {
+      setPeriodMessage(getApiErrorMessage(error, "근무 기간 저장에 실패했습니다."));
+    }
+  }
+
+  async function deletePlanningPeriod() {
+    try {
+      await deletePlanningPeriodMutation.mutateAsync();
+      setWorkStartDate("");
+      setWorkEndDate("");
+      setSavedAvailability([]);
+      setDraftAvailability([]);
+      setSelectedAvailabilityDate("");
+      setPeriodMessage("근무 기간이 삭제되었습니다.");
+      setSaveMessage("");
+    } catch (error) {
+      setPeriodMessage(getApiErrorMessage(error, "근무 기간 삭제에 실패했습니다."));
+    }
+  }
+
   return (
     <AdminPageShell
       title="가능 시간 관리"
@@ -459,6 +522,18 @@ export function MvpAvailabilityPage() {
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
+      {isPageLoading ? (
+        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
+          가능 시간 정보를 불러오는 중입니다.
+        </div>
+      ) : null}
+
+      {queryErrorMessage ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {queryErrorMessage}
+        </div>
+      ) : null}
+
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -473,10 +548,12 @@ export function MvpAvailabilityPage() {
               <Input
                 id="availability-work-start-date"
                 type="date"
+                disabled={isPageLoading || isPlanningPeriodPending}
                 value={workStartDate}
                 onChange={(event) => {
                   setWorkStartDate(event.target.value);
                   setSelectedAvailabilityDate("");
+                  setPeriodMessage("");
                   setSaveMessage("");
                 }}
               />
@@ -486,15 +563,44 @@ export function MvpAvailabilityPage() {
               <Input
                 id="availability-work-end-date"
                 type="date"
+                disabled={isPageLoading || isPlanningPeriodPending}
                 value={workEndDate}
                 onChange={(event) => {
                   setWorkEndDate(event.target.value);
                   setSelectedAvailabilityDate("");
+                  setPeriodMessage("");
                   setSaveMessage("");
                 }}
               />
             </div>
           </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          {periodMessage ? (
+            <p className="mr-auto text-sm text-muted-foreground">{periodMessage}</p>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!activePlanningPeriod || isPlanningPeriodPending}
+            onClick={() => {
+              void deletePlanningPeriod();
+            }}
+          >
+            기간 삭제
+          </Button>
+          <Button
+            type="button"
+            variant="brand"
+            disabled={
+              !hasPlanningPeriodChanges || !workStartDate || !workEndDate || isPlanningPeriodPending
+            }
+            onClick={() => {
+              void savePlanningPeriod();
+            }}
+          >
+            {upsertPlanningPeriodMutation.isPending ? "저장 중" : "기간 저장"}
+          </Button>
         </div>
       </section>
 
@@ -504,7 +610,7 @@ export function MvpAvailabilityPage() {
             <Label htmlFor="worker-select">근무자 선택</Label>
             <Select
               value={selectedWorkerId}
-              disabled={workers.length === 0}
+              disabled={isPageLoading || workers.length === 0}
               onValueChange={(value) => {
                 setSelectedWorkerId(value);
                 setSelectedAvailabilityDate("");
@@ -616,6 +722,9 @@ export function MvpAvailabilityPage() {
               </p>
             </div>
             {hasUnsavedChanges ? <Badge variant="brand-weak">저장 전 변경 있음</Badge> : null}
+            {availabilityResult.isFetching ? (
+              <Badge variant="neutral-weak">불러오는 중</Badge>
+            ) : null}
           </div>
         </div>
 
@@ -656,17 +765,23 @@ export function MvpAvailabilityPage() {
                       const selected = draftSlotKeys.has(
                         getSlotKey(selectedWorkerId, date, startMinutes),
                       );
+                      const disabledByState =
+                        disabled ||
+                        !selectedWorkerId ||
+                        !hasValidDateRange ||
+                        Boolean(queryErrorMessage) ||
+                        availabilityResult.isFetching;
 
                       return (
                         <button
                           key={`${date}-${startMinutes}`}
                           type="button"
-                          disabled={disabled}
+                          disabled={disabledByState}
                           aria-pressed={selected}
                           aria-label={`${date} ${timeLabel} 가능 시간 ${selected ? "해제" : "선택"}`}
                           className={cn(
                             "flex h-8 items-center justify-center rounded-md border text-[10px] transition-colors",
-                            disabled
+                            disabledByState
                               ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
                               : selected
                                 ? "border-primary bg-primary text-primary-foreground"
