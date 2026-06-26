@@ -5,11 +5,8 @@ import { createApp } from "@/app";
 import { createAccessToken } from "@/modules/auth/auth.tokens";
 import { createFakePrisma, createTimeDate } from "./helpers/fake-prisma";
 
-const createOrganization = () => ({
-  id: BigInt(1),
-  userId: BigInt(1),
-  name: "프래그먼트 카페",
-  businessHours: [
+const createOrganization = (
+  businessHours = [
     {
       id: BigInt(1),
       organizationId: BigInt(1),
@@ -20,6 +17,11 @@ const createOrganization = () => ({
       closesNextDay: false,
     },
   ],
+) => ({
+  id: BigInt(1),
+  userId: BigInt(1),
+  name: "프래그먼트 카페",
+  businessHours,
 });
 
 const createWorker = () => ({
@@ -198,6 +200,55 @@ describe("availability routes", () => {
     expect(response.body).toMatchObject({
       errorCode: "VALIDATION_ERROR",
       statusCode: 400,
+    });
+  });
+
+  it("accepts bulk save times on the original offset 30-minute boundary", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [
+        createOrganization([
+          {
+            id: BigInt(1),
+            organizationId: BigInt(1),
+            dayOfWeek: "WED" as const,
+            isClosed: false,
+            openTime: createTimeDate("00:00"),
+            closeTime: createTimeDate("02:00"),
+            closesNextDay: false,
+          },
+        ]),
+      ],
+      workers: [createWorker()],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .put("/api/availability/bulk")
+      .set("Authorization", authHeader())
+      .send({
+        workerId: "1",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+        items: [
+          {
+            availableDate: "2026-07-01",
+            startsAt: "2026-07-01T10:30:00.000+09:45",
+            endsAt: "2026-07-01T11:00:00.000+09:45",
+          },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      items: [
+        {
+          id: "1",
+          workerId: "1",
+          availableDate: "2026-07-01",
+          startsAt: "2026-07-01T00:45:00.000Z",
+          endsAt: "2026-07-01T01:15:00.000Z",
+        },
+      ],
     });
   });
 

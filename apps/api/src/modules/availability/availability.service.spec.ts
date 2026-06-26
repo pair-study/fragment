@@ -388,6 +388,34 @@ describe("replaceAvailability", () => {
     });
   });
 
+  it("rejects availability with a reversed or empty time range", async () => {
+    const availableTimeDeleteMany = jest.fn();
+    const { prisma } = createPrismaMock({
+      workerAvailableTime: {
+        deleteMany: availableTimeDeleteMany,
+      },
+    });
+
+    await expect(
+      replaceAvailability(prisma, "1", {
+        workerId: "1",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+        items: [
+          {
+            availableDate: "2026-07-01",
+            startsAt: "2026-07-01T12:00:00.000Z",
+            endsAt: "2026-07-01T12:00:00.000Z",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.INVALID_TIME_RANGE,
+      statusCode: 400,
+    });
+    expect(availableTimeDeleteMany).not.toHaveBeenCalled();
+  });
+
   it("allows availability inside overnight business hours", async () => {
     const availableTimeDeleteMany = jest.fn<() => Promise<{ count: number }>>().mockResolvedValue({
       count: 0,

@@ -1,6 +1,5 @@
 import type {
   DayOfWeek,
-  OrganizationBusinessHour,
   Prisma,
   PrismaClient,
   WorkerAvailableTime as PrismaWorkerAvailableTime,
@@ -19,10 +18,9 @@ import { toApiId, toPrismaId } from "@/utils/mapper";
 
 type AvailabilityDatabaseClient = PrismaClient | Prisma.TransactionClient;
 
-type OrganizationForAvailability = {
-  id: bigint;
-  businessHours: OrganizationBusinessHour[];
-};
+type OrganizationForAvailability = Prisma.OrganizationGetPayload<{
+  include: { businessHours: true };
+}>;
 
 const dateStringToDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 
@@ -130,7 +128,7 @@ const assertAvailabilityItemInBusinessHours = (
     const closeDate = businessHour.closesNextDay ? addDays(availableDate, 1) : availableDate;
     const closeAt = createDateTimeOnDate(closeDate, businessHour.closeTime);
 
-    if (startsAt < openAt || endsAt > closeAt) {
+    if (startsAt >= endsAt || startsAt < openAt || endsAt > closeAt) {
       throw createInvalidTimeRangeError();
     }
   }

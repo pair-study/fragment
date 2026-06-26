@@ -28,6 +28,10 @@ export function validate(schema: RequestSchema): RequestHandler {
     }
 
     if ("query" in result.data) {
+      for (const key of Object.keys(req.query)) {
+        delete req.query[key];
+      }
+
       Object.assign(req.query, result.data.query);
     }
 
