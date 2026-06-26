@@ -160,21 +160,6 @@ export async function recommendSchedule(
     startDate,
     workers,
   });
-  const existingDraft = await prisma.schedule.findFirst({
-    where: {
-      organizationId: organizationDatabaseId,
-      inputHash,
-      status: "DRAFT",
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (existingDraft) {
-    throw new HttpError(409, ERROR_CODES.DRAFT_ALREADY_EXISTS, "이미 생성된 DRAFT 스케줄입니다.");
-  }
-
   const { assignments, shortages } = createRecommendations({
     availableTimes,
     endDate,
@@ -183,36 +168,55 @@ export async function recommendSchedule(
     workers,
   });
 
-  const schedule = await prisma.schedule.create({
-    data: {
-      organization: {
-        connect: {
-          id: organizationDatabaseId,
+  const schedule = await prisma.$transaction(async (transaction) => {
+    const existingDraft = await transaction.schedule.findFirst({
+      where: {
+        organizationId: organizationDatabaseId,
+        inputHash,
+        status: "DRAFT",
+        startDate,
+        endDate,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingDraft) {
+      throw new HttpError(409, ERROR_CODES.DRAFT_ALREADY_EXISTS, "이미 생성된 DRAFT 스케줄입니다.");
+    }
+
+    return transaction.schedule.create({
+      data: {
+        organization: {
+          connect: {
+            id: organizationDatabaseId,
+          },
+        },
+        status: "DRAFT",
+        inputHash,
+        startDate,
+        endDate,
+        assignments: {
+          create: assignments.map((assignment) => ({
+            worker: {
+              connect: {
+                id: assignment.workerId,
+              },
+            },
+            workDate: assignment.workDate,
+            startsAt: assignment.startsAt,
+            endsAt: assignment.endsAt,
+            workerNameSnapshot: assignment.workerNameSnapshot,
+            employeeCodeSnapshot: assignment.employeeCodeSnapshot,
+          })),
+        },
+        workerShortages: {
+          create: shortages,
         },
       },
-      status: "DRAFT",
-      inputHash,
-      startDate,
-      endDate,
-      assignments: {
-        create: assignments.map((assignment) => ({
-          worker: {
-            connect: {
-              id: assignment.workerId,
-            },
-          },
-          workDate: assignment.workDate,
-          startsAt: assignment.startsAt,
-          endsAt: assignment.endsAt,
-          workerNameSnapshot: assignment.workerNameSnapshot,
-          employeeCodeSnapshot: assignment.employeeCodeSnapshot,
-        })),
-      },
-      workerShortages: {
-        create: shortages,
-      },
-    },
-    include: scheduleDetailInclude,
+      include: scheduleDetailInclude,
+    });
   });
 
   return toScheduleDetail(schedule);

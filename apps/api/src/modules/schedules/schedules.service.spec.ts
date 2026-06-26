@@ -1,3 +1,4 @@
+import type { DayOfWeek } from "@fragment/database";
 import { describe, expect, it } from "@jest/globals";
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
@@ -19,11 +20,11 @@ const createOrganization = (id = BigInt(1), userId = BigInt(1)) => ({
   businessHours: [],
 });
 
-const createPlanningPeriod = () => ({
+const createPlanningPeriod = ({ endDate = "2026-07-01", startDate = "2026-07-01" } = {}) => ({
   id: BigInt(1),
   organizationId: BigInt(1),
-  startDate: dateOnly("2026-07-01"),
-  endDate: dateOnly("2026-07-01"),
+  startDate: dateOnly(startDate),
+  endDate: dateOnly(endDate),
   createdAt: timestamp,
   updatedAt: timestamp,
 });
@@ -41,23 +42,41 @@ const createWorker = ({
   weeklyContractHours: 40,
 });
 
-const createAvailableTime = ({ id = BigInt(1), workerId = BigInt(1) } = {}) => ({
+const createAvailableTime = ({
+  availableDate = "2026-07-01",
+  endsAt = "2026-07-01T18:00:00.000Z",
+  id = BigInt(1),
+  startsAt = "2026-07-01T09:00:00.000Z",
+  workerId = BigInt(1),
+} = {}) => ({
   id,
   workerId,
-  availableDate: dateOnly("2026-07-01"),
-  startsAt: new Date("2026-07-01T09:00:00.000Z"),
-  endsAt: new Date("2026-07-01T18:00:00.000Z"),
+  availableDate: dateOnly(availableDate),
+  startsAt: new Date(startsAt),
+  endsAt: new Date(endsAt),
   createdAt: timestamp,
   updatedAt: timestamp,
 });
 
-const createMinimumStaffingRule = ({ requiredCount = 1 } = {}) => ({
+const createMinimumStaffingRule = ({
+  dayOfWeek = "WED",
+  endTime = "14:00",
+  endsNextDay = false,
+  requiredCount = 1,
+  startTime = "10:00",
+}: {
+  dayOfWeek?: DayOfWeek;
+  endTime?: string;
+  endsNextDay?: boolean;
+  requiredCount?: number;
+  startTime?: string;
+} = {}) => ({
   id: BigInt(1),
   organizationId: BigInt(1),
-  dayOfWeek: "WED" as const,
-  startTime: createTimeDate("10:00"),
-  endTime: createTimeDate("14:00"),
-  endsNextDay: false,
+  dayOfWeek,
+  startTime: createTimeDate(startTime),
+  endTime: createTimeDate(endTime),
+  endsNextDay,
   requiredCount,
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -150,6 +169,48 @@ describe("recommendSchedule", () => {
     ]);
   });
 
+  it("creates next-day assignments for overnight staffing rules", async () => {
+    const { prisma } = createFakePrisma({
+      activeSchedulePlanningPeriods: [
+        createPlanningPeriod({
+          startDate: "2026-07-03",
+          endDate: "2026-07-03",
+        }),
+      ],
+      availableTimes: [
+        createAvailableTime({
+          availableDate: "2026-07-03",
+          startsAt: "2026-07-03T22:00:00.000Z",
+          endsAt: "2026-07-04T02:00:00.000Z",
+        }),
+      ],
+      minimumStaffingRules: [
+        createMinimumStaffingRule({
+          dayOfWeek: "FRI",
+          startTime: "22:00",
+          endTime: "02:00",
+          endsNextDay: true,
+        }),
+      ],
+      organizations: [createOrganization()],
+      workers: [createWorker()],
+    });
+
+    const schedule = await recommendSchedule(prisma, "1", {
+      startDate: "2026-07-03",
+      endDate: "2026-07-03",
+    });
+
+    expect(schedule.assignments).toEqual([
+      expect.objectContaining({
+        workDate: "2026-07-03",
+        startsAt: "2026-07-03T22:00:00.000Z",
+        endsAt: "2026-07-04T02:00:00.000Z",
+      }),
+    ]);
+    expect(schedule.workerShortages).toEqual([]);
+  });
+
   it("does not create a duplicate DRAFT for the same input conditions", async () => {
     const { prisma } = createFakePrisma({
       activeSchedulePlanningPeriods: [createPlanningPeriod()],
@@ -212,6 +273,24 @@ describe("schedule assignments", () => {
     ).rejects.toMatchObject({
       code: ERROR_CODES.CONFLICT,
       statusCode: 409,
+    });
+  });
+
+  it("rejects assignment updates that would make the end time earlier than the start time", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [createOrganization()],
+      scheduleAssignments: [createAssignment()],
+      schedules: [createDraftSchedule()],
+      workers: [createWorker()],
+    });
+
+    await expect(
+      updateScheduleAssignment(prisma, "1", "1", "10", {
+        startsAt: "2026-07-01T15:00:00.000Z",
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.VALIDATION_ERROR,
+      statusCode: 400,
     });
   });
 });
