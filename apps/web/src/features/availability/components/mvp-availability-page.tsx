@@ -45,6 +45,8 @@ type AvailabilitySlot = {
 type BusinessHour = OrganizationDetail["businessHours"][number];
 
 const SLOT_INTERVAL_MINUTES = 30;
+const TIMETABLE_DATE_COLUMN_WIDTH = 76;
+const TIMETABLE_TIME_COLUMN_WIDTH = 64;
 const DEFAULT_TIMETABLE_START_MINUTES = 9 * 60;
 const DEFAULT_TIMETABLE_END_MINUTES = 22 * 60;
 const EMPTY_WORKERS: Worker[] = [];
@@ -540,7 +542,7 @@ export function MvpAvailabilityPage() {
               모든 근무자의 가능 시간 입력에 공통으로 적용되는 기간입니다.
             </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:w-full lg:max-w-xl">
+          <div className="grid gap-4 sm:grid-cols-2 lg:w-[480px]">
             <div className="space-y-2">
               <Label htmlFor="availability-work-start-date">근무 시작 날짜</Label>
               <Input
@@ -727,11 +729,16 @@ export function MvpAvailabilityPage() {
         </div>
 
         <div className="max-w-full overflow-x-auto overflow-y-hidden p-4">
-          <div className="w-max min-w-max space-y-1">
-            <div className="flex gap-1">
-              <div className="w-16 shrink-0" />
+          <div className="w-max min-w-max">
+            <div
+              className="grid gap-1"
+              style={{
+                gridTemplateColumns: `${TIMETABLE_TIME_COLUMN_WIDTH}px repeat(${dateRange.length}, ${TIMETABLE_DATE_COLUMN_WIDTH}px)`,
+              }}
+            >
+              <div />
               {dateRange.map((date) => (
-                <div key={date} className="w-20 shrink-0 py-2 text-center">
+                <div key={date} className="py-2 text-center">
                   <p className="text-xs font-semibold text-muted-foreground">
                     {formatWeekday(date)}
                   </p>
@@ -743,53 +750,53 @@ export function MvpAvailabilityPage() {
                   ) : null}
                 </div>
               ))}
-            </div>
 
-            {timeSlots.map((startMinutes) => {
-              const showHourLabel = startMinutes % 60 === 0;
-              const timeLabel = formatSlotTime(startMinutes);
+              {timeSlots.map((startMinutes) => {
+                const showHourLabel = startMinutes % 60 === 0;
+                const timeLabel = formatSlotTime(startMinutes);
 
-              return (
-                <div key={startMinutes} className="flex gap-1">
-                  <div className="h-8 w-16 shrink-0 pr-2 text-right text-sm text-muted-foreground">
-                    {showHourLabel ? timeLabel : ""}
+                return (
+                  <div key={startMinutes} className="contents">
+                    <div className="h-8 pr-2 text-right text-sm text-muted-foreground">
+                      {showHourLabel ? timeLabel : ""}
+                    </div>
+                    {dateRange.map((date) => {
+                      const disabled = !isSlotInBusinessHours(businessHours, date, startMinutes);
+                      const selected = draftSlotKeys.has(
+                        getSlotKey(selectedWorkerId, date, startMinutes),
+                      );
+                      const disabledByState =
+                        disabled ||
+                        !selectedWorkerId ||
+                        !hasValidDateRange ||
+                        Boolean(queryErrorMessage) ||
+                        availabilityResult.isFetching;
+
+                      return (
+                        <button
+                          key={`${date}-${startMinutes}`}
+                          type="button"
+                          disabled={disabledByState}
+                          aria-pressed={selected}
+                          aria-label={`${date} ${timeLabel} 가능 시간 ${selected ? "해제" : "선택"}`}
+                          className={cn(
+                            "flex h-8 items-center justify-center rounded-md border text-[10px] transition-colors",
+                            disabledByState
+                              ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
+                              : selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
+                          )}
+                          onClick={() => toggleSlot(date, startMinutes)}
+                        >
+                          {selected ? <Check className="size-3" aria-hidden="true" /> : null}
+                        </button>
+                      );
+                    })}
                   </div>
-                  {dateRange.map((date) => {
-                    const disabled = !isSlotInBusinessHours(businessHours, date, startMinutes);
-                    const selected = draftSlotKeys.has(
-                      getSlotKey(selectedWorkerId, date, startMinutes),
-                    );
-                    const disabledByState =
-                      disabled ||
-                      !selectedWorkerId ||
-                      !hasValidDateRange ||
-                      Boolean(queryErrorMessage) ||
-                      availabilityResult.isFetching;
-
-                    return (
-                      <button
-                        key={`${date}-${startMinutes}`}
-                        type="button"
-                        disabled={disabledByState}
-                        aria-pressed={selected}
-                        aria-label={`${date} ${timeLabel} 가능 시간 ${selected ? "해제" : "선택"}`}
-                        className={cn(
-                          "flex h-8 w-20 shrink-0 items-center justify-center rounded-md border text-xs transition-colors",
-                          disabledByState
-                            ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
-                            : selected
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
-                        )}
-                        onClick={() => toggleSlot(date, startMinutes)}
-                      >
-                        {selected ? <Check className="size-3" aria-hidden="true" /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
