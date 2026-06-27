@@ -14,3 +14,10 @@ export const parseDayOfWeek = (value: unknown): ApiDayOfWeek => {
 
   return value;
 };
+
+export const getDayOfWeek = (date: Date): ApiDayOfWeek => {
+  const sundayFirstDay = date.getUTCDay();
+  const mondayFirstDay = sundayFirstDay === 0 ? 6 : sundayFirstDay - 1;
+
+  return DAY_OF_WEEK_VALUES[mondayFirstDay];
+};

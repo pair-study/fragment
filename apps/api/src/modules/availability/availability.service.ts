@@ -1,10 +1,8 @@
 import type {
-  DayOfWeek,
   Prisma,
   PrismaClient,
   WorkerAvailableTime as PrismaWorkerAvailableTime,
 } from "@fragment/database";
-import { DAY_OF_WEEK_VALUES } from "@fragment/shared";
 import type {
   Availability,
   AvailabilityListResponse,
@@ -14,6 +12,14 @@ import type {
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
+import {
+  addDays,
+  createDateTimeOnDate,
+  dateStringToDate,
+  dateTimeStringToDate,
+  dateToDateString,
+} from "@/utils/date-time";
+import { getDayOfWeek } from "@/utils/day-of-week";
 import { toApiId, toPrismaId } from "@/utils/mapper";
 
 type AvailabilityDatabaseClient = PrismaClient | Prisma.TransactionClient;
@@ -21,34 +27,6 @@ type AvailabilityDatabaseClient = PrismaClient | Prisma.TransactionClient;
 type OrganizationForAvailability = Prisma.OrganizationGetPayload<{
   include: { businessHours: true };
 }>;
-
-const dateStringToDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
-
-const dateTimeStringToDate = (dateTime: string) => new Date(dateTime);
-
-const dateToDateString = (date: Date) => date.toISOString().slice(0, 10);
-
-const getDayOfWeek = (date: Date): DayOfWeek => {
-  const sundayFirstDay = date.getUTCDay();
-  const mondayFirstDay = sundayFirstDay === 0 ? 6 : sundayFirstDay - 1;
-
-  return DAY_OF_WEEK_VALUES[mondayFirstDay];
-};
-
-const addDays = (date: Date, days: number) =>
-  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days));
-
-const createDateTimeOnDate = (date: Date, time: Date) =>
-  new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      time.getUTCHours(),
-      time.getUTCMinutes(),
-      0,
-    ),
-  );
 
 const createInvalidTimeRangeError = () =>
   new HttpError(400, ERROR_CODES.INVALID_TIME_RANGE, "가능 시간이 조직 운영시간을 벗어났습니다.");

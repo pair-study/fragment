@@ -3,6 +3,12 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export const isValidTimeString = (value: unknown): value is string =>
   typeof value === "string" && TIME_PATTERN.test(value);
 
+export const dateStringToDate = (date: string): Date => new Date(`${date}T00:00:00.000Z`);
+
+export const dateTimeStringToDate = (dateTime: string): Date => new Date(dateTime);
+
+export const dateToDateString = (date: Date): string => date.toISOString().slice(0, 10);
+
 export const timeStringToDate = (time: string): Date => {
   const [hour, minute] = time.split(":").map(Number);
   return new Date(Date.UTC(1970, 0, 1, hour, minute, 0));
@@ -34,6 +40,21 @@ export const parseTimeToMinutes = (time: string): number => {
 
 export const isDateTimeRangeOrdered = (startsAt: Date, endsAt: Date): boolean =>
   startsAt.getTime() < endsAt.getTime();
+
+export const addDays = (date: Date, days: number): Date =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days));
+
+export const createDateTimeOnDate = (date: Date, time: Date): Date =>
+  new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      time.getUTCHours(),
+      time.getUTCMinutes(),
+      0,
+    ),
+  );
 
 export const assertDateTimeRange = (startsAt: Date, endsAt: Date): void => {
   if (!isDateTimeRangeOrdered(startsAt, endsAt)) {

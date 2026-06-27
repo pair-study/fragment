@@ -10,11 +10,8 @@ import type {
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
+import { dateStringToDate, dateToDateString } from "@/utils/date-time";
 import { toApiId, toPrismaId } from "@/utils/mapper";
-
-const dateStringToDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
-
-const dateToDateString = (date: Date) => date.toISOString().slice(0, 10);
 
 const findOrganizationIdByUserId = async (prisma: PrismaClient, userId: string) => {
   const organization = await prisma.organization.findUnique({
