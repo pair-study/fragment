@@ -17,15 +17,13 @@ import {
   useExportScheduleHistoryCsvMutation,
   useScheduleHistoryDetailQuery,
   useScheduleHistoryQuery,
+  useScheduleHistoryYearQueries,
 } from "@/features/schedule-history/queries/schedule-history-queries";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 const INITIAL_HISTORY_YEAR = new Date().getFullYear();
-const HISTORY_YEAR_OPTIONS = Array.from({ length: 6 }, (_, index) =>
-  String(INITIAL_HISTORY_YEAR - index),
-);
+const HISTORY_YEAR_OPTIONS = Array.from({ length: 6 }, (_, index) => INITIAL_HISTORY_YEAR - index);
 
 function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
@@ -90,16 +88,56 @@ function findSelectedHistory(items: ScheduleHistoryItem[], selectedHistoryId: st
   return items.find((history) => history.id === selectedHistoryId) ?? items[0] ?? null;
 }
 
+function getMonthRange(year: string, month: string) {
+  const monthNumber = Number(month);
+  const monthStart = `${year}-${month.padStart(2, "0")}-01`;
+  const monthEnd = new Date(Date.UTC(Number(year), monthNumber, 0)).toISOString().slice(0, 10);
+
+  return { monthEnd, monthStart };
+}
+
+function isHistoryInMonth(history: ScheduleHistoryItem, year: string, month: string) {
+  const { monthEnd, monthStart } = getMonthRange(year, month);
+
+  return history.startDate <= monthEnd && history.endDate >= monthStart;
+}
+
+function getHistoryMonthOptions(items: ScheduleHistoryItem[], year: string) {
+  return Array.from({ length: 12 }, (_, index) => String(index + 1)).filter((month) =>
+    items.some((history) => isHistoryInMonth(history, year, month)),
+  );
+}
+
 export function MvpScheduleHistoryPage() {
   const [selectedHistoryId, setSelectedHistoryId] = useState("");
   const [selectedYear, setSelectedYear] = useState(String(INITIAL_HISTORY_YEAR));
-  const [selectedMonth, setSelectedMonth] = useState("ALL");
+  const [selectedMonth, setSelectedMonth] = useState("");
   const [exportMessage, setExportMessage] = useState("");
+  const scheduleHistoryYearQueries = useScheduleHistoryYearQueries(HISTORY_YEAR_OPTIONS);
+  const historyYearItems = scheduleHistoryYearQueries.map((query, index) => ({
+    items: query.data?.items ?? [],
+    year: String(HISTORY_YEAR_OPTIONS[index]),
+  }));
+  const availableYears = historyYearItems
+    .filter((historyYearItem) => historyYearItem.items.length > 0)
+    .map((historyYearItem) => historyYearItem.year);
+  const hasAvailableYears = availableYears.length > 0;
+  const effectiveSelectedYear = availableYears.includes(selectedYear)
+    ? selectedYear
+    : (availableYears[0] ?? selectedYear);
+  const selectedYearItems =
+    historyYearItems.find((historyYearItem) => historyYearItem.year === effectiveSelectedYear)
+      ?.items ?? [];
+  const availableMonths = getHistoryMonthOptions(selectedYearItems, effectiveSelectedYear);
+  const effectiveSelectedMonth = availableMonths.includes(selectedMonth)
+    ? selectedMonth
+    : (availableMonths[0] ?? "");
   const scheduleHistoryQuery = useScheduleHistoryQuery({
-    year: Number(selectedYear),
-    ...(selectedMonth === "ALL" ? {} : { month: Number(selectedMonth) }),
+    year: Number(effectiveSelectedYear),
+    ...(effectiveSelectedMonth === "" ? {} : { month: Number(effectiveSelectedMonth) }),
   });
   const historyItems = scheduleHistoryQuery.data?.items ?? [];
+  const hasHistoryItems = historyItems.length > 0;
   const selectedHistoryItem = findSelectedHistory(historyItems, selectedHistoryId);
   const selectedScheduleId = selectedHistoryItem?.id ?? "";
   const scheduleHistoryDetailQuery = useScheduleHistoryDetailQuery(
@@ -173,83 +211,83 @@ export function MvpScheduleHistoryPage() {
                 </p>
               )}
             </div>
-            <div className="grid gap-2 sm:grid-cols-[7rem_7rem_15rem_auto]">
-              <Select
-                value={selectedYear}
-                onValueChange={(value) => {
-                  setSelectedYear(value);
-                  setSelectedMonth("ALL");
-                  setSelectedHistoryId("");
-                  setExportMessage("");
-                }}
-              >
-                <SelectTrigger aria-label="이력 연도 선택">
-                  <SelectValue placeholder="연도 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {HISTORY_YEAR_OPTIONS.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}년
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {hasAvailableYears ? (
+              <div className="grid gap-2 sm:grid-cols-[7rem_7rem_15rem_auto]">
+                <Select
+                  value={effectiveSelectedYear}
+                  onValueChange={(value) => {
+                    setSelectedYear(value);
+                    setSelectedMonth("");
+                    setSelectedHistoryId("");
+                    setExportMessage("");
+                  }}
+                >
+                  <SelectTrigger aria-label="이력 연도 선택">
+                    <SelectValue placeholder="연도 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}년
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Select
-                value={selectedMonth}
-                onValueChange={(value) => {
-                  setSelectedMonth(value);
-                  setSelectedHistoryId("");
-                  setExportMessage("");
-                }}
-              >
-                <SelectTrigger aria-label="이력 월 선택">
-                  <SelectValue placeholder="월 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">전체</SelectItem>
-                  {MONTH_OPTIONS.map((month) => (
-                    <SelectItem key={month} value={String(month)}>
-                      {month}월
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select
+                  value={effectiveSelectedMonth}
+                  onValueChange={(value) => {
+                    setSelectedMonth(value);
+                    setSelectedHistoryId("");
+                    setExportMessage("");
+                  }}
+                >
+                  <SelectTrigger aria-label="이력 월 선택">
+                    <SelectValue placeholder="월 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map((month) => (
+                      <SelectItem key={month} value={String(month)}>
+                        {month}월
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Select
-                value={selectedHistoryItem?.id ?? ""}
-                disabled={
-                  scheduleHistoryQuery.isPending ||
-                  scheduleHistoryQuery.isError ||
-                  historyItems.length === 0
-                }
-                onValueChange={(value) => {
-                  setSelectedHistoryId(value);
-                  setExportMessage("");
-                }}
-              >
-                <SelectTrigger aria-label="확정 이력 선택">
-                  <SelectValue placeholder="확정 이력 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {historyItems.map((history) => (
-                    <SelectItem key={history.id} value={history.id}>
-                      {formatScheduleRange(history.startDate, history.endDate)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {hasHistoryItems ? (
+                  <>
+                    <Select
+                      value={selectedHistoryItem?.id ?? ""}
+                      onValueChange={(value) => {
+                        setSelectedHistoryId(value);
+                        setExportMessage("");
+                      }}
+                    >
+                      <SelectTrigger aria-label="확정 이력 선택">
+                        <SelectValue placeholder="확정 이력 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {historyItems.map((history) => (
+                          <SelectItem key={history.id} value={history.id}>
+                            {formatScheduleRange(history.startDate, history.endDate)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-              <Button
-                type="button"
-                variant="brand"
-                onClick={handleExportSchedule}
-                disabled={!canExportSchedule}
-              >
-                <Download className="size-4" aria-hidden="true" />
-                {exportScheduleHistoryCsvMutation.isPending ? "내보내는 중" : "CSV export"}
-              </Button>
-            </div>
+                    <Button
+                      type="button"
+                      variant="brand"
+                      onClick={handleExportSchedule}
+                      disabled={!canExportSchedule}
+                    >
+                      <Download className="size-4" aria-hidden="true" />
+                      {exportScheduleHistoryCsvMutation.isPending ? "내보내는 중" : "CSV export"}
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {scheduleHistoryQuery.isPending || scheduleHistoryDetailQuery.isPending ? (

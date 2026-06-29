@@ -1,7 +1,7 @@
 "use client";
 
 import type { ScheduleHistoryQuery } from "@fragment/shared";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 
 import {
   exportScheduleHistoryCsv,
@@ -16,6 +16,15 @@ export function useScheduleHistoryQuery(query: ScheduleHistoryQuery) {
   return useQuery({
     queryFn: () => getScheduleHistory(query),
     queryKey: scheduleHistoryQueryKeys.list(query),
+  });
+}
+
+export function useScheduleHistoryYearQueries(years: number[]) {
+  return useQueries({
+    queries: years.map((year) => ({
+      queryFn: () => getScheduleHistory({ year }),
+      queryKey: scheduleHistoryQueryKeys.list({ year }),
+    })),
   });
 }
 

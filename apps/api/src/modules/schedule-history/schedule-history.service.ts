@@ -85,6 +85,35 @@ const escapeCsvCell = (value: string) => {
 };
 
 const createCsvRow = (values: string[]) => values.map(escapeCsvCell).join(",");
+const UTF8_BOM = "\uFEFF";
+
+const createScheduleDateRange = (startDate: string, endDate: string) => {
+  const dates: string[] = [];
+  let currentDate = startDate;
+
+  while (currentDate <= endDate) {
+    dates.push(currentDate);
+    const nextDate = dateStringToDate(currentDate);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+    currentDate = dateToDateString(nextDate);
+  }
+
+  return dates;
+};
+
+const getAssignmentTimeRange = (
+  assignment: ScheduleHistoryDetailResponse["assignments"][number],
+) => {
+  return `${dateToTimeString(new Date(assignment.startsAt))}-${dateToTimeString(
+    new Date(assignment.endsAt),
+  )}`;
+};
+
+const getScheduleTimeRanges = (assignments: ScheduleHistoryDetailResponse["assignments"]) => {
+  return Array.from(new Set(assignments.map(getAssignmentTimeRange))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+};
 
 export async function exportScheduleHistoryCsv(
   prisma: PrismaClient,
@@ -92,21 +121,28 @@ export async function exportScheduleHistoryCsv(
   scheduleId: string,
 ): Promise<string> {
   const schedule = await getScheduleHistoryDetail(prisma, organizationId, scheduleId);
+  const dates = createScheduleDateRange(schedule.startDate, schedule.endDate);
+  const timeRanges = getScheduleTimeRanges(schedule.assignments);
   const rows = [
-    createCsvRow(["날짜", "요일", "시작시간", "종료시간", "사번", "근무자명"]),
-    ...schedule.assignments.map((assignment) => {
-      const workDate = dateStringToDate(assignment.workDate);
+    createCsvRow(["날짜", "요일", ...timeRanges]),
+    ...dates.map((date) => {
+      const workDate = dateStringToDate(date);
 
       return createCsvRow([
-        assignment.workDate,
+        date,
         WEEKDAY_LABELS[workDate.getUTCDay()],
-        dateToTimeString(new Date(assignment.startsAt)),
-        dateToTimeString(new Date(assignment.endsAt)),
-        assignment.employeeCodeSnapshot,
-        assignment.workerNameSnapshot,
+        ...timeRanges.map((timeRange) => {
+          return schedule.assignments
+            .filter(
+              (assignment) =>
+                assignment.workDate === date && getAssignmentTimeRange(assignment) === timeRange,
+            )
+            .map((assignment) => assignment.workerNameSnapshot)
+            .join(" / ");
+        }),
       ]);
     }),
   ];
 
-  return rows.join("\n");
+  return `${UTF8_BOM}${rows.join("\n")}`;
 }

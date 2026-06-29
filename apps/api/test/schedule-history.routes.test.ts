@@ -40,15 +40,31 @@ const createSchedule = ({
   updatedAt: timestamp,
 });
 
-const createAssignment = () => ({
-  id: BigInt(10),
+const createAssignment = ({
+  employeeCodeSnapshot = "W-0001",
+  endsAt = "2026-07-01T14:00:00.000Z",
+  id = BigInt(10),
+  startsAt = "2026-07-01T10:00:00.000Z",
+  workerId = BigInt(1),
+  workerNameSnapshot = "김민수",
+  workDate = "2026-07-01",
+}: {
+  employeeCodeSnapshot?: string;
+  endsAt?: string;
+  id?: bigint;
+  startsAt?: string;
+  workerId?: bigint;
+  workerNameSnapshot?: string;
+  workDate?: string;
+} = {}) => ({
+  id,
   scheduleId: BigInt(1),
-  workerId: BigInt(1),
-  workDate: dateOnly("2026-07-01"),
-  startsAt: new Date("2026-07-01T10:00:00.000Z"),
-  endsAt: new Date("2026-07-01T14:00:00.000Z"),
-  workerNameSnapshot: "김민수",
-  employeeCodeSnapshot: "W-0001",
+  workerId,
+  workDate: dateOnly(workDate),
+  startsAt: new Date(startsAt),
+  endsAt: new Date(endsAt),
+  workerNameSnapshot,
+  employeeCodeSnapshot,
   createdAt: timestamp,
   updatedAt: timestamp,
 });
@@ -205,12 +221,27 @@ describe("schedule history routes", () => {
   it("exports confirmed schedule assignments as csv", async () => {
     const { prisma } = createFakePrisma({
       organizations: [createOrganization()],
-      scheduleAssignments: [createAssignment()],
+      scheduleAssignments: [
+        createAssignment(),
+        createAssignment({
+          id: BigInt(11),
+          workerId: BigInt(2),
+          workerNameSnapshot: "이서연",
+        }),
+        createAssignment({
+          id: BigInt(12),
+          startsAt: "2026-07-02T15:00:00.000Z",
+          endsAt: "2026-07-02T18:00:00.000Z",
+          workerId: BigInt(3),
+          workerNameSnapshot: "박준호",
+          workDate: "2026-07-02",
+        }),
+      ],
       schedules: [
         createSchedule({
           id: BigInt(1),
           startDate: "2026-07-01",
-          endDate: "2026-07-31",
+          endDate: "2026-07-03",
           confirmedAt: new Date("2026-06-25T00:00:00.000Z"),
         }),
       ],
@@ -224,9 +255,12 @@ describe("schedule history routes", () => {
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toContain("text/csv");
     expect(response.text).toBe(
-      ["날짜,요일,시작시간,종료시간,사번,근무자명", "2026-07-01,수,10:00,14:00,W-0001,김민수"].join(
-        "\n",
-      ),
+      `\uFEFF${[
+        "날짜,요일,10:00-14:00,15:00-18:00",
+        "2026-07-01,수,김민수 / 이서연,",
+        "2026-07-02,목,,박준호",
+        "2026-07-03,금,,",
+      ].join("\n")}`,
     );
   });
 
