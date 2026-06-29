@@ -12,6 +12,8 @@ import type {
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
 import { CalendarDays, Check, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Controller, type FieldErrors, type Resolver, useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import {
@@ -224,22 +226,72 @@ function createScheduleAssignmentInput(draft: ScheduleDraft): ScheduleAssignment
   };
 }
 
-function validateScheduleDraft(draft: ScheduleDraft, workStartDate: string, workEndDate: string) {
-  return {
-    date: !draft.date
-      ? "날짜를 선택하세요."
-      : draft.date < workStartDate || draft.date > workEndDate
-        ? "근무 시작 날짜와 종료 날짜 사이에서만 선택할 수 있습니다."
-        : "",
-    endTime: !draft.endTime
-      ? "종료 시간을 선택하세요."
-      : draft.startTime && draft.endTime === draft.startTime
-        ? "종료 시간은 시작 시간과 달라야 합니다."
-        : "",
-    startTime: !draft.startTime ? "시작 시간을 선택하세요." : "",
-    workerId: !draft.workerId ? "근무자를 선택하세요." : "",
+const createScheduleFormSchema = (workStartDate: string, workEndDate: string) =>
+  z
+    .object({
+      date: z.string().min(1, "날짜를 선택하세요."),
+      endTime: z.string().min(1, "종료 시간을 선택하세요."),
+      startTime: z.string().min(1, "시작 시간을 선택하세요."),
+      workerId: z.string().min(1, "근무자를 선택하세요."),
+    })
+    .superRefine((value, context) => {
+      if (
+        value.date &&
+        workStartDate &&
+        workEndDate &&
+        (value.date < workStartDate || value.date > workEndDate)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "근무 시작 날짜와 종료 날짜 사이에서만 선택할 수 있습니다.",
+          path: ["date"],
+        });
+      }
+
+      if (value.startTime && value.endTime && value.startTime === value.endTime) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "종료 시간은 시작 시간과 달라야 합니다.",
+          path: ["endTime"],
+        });
+      }
+    });
+
+const createScheduleFormResolver =
+  (workStartDate: string, workEndDate: string): Resolver<ScheduleDraft> =>
+  (values) => {
+    const result = createScheduleFormSchema(workStartDate, workEndDate).safeParse(values);
+
+    if (result.success) {
+      return {
+        errors: {},
+        values,
+      };
+    }
+
+    const errors: FieldErrors<ScheduleDraft> = {};
+
+    result.error.issues.forEach((issue) => {
+      const [field] = issue.path;
+
+      if (
+        field === "date" ||
+        field === "startTime" ||
+        field === "endTime" ||
+        field === "workerId"
+      ) {
+        errors[field] = {
+          type: "manual",
+          message: issue.message,
+        };
+      }
+    });
+
+    return {
+      errors,
+      values: {},
+    };
   };
-}
 
 function createScheduleEndTimeOptions(startTime: string) {
   return SCHEDULE_TIME_OPTIONS.filter((option) => option.value !== startTime).map((option) => ({
@@ -372,6 +424,17 @@ export function MvpSchedulesPage() {
     () => unfilledConditions[0]?.date ?? schedules[0]?.date ?? candidates[0]?.date ?? "",
     [candidates, schedules, unfilledConditions],
   );
+  const {
+    control,
+    formState: { errors },
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+  } = useForm<ScheduleDraft>({
+    defaultValues: EMPTY_DRAFT,
+    resolver: createScheduleFormResolver(workStartDate, workEndDate),
+  });
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<ScheduleFormMode>("create");
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
@@ -379,13 +442,9 @@ export function MvpSchedulesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [dateDetailDismissed, setDateDetailDismissed] = useState(false);
-  const [draft, setDraft] = useState<ScheduleDraft>(EMPTY_DRAFT);
-  const [submitted, setSubmitted] = useState(false);
   const [operationMessage, setOperationMessage] = useState<OperationMessage | null>(null);
-  const errors = useMemo(
-    () => validateScheduleDraft(draft, workStartDate, workEndDate),
-    [draft, workEndDate, workStartDate],
-  );
+  const scheduleFormDate = watch("date");
+  const scheduleFormStartTime = watch("startTime");
   const calendarDates = useMemo(
     () => createCalendarDates(workStartDate, workEndDate),
     [workEndDate, workStartDate],
@@ -398,7 +457,6 @@ export function MvpSchedulesPage() {
     () => createWorkerOptions(workers, editingSchedule),
     [editingSchedule, workers],
   );
-  const hasErrors = Object.values(errors).some(Boolean);
   const isPageLoading =
     planningPeriodQuery.isPending ||
     staffingRulesQuery.isPending ||
@@ -434,8 +492,8 @@ export function MvpSchedulesPage() {
   );
   const isSelectedDateScheduleTarget = scheduleTargetDates.has(selectedDate);
   const scheduleEndTimeOptions = useMemo(
-    () => createScheduleEndTimeOptions(draft.startTime),
-    [draft.startTime],
+    () => createScheduleEndTimeOptions(scheduleFormStartTime),
+    [scheduleFormStartTime],
   );
 
   useEffect(() => {
@@ -444,8 +502,7 @@ export function MvpSchedulesPage() {
       setDateDetailDismissed(false);
       setFormOpen(false);
       setEditingScheduleId(null);
-      setDraft(EMPTY_DRAFT);
-      setSubmitted(false);
+      reset(EMPTY_DRAFT);
       return;
     }
 
@@ -474,8 +531,7 @@ export function MvpSchedulesPage() {
     setEditingScheduleId(null);
     setDateDetailDismissed(false);
     setSelectedDate(date);
-    setDraft({ ...EMPTY_DRAFT, date });
-    setSubmitted(false);
+    reset({ ...EMPTY_DRAFT, date });
     setOperationMessage(null);
     setFormOpen(true);
   }
@@ -489,17 +545,15 @@ export function MvpSchedulesPage() {
     setEditingScheduleId(scheduleItem.id);
     setDateDetailDismissed(false);
     setSelectedDate(scheduleItem.date);
-    setDraft(createDraftFromSchedule(scheduleItem));
-    setSubmitted(false);
+    reset(createDraftFromSchedule(scheduleItem));
     setOperationMessage(null);
     setFormOpen(true);
   }
 
   function closeForm() {
     setFormOpen(false);
-    setSubmitted(false);
     setEditingScheduleId(null);
-    setDraft(EMPTY_DRAFT);
+    reset(EMPTY_DRAFT);
   }
 
   async function generateRecommendation() {
@@ -529,15 +583,14 @@ export function MvpSchedulesPage() {
     }
   }
 
-  async function saveSchedule() {
-    setSubmitted(true);
+  async function saveSchedule(values: ScheduleDraft) {
     setOperationMessage(null);
 
-    if (!schedule || !isDraft || hasErrors) {
+    if (!schedule || !isDraft) {
       return;
     }
 
-    const request = createScheduleAssignmentInput(draft);
+    const request = createScheduleAssignmentInput(values);
 
     try {
       if (formMode === "create") {
@@ -555,7 +608,7 @@ export function MvpSchedulesPage() {
         });
       }
 
-      setSelectedDate(draft.date);
+      setSelectedDate(values.date);
       setDateDetailDismissed(false);
       closeForm();
       setOperationMessage({
@@ -977,7 +1030,7 @@ export function MvpSchedulesPage() {
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">{formTitle}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {formatDateTitle(draft.date)}
+                      {scheduleFormDate ? formatDateTitle(scheduleFormDate) : "날짜 미선택"}
                     </p>
                   </div>
                   <button
@@ -994,88 +1047,95 @@ export function MvpSchedulesPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="schedule-start-time">시작 시간</Label>
-                      <Select
-                        value={draft.startTime}
-                        onValueChange={(value) =>
-                          setDraft((current) => ({
-                            ...current,
-                            endTime:
-                              current.endTime && current.endTime === value ? "" : current.endTime,
-                            startTime: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger
-                          id="schedule-start-time"
-                          aria-invalid={submitted && Boolean(errors.startTime)}
-                        >
-                          <SelectValue placeholder="시작 시간 선택" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SCHEDULE_TIME_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {submitted && errors.startTime ? (
-                        <p className="text-sm text-destructive">{errors.startTime}</p>
+                      <Controller
+                        control={control}
+                        name="startTime"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+
+                              if (watch("endTime") === value) {
+                                setValue("endTime", "");
+                              }
+                            }}
+                          >
+                            <SelectTrigger
+                              id="schedule-start-time"
+                              aria-invalid={Boolean(errors.startTime)}
+                            >
+                              <SelectValue placeholder="시작 시간 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SCHEDULE_TIME_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.startTime ? (
+                        <p className="text-sm text-destructive">{errors.startTime.message}</p>
                       ) : null}
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="schedule-end-time">종료 시간</Label>
-                      <Select
-                        value={draft.endTime}
-                        onValueChange={(value) =>
-                          setDraft((current) => ({ ...current, endTime: value }))
-                        }
-                      >
-                        <SelectTrigger
-                          id="schedule-end-time"
-                          aria-invalid={submitted && Boolean(errors.endTime)}
-                        >
-                          <SelectValue placeholder="종료 시간 선택" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {scheduleEndTimeOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {submitted && errors.endTime ? (
-                        <p className="text-sm text-destructive">{errors.endTime}</p>
+                      <Controller
+                        control={control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger
+                              id="schedule-end-time"
+                              aria-invalid={Boolean(errors.endTime)}
+                            >
+                              <SelectValue placeholder="종료 시간 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {scheduleEndTimeOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.endTime ? (
+                        <p className="text-sm text-destructive">{errors.endTime.message}</p>
                       ) : null}
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="schedule-worker">근무자</Label>
-                    <Select
-                      value={draft.workerId}
-                      onValueChange={(value) =>
-                        setDraft((current) => ({ ...current, workerId: value }))
-                      }
-                    >
-                      <SelectTrigger
-                        id="schedule-worker"
-                        aria-invalid={submitted && Boolean(errors.workerId)}
-                      >
-                        <SelectValue placeholder="근무자를 선택하세요" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {workerOptions.map((worker) => (
-                          <SelectItem key={worker.id} value={worker.id}>
-                            {worker.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {submitted && errors.workerId ? (
-                      <p className="text-sm text-destructive">{errors.workerId}</p>
+                    <Controller
+                      control={control}
+                      name="workerId"
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger
+                            id="schedule-worker"
+                            aria-invalid={Boolean(errors.workerId)}
+                          >
+                            <SelectValue placeholder="근무자를 선택하세요" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {workerOptions.map((worker) => (
+                              <SelectItem key={worker.id} value={worker.id}>
+                                {worker.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.workerId ? (
+                      <p className="text-sm text-destructive">{errors.workerId.message}</p>
                     ) : null}
                   </div>
                 </div>
@@ -1087,9 +1147,7 @@ export function MvpSchedulesPage() {
                   <Button
                     type="button"
                     variant="brand"
-                    onClick={() => {
-                      void saveSchedule();
-                    }}
+                    onClick={handleSubmit(saveSchedule)}
                     disabled={
                       createScheduleAssignmentMutation.isPending ||
                       updateScheduleAssignmentMutation.isPending
