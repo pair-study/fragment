@@ -43,7 +43,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          "relative z-50 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-dropdown",
+          "relative z-50 max-h-80 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-dropdown",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className,
@@ -53,9 +53,9 @@ function SelectContent({
       >
         <SelectPrimitive.Viewport
           className={cn(
-            "p-1",
+            "max-h-80 overflow-y-auto p-1",
             position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+              "w-full min-w-[var(--radix-select-trigger-width)]",
           )}
         >
           {children}

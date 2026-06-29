@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@fragment/database";
+import type { DayOfWeek, OrganizationBusinessHour, PrismaClient } from "@fragment/database";
 import { describe, expect, it, jest } from "@jest/globals";
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
@@ -12,10 +12,30 @@ import {
 const timeOfDay = (hour: number, minute: number) => new Date(Date.UTC(1970, 0, 1, hour, minute));
 const timestamp = new Date("2026-06-25T00:00:00.000Z");
 
+const createBusinessHour = ({
+  closeTime = timeOfDay(18, 0),
+  closesNextDay = false,
+  dayOfWeek = "MON",
+  id = BigInt(1),
+  isClosed = false,
+  openTime = timeOfDay(9, 0),
+  organizationId = BigInt(1),
+}: Partial<OrganizationBusinessHour> = {}): OrganizationBusinessHour => ({
+  id,
+  organizationId,
+  dayOfWeek,
+  isClosed,
+  openTime,
+  closeTime,
+  closesNextDay,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+});
+
 const createRuleRow = ({
   id = BigInt(10),
   organizationId = BigInt(1),
-  dayOfWeek = "MON",
+  dayOfWeek = "MON" as DayOfWeek,
   startTime = timeOfDay(10, 0),
   endTime = timeOfDay(14, 0),
   endsNextDay = false,
@@ -32,11 +52,16 @@ const createRuleRow = ({
   updatedAt: timestamp,
 });
 
+type OrganizationRow = {
+  businessHours: OrganizationBusinessHour[];
+  id: bigint;
+};
+
 const createPrismaMock = ({
-  organization = { id: BigInt(1) },
+  organization = { businessHours: [createBusinessHour()], id: BigInt(1) },
   minimumStaffingRule = {},
 }: {
-  organization?: { id: bigint } | null;
+  organization?: OrganizationRow | null;
   minimumStaffingRule?: {
     create?: jest.Mock;
     deleteMany?: jest.Mock;
@@ -46,11 +71,14 @@ const createPrismaMock = ({
   };
 } = {}) => {
   const organizationFindUnique = jest
-    .fn<() => Promise<{ id: bigint } | null>>()
+    .fn<() => Promise<OrganizationRow | null>>()
     .mockResolvedValue(organization);
 
   return {
     prisma: {
+      activeSchedulePlanningPeriod: {
+        findUnique: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+      },
       organization: {
         findUnique: organizationFindUnique,
       },
@@ -133,6 +161,17 @@ describe("createMinimumStaffingRule", () => {
         }),
       );
     const { prisma } = createPrismaMock({
+      organization: {
+        id: BigInt(1),
+        businessHours: [
+          createBusinessHour({
+            closeTime: timeOfDay(2, 0),
+            closesNextDay: true,
+            dayOfWeek: "FRI",
+            openTime: timeOfDay(22, 0),
+          }),
+        ],
+      },
       minimumStaffingRule: {
         create: minimumStaffingRuleCreate,
       },
@@ -163,6 +202,63 @@ describe("createMinimumStaffingRule", () => {
       },
     });
   });
+
+  it("rejects rules on closed business days", async () => {
+    const minimumStaffingRuleCreate = jest.fn();
+    const { prisma } = createPrismaMock({
+      organization: {
+        id: BigInt(1),
+        businessHours: [
+          createBusinessHour({
+            closeTime: null,
+            dayOfWeek: "MON",
+            isClosed: true,
+            openTime: null,
+          }),
+        ],
+      },
+      minimumStaffingRule: {
+        create: minimumStaffingRuleCreate,
+      },
+    });
+
+    await expect(
+      createMinimumStaffingRule(prisma, "1", {
+        dayOfWeek: "MON",
+        startTime: "10:00",
+        endTime: "14:00",
+        endsNextDay: false,
+        requiredCount: 2,
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.CLOSED_DAY,
+      statusCode: 400,
+    });
+    expect(minimumStaffingRuleCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects rules outside business hours", async () => {
+    const minimumStaffingRuleCreate = jest.fn();
+    const { prisma } = createPrismaMock({
+      minimumStaffingRule: {
+        create: minimumStaffingRuleCreate,
+      },
+    });
+
+    await expect(
+      createMinimumStaffingRule(prisma, "1", {
+        dayOfWeek: "MON",
+        startTime: "08:00",
+        endTime: "10:00",
+        endsNextDay: false,
+        requiredCount: 2,
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.INVALID_TIME_RANGE,
+      statusCode: 400,
+    });
+    expect(minimumStaffingRuleCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateMinimumStaffingRule", () => {
@@ -190,6 +286,7 @@ describe("updateMinimumStaffingRule", () => {
         organizationId: BigInt(1),
       },
       select: {
+        dayOfWeek: true,
         endTime: true,
         endsNextDay: true,
         id: true,
@@ -203,6 +300,7 @@ describe("updateMinimumStaffingRule", () => {
     const minimumStaffingRuleFindFirst = jest
       .fn<
         () => Promise<{
+          dayOfWeek: DayOfWeek;
           endTime: Date;
           endsNextDay: boolean;
           id: bigint;
@@ -210,6 +308,7 @@ describe("updateMinimumStaffingRule", () => {
         }>
       >()
       .mockResolvedValue({
+        dayOfWeek: "MON",
         id: BigInt(10),
         startTime: timeOfDay(10, 0),
         endTime: timeOfDay(14, 0),
@@ -229,6 +328,43 @@ describe("updateMinimumStaffingRule", () => {
       }),
     ).rejects.toMatchObject({
       code: ERROR_CODES.VALIDATION_ERROR,
+      statusCode: 400,
+    });
+    expect(minimumStaffingRuleUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects updates that move a rule outside business hours", async () => {
+    const minimumStaffingRuleFindFirst = jest
+      .fn<
+        () => Promise<{
+          dayOfWeek: DayOfWeek;
+          endTime: Date;
+          endsNextDay: boolean;
+          id: bigint;
+          startTime: Date;
+        }>
+      >()
+      .mockResolvedValue({
+        dayOfWeek: "MON",
+        id: BigInt(10),
+        startTime: timeOfDay(10, 0),
+        endTime: timeOfDay(14, 0),
+        endsNextDay: false,
+      });
+    const minimumStaffingRuleUpdate = jest.fn();
+    const { prisma } = createPrismaMock({
+      minimumStaffingRule: {
+        findFirst: minimumStaffingRuleFindFirst,
+        update: minimumStaffingRuleUpdate,
+      },
+    });
+
+    await expect(
+      updateMinimumStaffingRule(prisma, "1", "10", {
+        startTime: "08:00",
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.INVALID_TIME_RANGE,
       statusCode: 400,
     });
     expect(minimumStaffingRuleUpdate).not.toHaveBeenCalled();

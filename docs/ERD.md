@@ -18,8 +18,10 @@ erDiagram
 
     WORKERS ||--o{ WORKER_AVAILABLE_TIMES : has
     WORKERS ||--o{ SCHEDULE_ASSIGNMENTS : assigned
+    WORKERS ||--o{ SCHEDULE_CANDIDATES : candidate
 
     SCHEDULES ||--o{ SCHEDULE_ASSIGNMENTS : contains
+    SCHEDULES ||--o{ SCHEDULE_CANDIDATES : contains
     SCHEDULES ||--o{ SCHEDULE_WORKER_SHORTAGES : has
 
     USERS {
@@ -129,6 +131,19 @@ erDiagram
         datetime updated_at
     }
 
+    SCHEDULE_CANDIDATES {
+        bigint id PK
+        bigint schedule_id FK
+        bigint worker_id FK "nullable"
+        date work_date
+        datetime starts_at
+        datetime ends_at
+        varchar worker_name_snapshot
+        varchar employee_code_snapshot
+        datetime created_at
+        datetime updated_at
+    }
+
     SCHEDULE_WORKER_SHORTAGES {
         bigint id PK
         bigint schedule_id FK
@@ -190,7 +205,9 @@ erDiagram
 - 운영 시간과 최소 인원 조건에서 종료 시간이 다음 날로 넘어가면 `closes_next_day` 또는 `ends_next_day`가 `true`입니다.
 - `is_closed = true`인 운영 요일은 `open_time`, `close_time`을 비워둘 수 있습니다.
 - 휴무일에는 가능 시간을 저장할 수 없습니다.
-- 가능 시간은 조직 운영 시간 기준 30분 단위여야 합니다.
+- 가능 시간은 조직 운영 시간 안에서 최소 인원 조건이 있는 시간대 기준 30분 단위여야 합니다.
+- 최소 인원 조건이 없는 시간대는 가능 시간 입력, 가능 후보 산출, 추천 배정, 미충족 판단 대상에서 제외합니다.
+- 최소 인원 조건 변경으로 기존 가능 시간이 현재 조건 밖에 놓이면 조건과 겹치는 구간만 남기고, 전혀 겹치지 않는 구간은 삭제합니다.
 - 삭제된 인력은 추천 생성 기준에서 제외합니다.
 
 ### Application Read / Export Rules

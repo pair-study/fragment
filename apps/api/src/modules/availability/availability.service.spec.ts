@@ -48,12 +48,40 @@ const createBusinessHourRow = ({
   updatedAt: timestamp,
 });
 
+const createMinimumStaffingRuleRow = ({
+  id = BigInt(1),
+  organizationId = BigInt(1),
+  dayOfWeek = "WED",
+  startTime = timeOfDay("09:00"),
+  endTime = timeOfDay("18:00"),
+  endsNextDay = false,
+  requiredCount = 1,
+} = {}) => ({
+  id,
+  organizationId,
+  dayOfWeek,
+  startTime,
+  endTime,
+  endsNextDay,
+  requiredCount,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+});
+
 const createPrismaMock = ({
-  organization = { id: BigInt(1), businessHours: [createBusinessHourRow()] },
+  organization = {
+    id: BigInt(1),
+    businessHours: [createBusinessHourRow()],
+    minimumStaffingRules: [createMinimumStaffingRuleRow()],
+  },
   worker = { id: BigInt(1) },
   workerAvailableTime = {},
 }: {
-  organization?: { businessHours: ReturnType<typeof createBusinessHourRow>[]; id: bigint } | null;
+  organization?: {
+    businessHours: ReturnType<typeof createBusinessHourRow>[];
+    id: bigint;
+    minimumStaffingRules: ReturnType<typeof createMinimumStaffingRuleRow>[];
+  } | null;
   worker?: { id: bigint } | null;
   workerAvailableTime?: {
     createMany?: jest.Mock;
@@ -65,15 +93,27 @@ const createPrismaMock = ({
     .fn<() => Promise<{ id: bigint } | null>>()
     .mockResolvedValue(organization);
   const workerFindFirst = jest.fn<() => Promise<{ id: bigint } | null>>().mockResolvedValue(worker);
+  const workerAvailableTimeCreateMany =
+    workerAvailableTime.createMany ??
+    jest.fn<() => Promise<{ count: number }>>().mockResolvedValue({ count: 0 });
+  const workerAvailableTimeDeleteMany =
+    workerAvailableTime.deleteMany ??
+    jest.fn<() => Promise<{ count: number }>>().mockResolvedValue({ count: 0 });
+  const workerAvailableTimeFindMany =
+    workerAvailableTime.findMany ??
+    jest.fn<() => Promise<ReturnType<typeof createAvailabilityRow>[]>>().mockResolvedValue([]);
 
   return {
     prisma: {
+      activeSchedulePlanningPeriod: {
+        findUnique: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+      },
       $transaction: jest.fn(async (callback: (transaction: unknown) => unknown) =>
         callback({
           workerAvailableTime: {
-            createMany: workerAvailableTime.createMany ?? jest.fn(),
-            deleteMany: workerAvailableTime.deleteMany ?? jest.fn(),
-            findMany: workerAvailableTime.findMany ?? jest.fn(),
+            createMany: workerAvailableTimeCreateMany,
+            deleteMany: workerAvailableTimeDeleteMany,
+            findMany: workerAvailableTimeFindMany,
           },
         }),
       ),
@@ -84,9 +124,9 @@ const createPrismaMock = ({
         findFirst: workerFindFirst,
       },
       workerAvailableTime: {
-        createMany: workerAvailableTime.createMany ?? jest.fn(),
-        deleteMany: workerAvailableTime.deleteMany ?? jest.fn(),
-        findMany: workerAvailableTime.findMany ?? jest.fn(),
+        createMany: workerAvailableTimeCreateMany,
+        deleteMany: workerAvailableTimeDeleteMany,
+        findMany: workerAvailableTimeFindMany,
       },
     } as unknown as PrismaClient,
     organizationFindUnique,
@@ -334,6 +374,7 @@ describe("replaceAvailability", () => {
   });
 
   it("rejects availability on closed days", async () => {
+    const availableTimeCreateMany = jest.fn();
     const { prisma } = createPrismaMock({
       organization: {
         id: BigInt(1),
@@ -344,6 +385,10 @@ describe("replaceAvailability", () => {
             closeTime: null,
           }),
         ],
+        minimumStaffingRules: [createMinimumStaffingRuleRow()],
+      },
+      workerAvailableTime: {
+        createMany: availableTimeCreateMany,
       },
     });
 
@@ -360,14 +405,19 @@ describe("replaceAvailability", () => {
           },
         ],
       }),
-    ).rejects.toMatchObject({
-      code: ERROR_CODES.CLOSED_DAY,
-      statusCode: 400,
+    ).resolves.toEqual({
+      items: [],
     });
+    expect(availableTimeCreateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects availability outside business hours", async () => {
-    const { prisma } = createPrismaMock();
+  it("trims availability to schedulable ranges", async () => {
+    const availableTimeCreateMany = jest.fn();
+    const { prisma } = createPrismaMock({
+      workerAvailableTime: {
+        createMany: availableTimeCreateMany,
+      },
+    });
 
     await expect(
       replaceAvailability(prisma, "1", {
@@ -382,9 +432,18 @@ describe("replaceAvailability", () => {
           },
         ],
       }),
-    ).rejects.toMatchObject({
-      code: ERROR_CODES.INVALID_TIME_RANGE,
-      statusCode: 400,
+    ).resolves.toEqual({
+      items: [],
+    });
+    expect(availableTimeCreateMany).toHaveBeenCalledWith({
+      data: [
+        {
+          workerId: BigInt(1),
+          availableDate: dateOnly("2026-07-01"),
+          startsAt: new Date("2026-07-01T09:00:00.000Z"),
+          endsAt: new Date("2026-07-01T10:00:00.000Z"),
+        },
+      ],
     });
   });
 
@@ -435,6 +494,14 @@ describe("replaceAvailability", () => {
             openTime: timeOfDay("22:00"),
             closeTime: timeOfDay("02:00"),
             closesNextDay: true,
+          }),
+        ],
+        minimumStaffingRules: [
+          createMinimumStaffingRuleRow({
+            dayOfWeek: "FRI",
+            startTime: timeOfDay("22:00"),
+            endTime: timeOfDay("02:00"),
+            endsNextDay: true,
           }),
         ],
       },

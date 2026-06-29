@@ -1,5 +1,6 @@
 import type {
   MinimumStaffingRule as PrismaMinimumStaffingRule,
+  OrganizationBusinessHour,
   Prisma,
   PrismaClient,
 } from "@fragment/database";
@@ -12,14 +13,32 @@ import type {
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
-import { dateToTimeString, timeStringToDate } from "@/utils/date-time";
+import { pruneOrganizationAvailabilityForActivePlanningPeriod } from "@/modules/availability/availability.service";
+import { dateToTimeString, parseTimeToMinutes, timeStringToDate } from "@/utils/date-time";
 import { toApiId, toPrismaId } from "@/utils/mapper";
+
+const MINUTES_IN_DAY = 24 * 60;
+
+type StaffingRulesOrganization = {
+  businessHours: OrganizationBusinessHour[];
+  id: bigint;
+};
 
 const createMinimumStaffingRuleNotFoundError = () =>
   new HttpError(404, ERROR_CODES.NOT_FOUND, "최소 인원 조건을 찾을 수 없습니다.");
 
 const createMinimumStaffingRuleValidationError = () =>
   new HttpError(400, ERROR_CODES.VALIDATION_ERROR, "요청 형식이 올바르지 않습니다.");
+
+const createMinimumStaffingRuleClosedDayError = () =>
+  new HttpError(400, ERROR_CODES.CLOSED_DAY, "휴무일에는 최소 인원 조건을 등록할 수 없습니다.");
+
+const createMinimumStaffingRuleOutsideBusinessHoursError = () =>
+  new HttpError(
+    400,
+    ERROR_CODES.INVALID_TIME_RANGE,
+    "최소 인원 조건은 조직 운영시간 안에서만 등록할 수 있습니다.",
+  );
 
 const assertMinimumStaffingRuleTimeRange = ({
   endTime,
@@ -39,12 +58,52 @@ const assertMinimumStaffingRuleTimeRange = ({
   }
 };
 
-const findOrganizationIdByUserId = async (prisma: PrismaClient, userId: string) => {
+const dateToMinutes = (time: Date) => parseTimeToMinutes(dateToTimeString(time));
+
+const getRangeEndMinutes = (endTime: string, endsNextDay: boolean) => {
+  const rawEndMinutes = parseTimeToMinutes(endTime);
+
+  return endsNextDay ? rawEndMinutes + MINUTES_IN_DAY : rawEndMinutes;
+};
+
+const assertMinimumStaffingRuleInsideBusinessHours = ({
+  businessHours,
+  dayOfWeek,
+  endTime,
+  endsNextDay,
+  startTime,
+}: Pick<MinimumStaffingRule, "dayOfWeek" | "endTime" | "endsNextDay" | "startTime"> & {
+  businessHours: OrganizationBusinessHour[];
+}) => {
+  const businessHour = businessHours.find((item) => item.dayOfWeek === dayOfWeek);
+
+  if (!businessHour || businessHour.isClosed || !businessHour.openTime || !businessHour.closeTime) {
+    throw createMinimumStaffingRuleClosedDayError();
+  }
+
+  const businessStartMinutes = dateToMinutes(businessHour.openTime);
+  const rawBusinessEndMinutes = dateToMinutes(businessHour.closeTime);
+  const businessEndMinutes = businessHour.closesNextDay
+    ? rawBusinessEndMinutes + MINUTES_IN_DAY
+    : rawBusinessEndMinutes;
+  const ruleStartMinutes = parseTimeToMinutes(startTime);
+  const ruleEndMinutes = getRangeEndMinutes(endTime, endsNextDay);
+
+  if (ruleStartMinutes < businessStartMinutes || ruleEndMinutes > businessEndMinutes) {
+    throw createMinimumStaffingRuleOutsideBusinessHoursError();
+  }
+};
+
+const findOrganizationByUserId = async (
+  prisma: PrismaClient,
+  userId: string,
+): Promise<StaffingRulesOrganization> => {
   const organization = await prisma.organization.findUnique({
     where: {
       userId: toPrismaId(userId),
     },
     select: {
+      businessHours: true,
       id: true,
     },
   });
@@ -53,7 +112,7 @@ const findOrganizationIdByUserId = async (prisma: PrismaClient, userId: string) 
     throw new HttpError(403, ERROR_CODES.ORGANIZATION_REQUIRED, "조직 생성 후 이용할 수 있습니다.");
   }
 
-  return organization.id;
+  return organization;
 };
 
 export const toMinimumStaffingRule = (rule: PrismaMinimumStaffingRule): MinimumStaffingRule => ({
@@ -91,11 +150,11 @@ export async function getMinimumStaffingRules(
   prisma: PrismaClient,
   userId: string,
 ): Promise<MinimumStaffingRulesListResponse> {
-  const organizationId = await findOrganizationIdByUserId(prisma, userId);
+  const organization = await findOrganizationByUserId(prisma, userId);
 
   const rules = await prisma.minimumStaffingRule.findMany({
     where: {
-      organizationId,
+      organizationId: organization.id,
     },
     orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
   });
@@ -110,10 +169,19 @@ export async function createMinimumStaffingRule(
   userId: string,
   input: CreateMinimumStaffingRuleRequest,
 ): Promise<MinimumStaffingRule> {
-  const organizationId = await findOrganizationIdByUserId(prisma, userId);
-  const rule = await prisma.minimumStaffingRule.create({
-    data: createMinimumStaffingRuleData(organizationId, input),
+  const organization = await findOrganizationByUserId(prisma, userId);
+
+  assertMinimumStaffingRuleTimeRange(input);
+  assertMinimumStaffingRuleInsideBusinessHours({
+    businessHours: organization.businessHours,
+    ...input,
   });
+
+  const rule = await prisma.minimumStaffingRule.create({
+    data: createMinimumStaffingRuleData(organization.id, input),
+  });
+
+  await pruneOrganizationAvailabilityForActivePlanningPeriod(prisma, organization.id);
 
   return toMinimumStaffingRule(rule);
 }
@@ -124,15 +192,16 @@ export async function updateMinimumStaffingRule(
   ruleId: string,
   input: UpdateMinimumStaffingRuleRequest,
 ): Promise<MinimumStaffingRule> {
-  const organizationId = await findOrganizationIdByUserId(prisma, userId);
+  const organization = await findOrganizationByUserId(prisma, userId);
   const ruleDatabaseId = toPrismaId(ruleId);
 
   const existingRule = await prisma.minimumStaffingRule.findFirst({
     where: {
       id: ruleDatabaseId,
-      organizationId,
+      organizationId: organization.id,
     },
     select: {
+      dayOfWeek: true,
       endTime: true,
       endsNextDay: true,
       id: true,
@@ -144,10 +213,17 @@ export async function updateMinimumStaffingRule(
     throw createMinimumStaffingRuleNotFoundError();
   }
 
-  assertMinimumStaffingRuleTimeRange({
+  const mergedRule = {
+    dayOfWeek: input.dayOfWeek ?? existingRule.dayOfWeek,
     startTime: input.startTime ?? dateToTimeString(existingRule.startTime),
     endTime: input.endTime ?? dateToTimeString(existingRule.endTime),
     endsNextDay: input.endsNextDay ?? existingRule.endsNextDay,
+  };
+
+  assertMinimumStaffingRuleTimeRange(mergedRule);
+  assertMinimumStaffingRuleInsideBusinessHours({
+    businessHours: organization.businessHours,
+    ...mergedRule,
   });
 
   const updatedRule = await prisma.minimumStaffingRule.update({
@@ -157,6 +233,8 @@ export async function updateMinimumStaffingRule(
     data: createMinimumStaffingRuleUpdateData(input),
   });
 
+  await pruneOrganizationAvailabilityForActivePlanningPeriod(prisma, organization.id);
+
   return toMinimumStaffingRule(updatedRule);
 }
 
@@ -165,15 +243,17 @@ export async function deleteMinimumStaffingRule(
   userId: string,
   ruleId: string,
 ): Promise<void> {
-  const organizationId = await findOrganizationIdByUserId(prisma, userId);
+  const organization = await findOrganizationByUserId(prisma, userId);
   const result = await prisma.minimumStaffingRule.deleteMany({
     where: {
       id: toPrismaId(ruleId),
-      organizationId,
+      organizationId: organization.id,
     },
   });
 
   if (result.count === 0) {
     throw createMinimumStaffingRuleNotFoundError();
   }
+
+  await pruneOrganizationAvailabilityForActivePlanningPeriod(prisma, organization.id);
 }

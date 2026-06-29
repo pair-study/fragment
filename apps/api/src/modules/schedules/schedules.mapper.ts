@@ -2,21 +2,31 @@ import type {
   Prisma,
   Schedule,
   ScheduleAssignment as PrismaScheduleAssignment,
+  ScheduleCandidate as PrismaScheduleCandidate,
   ScheduleWorkerShortage as PrismaScheduleWorkerShortage,
 } from "@fragment/database";
-import type { ScheduleAssignment, ScheduleDetail, ScheduleWorkerShortage } from "@fragment/shared";
+import type {
+  ScheduleAssignment,
+  ScheduleCandidate,
+  ScheduleDetail,
+  ScheduleWorkerShortage,
+} from "@fragment/shared";
 
 import { dateToDateString, dateToTimeString } from "@/utils/date-time";
 import { toApiId } from "@/utils/mapper";
 
 type ScheduleWithDetails = Schedule & {
   assignments: PrismaScheduleAssignment[];
+  candidates: PrismaScheduleCandidate[];
   workerShortages: PrismaScheduleWorkerShortage[];
 };
 
 export const scheduleDetailInclude = {
   assignments: {
     orderBy: [{ workDate: "asc" }, { startsAt: "asc" }, { id: "asc" }],
+  },
+  candidates: {
+    orderBy: [{ workDate: "asc" }, { startsAt: "asc" }, { employeeCodeSnapshot: "asc" }],
   },
   workerShortages: {
     orderBy: [{ workDate: "asc" }, { startTime: "asc" }, { id: "asc" }],
@@ -32,6 +42,37 @@ export const toScheduleAssignment = (assignment: PrismaScheduleAssignment): Sche
   endsAt: assignment.endsAt.toISOString(),
   workerNameSnapshot: assignment.workerNameSnapshot,
   employeeCodeSnapshot: assignment.employeeCodeSnapshot,
+});
+
+const isCandidateRecommended = (
+  candidate: PrismaScheduleCandidate,
+  assignments: PrismaScheduleAssignment[],
+) =>
+  assignments.some(
+    (assignment) =>
+      assignment.workDate.getTime() === candidate.workDate.getTime() &&
+      assignment.startsAt.getTime() === candidate.startsAt.getTime() &&
+      assignment.endsAt.getTime() === candidate.endsAt.getTime() &&
+      (candidate.workerId !== null
+        ? assignment.workerId === candidate.workerId
+        : assignment.workerId === null &&
+          assignment.workerNameSnapshot === candidate.workerNameSnapshot &&
+          assignment.employeeCodeSnapshot === candidate.employeeCodeSnapshot),
+  );
+
+export const toScheduleCandidate = (
+  candidate: PrismaScheduleCandidate,
+  assignments: PrismaScheduleAssignment[],
+): ScheduleCandidate => ({
+  id: toApiId(candidate.id),
+  scheduleId: toApiId(candidate.scheduleId),
+  workerId: candidate.workerId === null ? null : toApiId(candidate.workerId),
+  workDate: dateToDateString(candidate.workDate),
+  startsAt: candidate.startsAt.toISOString(),
+  endsAt: candidate.endsAt.toISOString(),
+  workerNameSnapshot: candidate.workerNameSnapshot,
+  employeeCodeSnapshot: candidate.employeeCodeSnapshot,
+  isRecommended: isCandidateRecommended(candidate, assignments),
 });
 
 export const toScheduleWorkerShortage = (
@@ -56,5 +97,8 @@ export const toScheduleDetail = (schedule: ScheduleWithDetails): ScheduleDetail 
   generatedAt: schedule.generatedAt.toISOString(),
   confirmedAt: schedule.confirmedAt ? schedule.confirmedAt.toISOString() : null,
   assignments: schedule.assignments.map(toScheduleAssignment),
+  candidates: schedule.candidates.map((candidate) =>
+    toScheduleCandidate(candidate, schedule.assignments),
+  ),
   workerShortages: schedule.workerShortages.map(toScheduleWorkerShortage),
 });

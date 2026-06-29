@@ -13,26 +13,20 @@ import type {
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
 import {
-  addDays,
-  createDateTimeOnDate,
-  dateStringToDate,
-  dateTimeStringToDate,
-  dateToDateString,
-} from "@/utils/date-time";
-import { getDayOfWeek } from "@/utils/day-of-week";
+  pruneAvailabilityTimesToSchedulableRanges,
+  type PrunedAvailabilityTime,
+} from "@/modules/scheduling-time-policy";
+import { dateStringToDate, dateTimeStringToDate, dateToDateString } from "@/utils/date-time";
 import { toApiId, toPrismaId } from "@/utils/mapper";
 
 type AvailabilityDatabaseClient = PrismaClient | Prisma.TransactionClient;
 
 type OrganizationForAvailability = Prisma.OrganizationGetPayload<{
-  include: { businessHours: true };
+  include: { businessHours: true; minimumStaffingRules: true };
 }>;
 
 const createInvalidTimeRangeError = () =>
   new HttpError(400, ERROR_CODES.INVALID_TIME_RANGE, "가능 시간이 조직 운영시간을 벗어났습니다.");
-
-const createClosedDayError = () =>
-  new HttpError(400, ERROR_CODES.CLOSED_DAY, "휴무일에는 가능 시간을 저장할 수 없습니다.");
 
 const findOrganizationByUserId = async (
   prisma: PrismaClient,
@@ -44,6 +38,7 @@ const findOrganizationByUserId = async (
     },
     include: {
       businessHours: true,
+      minimumStaffingRules: true,
     },
   });
 
@@ -77,40 +72,33 @@ const toAvailability = (availability: PrismaWorkerAvailableTime): Availability =
   endsAt: availability.endsAt.toISOString(),
 });
 
-const assertAvailabilityItemInBusinessHours = (
-  organization: OrganizationForAvailability,
-  input: ReplaceAvailabilityRequest,
-) => {
+const isPrismaClient = (client: AvailabilityDatabaseClient): client is PrismaClient =>
+  "$transaction" in client;
+
+const assertAvailabilityItemsInDateRange = (input: ReplaceAvailabilityRequest) => {
   for (const item of input.items) {
     if (item.availableDate < input.startDate || item.availableDate > input.endDate) {
       throw createInvalidTimeRangeError();
     }
 
-    const availableDate = dateStringToDate(item.availableDate);
-    const businessHour = organization.businessHours.find(
-      (currentBusinessHour) => currentBusinessHour.dayOfWeek === getDayOfWeek(availableDate),
-    );
-
-    if (
-      !businessHour ||
-      businessHour.isClosed ||
-      !businessHour.openTime ||
-      !businessHour.closeTime
-    ) {
-      throw createClosedDayError();
-    }
-
-    const startsAt = dateTimeStringToDate(item.startsAt);
-    const endsAt = dateTimeStringToDate(item.endsAt);
-    const openAt = createDateTimeOnDate(availableDate, businessHour.openTime);
-    const closeDate = businessHour.closesNextDay ? addDays(availableDate, 1) : availableDate;
-    const closeAt = createDateTimeOnDate(closeDate, businessHour.closeTime);
-
-    if (startsAt >= endsAt || startsAt < openAt || endsAt > closeAt) {
+    if (dateTimeStringToDate(item.startsAt) >= dateTimeStringToDate(item.endsAt)) {
       throw createInvalidTimeRangeError();
     }
   }
 };
+
+const createPrunedAvailabilityItems = (
+  organization: OrganizationForAvailability,
+  availableTimes: Pick<
+    PrismaWorkerAvailableTime,
+    "availableDate" | "endsAt" | "startsAt" | "workerId"
+  >[],
+): PrunedAvailabilityTime[] =>
+  pruneAvailabilityTimesToSchedulableRanges({
+    availableTimes,
+    businessHours: organization.businessHours,
+    rules: organization.minimumStaffingRules,
+  });
 
 export async function listAvailability(
   prisma: PrismaClient,
@@ -125,6 +113,8 @@ export async function listAvailability(
   if (!worker) {
     throw new HttpError(404, ERROR_CODES.WORKER_NOT_FOUND, "근무자를 찾을 수 없습니다.");
   }
+
+  await pruneOrganizationAvailabilityForActivePlanningPeriod(prisma, organizationId);
 
   const items = await prisma.workerAvailableTime.findMany({
     where: {
@@ -156,7 +146,17 @@ export async function replaceAvailability(
     throw new HttpError(404, ERROR_CODES.WORKER_NOT_FOUND, "근무자를 찾을 수 없습니다.");
   }
 
-  assertAvailabilityItemInBusinessHours(organization, input);
+  assertAvailabilityItemsInDateRange(input);
+
+  const prunedItems = createPrunedAvailabilityItems(
+    organization,
+    input.items.map((item) => ({
+      workerId,
+      availableDate: dateStringToDate(item.availableDate),
+      startsAt: dateTimeStringToDate(item.startsAt),
+      endsAt: dateTimeStringToDate(item.endsAt),
+    })),
+  );
 
   return prisma.$transaction(async (transaction) => {
     const dateRange = {
@@ -171,14 +171,9 @@ export async function replaceAvailability(
       },
     });
 
-    if (input.items.length > 0) {
+    if (prunedItems.length > 0) {
       await transaction.workerAvailableTime.createMany({
-        data: input.items.map((item) => ({
-          workerId,
-          availableDate: dateStringToDate(item.availableDate),
-          startsAt: dateTimeStringToDate(item.startsAt),
-          endsAt: dateTimeStringToDate(item.endsAt),
-        })),
+        data: prunedItems,
       });
     }
 
@@ -194,4 +189,72 @@ export async function replaceAvailability(
       items: items.map(toAvailability),
     };
   });
+}
+
+export async function pruneOrganizationAvailabilityForActivePlanningPeriod(
+  client: AvailabilityDatabaseClient,
+  organizationId: bigint,
+): Promise<void> {
+  const activePeriod = await client.activeSchedulePlanningPeriod.findUnique({
+    where: {
+      organizationId,
+    },
+  });
+
+  if (!activePeriod) {
+    return;
+  }
+
+  const organization = await client.organization.findUnique({
+    where: {
+      id: organizationId,
+    },
+    include: {
+      businessHours: true,
+      minimumStaffingRules: true,
+    },
+  });
+
+  if (!organization) {
+    return;
+  }
+
+  const dateRange = {
+    gte: activePeriod.startDate,
+    lte: activePeriod.endDate,
+  };
+  const existingItems = await client.workerAvailableTime.findMany({
+    where: {
+      worker: {
+        organizationId,
+      },
+      availableDate: dateRange,
+    },
+    orderBy: [{ availableDate: "asc" }, { startsAt: "asc" }],
+  });
+  const prunedItems = createPrunedAvailabilityItems(organization, existingItems);
+
+  const replaceAvailability = async (transaction: AvailabilityDatabaseClient) => {
+    await transaction.workerAvailableTime.deleteMany({
+      where: {
+        worker: {
+          organizationId,
+        },
+        availableDate: dateRange,
+      },
+    });
+
+    if (prunedItems.length > 0) {
+      await transaction.workerAvailableTime.createMany({
+        data: prunedItems,
+      });
+    }
+  };
+
+  if (isPrismaClient(client)) {
+    await client.$transaction(replaceAvailability);
+    return;
+  }
+
+  await replaceAvailability(client);
 }

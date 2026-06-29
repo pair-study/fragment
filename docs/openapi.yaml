@@ -283,7 +283,7 @@ paths:
       tags:
         - Availability
       summary: 가능 시간 조회
-      description: 특정 근무자의 선택 기간 가능 시간을 조회합니다.
+      description: 특정 근무자의 선택 기간 가능 시간을 조회합니다. 정책상 가능 시간은 최소 인원 조건이 있는 시간대에만 입력하고 추천 생성에 사용합니다. 현재 최소 인원 조건 밖에 있는 기존 가능 시간은 유효하지 않은 데이터로 보고 조회 또는 저장 과정에서 정리하며, 조건과 겹치는 구간만 남깁니다.
       operationId: listAvailability
       security:
         - bearerAuth: []
@@ -312,7 +312,7 @@ paths:
       tags:
         - Availability
       summary: 가능 시간 일괄 저장
-      description: 선택 범위의 특정 근무자 가능 시간을 요청값으로 전체 교체합니다.
+      description: 선택 범위의 특정 근무자 가능 시간을 요청값으로 전체 교체합니다. 저장 가능한 시간은 조직 영업시간 안에 있으면서 최소 인원 조건이 있는 시간대로 제한합니다. 현재 최소 인원 조건과 겹치는 구간만 저장하고, 전혀 겹치지 않는 구간은 삭제합니다.
       operationId: replaceAvailability
       security:
         - bearerAuth: []
@@ -446,7 +446,7 @@ paths:
       tags:
         - Schedules
       summary: 스케줄 추천 생성
-      description: 현재 active planning period, 인력, 가능 시간, 최소 인원 조건을 기준으로 DRAFT 스케줄을 생성합니다.
+      description: 현재 active planning period, 조직 영업시간, 인력, 가능 시간, 최소 인원 조건을 기준으로 DRAFT 스케줄을 생성합니다. 최소 인원 조건은 추천 대상 시간대와 최소 필요 인원을 정의하며, 조건이 있는 시간대에서만 가능 후보 산출, 추천 배정, 미충족 판단을 수행합니다.
       operationId: recommendSchedule
       security:
         - bearerAuth: []
@@ -1272,6 +1272,55 @@ components:
           type: string
           example: W-0001
 
+    ScheduleCandidate:
+      type: object
+      required:
+        - id
+        - scheduleId
+        - workerId
+        - workDate
+        - startsAt
+        - endsAt
+        - workerNameSnapshot
+        - employeeCodeSnapshot
+        - isRecommended
+      properties:
+        id:
+          type: string
+          pattern: "^\\d+$"
+          example: "20"
+        scheduleId:
+          type: string
+          pattern: "^\\d+$"
+          example: "1"
+        workerId:
+          type:
+            - string
+            - "null"
+          pattern: "^\\d+$"
+          example: "1"
+        workDate:
+          type: string
+          format: date
+          example: "2026-07-01"
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-07-01T10:00:00.000Z"
+        endsAt:
+          type: string
+          format: date-time
+          example: "2026-07-01T14:00:00.000Z"
+        workerNameSnapshot:
+          type: string
+          example: 김민수
+        employeeCodeSnapshot:
+          type: string
+          example: W-0001
+        isRecommended:
+          type: boolean
+          example: true
+
     ScheduleWorkerShortage:
       type: object
       required:
@@ -1327,6 +1376,7 @@ components:
         - generatedAt
         - confirmedAt
         - assignments
+        - candidates
         - workerShortages
       properties:
         id:
@@ -1356,6 +1406,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ScheduleAssignment"
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleCandidate"
         workerShortages:
           type: array
           items:

@@ -9,6 +9,8 @@ import {
   getMinimumStaffingRules,
   updateMinimumStaffingRule,
 } from "@/features/staffing-rules/api/staffing-rules-api";
+import { availabilityQueryKeys } from "@/features/availability/queries/availability-queries";
+import { schedulesQueryKeys } from "@/features/schedules/queries/schedules-queries";
 import { staffingRulesQueryKey } from "./staffing-rules-query-keys";
 
 export { staffingRulesQueryKey } from "./staffing-rules-query-keys";
@@ -17,6 +19,12 @@ type UpdateMinimumStaffingRuleVariables = {
   ruleId: string;
   request: UpdateMinimumStaffingRuleRequest;
 };
+
+function invalidatePolicyDependentQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: staffingRulesQueryKey });
+  void queryClient.invalidateQueries({ queryKey: availabilityQueryKeys.all });
+  void queryClient.invalidateQueries({ queryKey: schedulesQueryKeys.all });
+}
 
 export function useMinimumStaffingRulesQuery() {
   return useQuery({
@@ -31,7 +39,7 @@ export function useCreateMinimumStaffingRuleMutation() {
   return useMutation({
     mutationFn: createMinimumStaffingRule,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: staffingRulesQueryKey });
+      invalidatePolicyDependentQueries(queryClient);
     },
   });
 }
@@ -43,7 +51,7 @@ export function useUpdateMinimumStaffingRuleMutation() {
     mutationFn: ({ request, ruleId }: UpdateMinimumStaffingRuleVariables) =>
       updateMinimumStaffingRule(ruleId, request),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: staffingRulesQueryKey });
+      invalidatePolicyDependentQueries(queryClient);
     },
   });
 }
@@ -54,7 +62,7 @@ export function useDeleteMinimumStaffingRuleMutation() {
   return useMutation({
     mutationFn: deleteMinimumStaffingRule,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: staffingRulesQueryKey });
+      invalidatePolicyDependentQueries(queryClient);
     },
   });
 }

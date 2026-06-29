@@ -8,11 +8,21 @@ import { createFakePrisma, createTimeDate } from "./helpers/fake-prisma";
 const timestamp = new Date("2026-06-25T00:00:00.000Z");
 const dateOnly = (date: string) => new Date(`${date}T00:00:00.000Z`);
 
+const createBusinessHour = () => ({
+  id: BigInt(1),
+  organizationId: BigInt(1),
+  dayOfWeek: "WED" as const,
+  isClosed: false,
+  openTime: createTimeDate("10:00"),
+  closeTime: createTimeDate("14:00"),
+  closesNextDay: false,
+});
+
 const createOrganization = () => ({
   id: BigInt(1),
   userId: BigInt(1),
   name: "프래그먼트 카페",
-  businessHours: [],
+  businessHours: [createBusinessHour()],
 });
 
 const createPlanningPeriod = () => ({
@@ -158,6 +168,15 @@ describe("schedules routes", () => {
           workDate: "2026-07-01",
           workerNameSnapshot: "김민수",
           employeeCodeSnapshot: "W-0001",
+        },
+      ],
+      candidates: [
+        {
+          workerId: "1",
+          workDate: "2026-07-01",
+          workerNameSnapshot: "김민수",
+          employeeCodeSnapshot: "W-0001",
+          isRecommended: true,
         },
       ],
       workerShortages: [],
