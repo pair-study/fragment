@@ -4,6 +4,47 @@ import request from "supertest";
 import { createApp } from "@/app";
 import { createFakePrisma } from "./helpers/fake-prisma";
 
+const resolveOpenApiRef = (document: any, ref: string) =>
+  ref
+    .slice(2)
+    .split("/")
+    .reduce((value: any, key) => value?.[key], document);
+
+const expectResponseExamplesToMatchStatusCodes = (document: any) => {
+  for (const pathItem of Object.values<any>(document.paths)) {
+    for (const operation of Object.values<any>(pathItem)) {
+      const responses = operation.responses;
+
+      if (!responses) {
+        continue;
+      }
+
+      for (const [statusCode, responseDefinition] of Object.entries<any>(responses)) {
+        const response =
+          typeof responseDefinition.$ref === "string"
+            ? resolveOpenApiRef(document, responseDefinition.$ref)
+            : responseDefinition;
+        const jsonContent = response?.content?.["application/json"];
+        const expectedStatusCode = Number(statusCode);
+
+        if (!Number.isInteger(expectedStatusCode) || !jsonContent) {
+          continue;
+        }
+
+        if (jsonContent.example?.statusCode !== undefined) {
+          expect(jsonContent.example.statusCode).toBe(expectedStatusCode);
+        }
+
+        for (const example of Object.values<any>(jsonContent.examples ?? {})) {
+          if (example.value?.statusCode !== undefined) {
+            expect(example.value.statusCode).toBe(expectedStatusCode);
+          }
+        }
+      }
+    }
+  }
+};
+
 describe("docs routes", () => {
   beforeEach(() => {
     delete process.env.API_PUBLIC_BASE_URL;
@@ -54,5 +95,16 @@ describe("docs routes", () => {
       response.body.components.responses.MinimumStaffingRuleBadRequest.content["application/json"]
         .examples.invalidTimeRange.value.errorCode,
     ).toBe("INVALID_TIME_RANGE");
+    expect(
+      response.body.components.responses.DuplicateEmail.content["application/json"].example,
+    ).toEqual({
+      statusCode: 409,
+      errorCode: "DUPLICATE_EMAIL",
+      message: "이미 사용 중인 이메일입니다.",
+    });
+    expect(response.body.paths["/auth/signup"].post.responses["409"].$ref).toBe(
+      "#/components/responses/DuplicateEmail",
+    );
+    expectResponseExamplesToMatchStatusCodes(response.body);
   });
 });
