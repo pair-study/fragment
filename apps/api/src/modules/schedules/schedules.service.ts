@@ -11,6 +11,7 @@ import type {
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
+import { pruneOrganizationAvailabilityForActivePlanningPeriod } from "@/modules/availability/availability.service";
 import { dateStringToDate, dateTimeStringToDate } from "@/utils/date-time";
 import { toPrismaId } from "@/utils/mapper";
 import { scheduleDetailInclude, toScheduleAssignment, toScheduleDetail } from "./schedules.mapper";
@@ -118,7 +119,15 @@ export async function recommendSchedule(
     throw createValidationError("활성 스케줄 계획 기간과 요청 기간이 일치해야 합니다.");
   }
 
-  const [workers, availableTimes, rules] = await Promise.all([
+  const [organization, workers, rules] = await Promise.all([
+    prisma.organization.findUnique({
+      where: {
+        id: organizationDatabaseId,
+      },
+      include: {
+        businessHours: true,
+      },
+    }),
     prisma.worker.findMany({
       where: {
         organizationId: organizationDatabaseId,
@@ -126,18 +135,6 @@ export async function recommendSchedule(
       orderBy: {
         employeeCode: "asc",
       },
-    }),
-    prisma.workerAvailableTime.findMany({
-      where: {
-        worker: {
-          organizationId: organizationDatabaseId,
-        },
-        availableDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      orderBy: [{ availableDate: "asc" }, { startsAt: "asc" }],
     }),
     prisma.minimumStaffingRule.findMany({
       where: {
@@ -147,21 +144,41 @@ export async function recommendSchedule(
     }),
   ]);
 
-  if (workers.length === 0 || availableTimes.length === 0 || rules.length === 0) {
+  const hasOpenBusinessHours =
+    organization?.businessHours.some((businessHour) => !businessHour.isClosed) ?? false;
+
+  if (!organization || workers.length === 0 || !hasOpenBusinessHours || rules.length === 0) {
     throw createValidationError(
-      "스케줄 추천에 필요한 근무자, 가능 시간, 최소 인원 조건이 부족합니다.",
+      "스케줄 추천에 필요한 근무자, 영업시간 또는 최소 인원 조건이 부족합니다.",
     );
   }
 
+  await pruneOrganizationAvailabilityForActivePlanningPeriod(prisma, organizationDatabaseId);
+
+  const availableTimes = await prisma.workerAvailableTime.findMany({
+    where: {
+      worker: {
+        organizationId: organizationDatabaseId,
+      },
+      availableDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    orderBy: [{ availableDate: "asc" }, { startsAt: "asc" }],
+  });
+
   const inputHash = createInputHash({
     availableTimes,
+    businessHours: organization.businessHours,
     endDate,
     rules,
     startDate,
     workers,
   });
-  const { assignments, shortages } = createRecommendations({
+  const { assignments, candidates, shortages } = createRecommendations({
     availableTimes,
+    businessHours: organization.businessHours,
     endDate,
     rules,
     startDate,
@@ -209,6 +226,20 @@ export async function recommendSchedule(
             endsAt: assignment.endsAt,
             workerNameSnapshot: assignment.workerNameSnapshot,
             employeeCodeSnapshot: assignment.employeeCodeSnapshot,
+          })),
+        },
+        candidates: {
+          create: candidates.map((candidate) => ({
+            worker: {
+              connect: {
+                id: candidate.workerId,
+              },
+            },
+            workDate: candidate.workDate,
+            startsAt: candidate.startsAt,
+            endsAt: candidate.endsAt,
+            workerNameSnapshot: candidate.workerNameSnapshot,
+            employeeCodeSnapshot: candidate.employeeCodeSnapshot,
           })),
         },
         workerShortages: {
