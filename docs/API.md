@@ -331,6 +331,8 @@ Response `204`: body 없음
 
 **Auth:** Bearer token
 
+특정 근무자의 선택 기간 가능 시간을 조회합니다. 정책상 가능 시간은 최소 인원 조건이 있는 시간대에만 입력하고 추천 생성에 사용합니다. 현재 최소 인원 조건 밖에 있는 기존 가능 시간은 유효하지 않은 데이터로 보고 조회 또는 저장 과정에서 정리하며, 조건과 겹치는 구간만 남깁니다.
+
 Query:
 
 ```txt
@@ -357,7 +359,7 @@ Response `200`:
 
 **Auth:** Bearer token
 
-선택 범위의 특정 인력 가능 시간을 전체 교체합니다.
+선택 범위의 특정 인력 가능 시간을 전체 교체합니다. 저장 가능한 시간은 조직 영업시간 안에 있으면서 최소 인원 조건이 있는 시간대로 제한합니다. 현재 최소 인원 조건과 겹치는 구간만 저장하고, 전혀 겹치지 않는 구간은 삭제합니다.
 
 Request:
 
@@ -411,6 +413,8 @@ Response `200`:
 
 **Auth:** Bearer token
 
+최소 인원 조건은 해당 요일의 조직 운영시간 안에서만 등록할 수 있습니다. 휴무일에는 등록할 수 없고, 운영시간 밖 요청은 `INVALID_TIME_RANGE`, 휴무일 요청은 `CLOSED_DAY`로 거절합니다.
+
 Request:
 
 ```json
@@ -428,6 +432,8 @@ Response `201`: `MinimumStaffingRule`
 ### PATCH /staffing-rules/:ruleId
 
 **Auth:** Bearer token
+
+수정 후의 조건도 해당 요일의 조직 운영시간 안에 있어야 하며, 휴무일로 이동하거나 운영시간 밖으로 변경할 수 없습니다.
 
 Request:
 
@@ -453,7 +459,7 @@ Response `204`: body 없음
 
 **Auth:** Bearer token
 
-현재 active planning period, 인력, 가능 시간, 최소 인원 조건을 기준으로 DRAFT 스케줄을 생성합니다. 같은 입력 조건의 DRAFT가 있으면 `DRAFT_ALREADY_EXISTS`를 반환합니다.
+현재 active planning period, 조직 영업시간, 인력, 가능 시간, 최소 인원 조건을 기준으로 DRAFT 스케줄을 생성합니다. 최소 인원 조건은 추천 대상 시간대와 최소 필요 인원을 정의하며, 조건이 있는 시간대에서만 가능 후보 산출, 추천 배정, 미충족 판단을 수행합니다. 같은 입력 조건의 DRAFT가 있으면 `DRAFT_ALREADY_EXISTS`를 반환합니다.
 
 Request:
 
@@ -465,6 +471,8 @@ Request:
 ```
 
 Response `201`: `ScheduleDetail`
+
+`ScheduleDetail.candidates`는 추천 생성 당시 해당 시간대에 일할 수 있었던 전체 가능 후보입니다. 각 후보의 `isRecommended` 값이 `true`이면 같은 시간대의 추천 배정에 포함된 근무자입니다.
 
 ### GET /schedules/draft
 
@@ -484,7 +492,7 @@ Response `200`:
 }
 ```
 
-스케줄이 있으면 `schedule`은 `ScheduleDetail`입니다.
+스케줄이 있으면 `schedule`은 `ScheduleDetail`입니다. `candidates`는 가능 후보 전체, `assignments`는 추천 또는 확정 배정 목록입니다.
 
 ### POST /schedules/:scheduleId/assignments
 
