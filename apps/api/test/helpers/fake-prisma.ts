@@ -408,15 +408,35 @@ export function createFakePrisma({
       return false;
     }
 
-    if (
-      where.startDate !== undefined &&
-      schedule.startDate.getTime() !== where.startDate.getTime()
-    ) {
-      return false;
+    if (where.startDate !== undefined) {
+      if (
+        where.startDate instanceof Date &&
+        schedule.startDate.getTime() !== where.startDate.getTime()
+      ) {
+        return false;
+      }
+
+      if (where.startDate.lte !== undefined && schedule.startDate > where.startDate.lte) {
+        return false;
+      }
+
+      if (where.startDate.gte !== undefined && schedule.startDate < where.startDate.gte) {
+        return false;
+      }
     }
 
-    if (where.endDate !== undefined && schedule.endDate.getTime() !== where.endDate.getTime()) {
-      return false;
+    if (where.endDate !== undefined) {
+      if (where.endDate instanceof Date && schedule.endDate.getTime() !== where.endDate.getTime()) {
+        return false;
+      }
+
+      if (where.endDate.lte !== undefined && schedule.endDate > where.endDate.lte) {
+        return false;
+      }
+
+      if (where.endDate.gte !== undefined && schedule.endDate < where.endDate.gte) {
+        return false;
+      }
     }
 
     return true;
@@ -877,6 +897,34 @@ export function createFakePrisma({
         const schedule = schedules[0];
 
         return toScheduleResult(schedule ?? null, options);
+      },
+      findMany: async ({ orderBy, where, ...options }: any) => {
+        let schedules = state.schedules.filter((currentSchedule) =>
+          matchesScheduleWhere(currentSchedule, where),
+        );
+
+        if (Array.isArray(orderBy)) {
+          schedules = [...schedules].sort((first, second) => {
+            for (const order of orderBy) {
+              if (order.confirmedAt === "desc") {
+                const firstTime = first.confirmedAt?.getTime() ?? 0;
+                const secondTime = second.confirmedAt?.getTime() ?? 0;
+
+                if (firstTime !== secondTime) {
+                  return secondTime - firstTime;
+                }
+              }
+
+              if (order.id === "desc" && first.id !== second.id) {
+                return first.id < second.id ? 1 : -1;
+              }
+            }
+
+            return 0;
+          });
+        }
+
+        return schedules.map((schedule) => toScheduleResult(schedule, options));
       },
       update: async ({ data, where, ...options }: any) => {
         const schedule = state.schedules.find((currentSchedule) => currentSchedule.id === where.id);
