@@ -1,11 +1,13 @@
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
+import swaggerUi from "swagger-ui-express";
 import type { PrismaClient } from "@fragment/database";
 
 import { ERROR_CODES } from "@/common/constants/error-codes";
 import { HttpError } from "@/errors/http-error";
 import { errorHandler } from "@/middlewares/error-handler";
+import { getOpenApiDocument } from "@/openapi";
 import { apiRoutes } from "@/routes";
 
 type AppDependencies = {
@@ -30,6 +32,19 @@ export const createApp = ({ prisma }: AppDependencies) => {
   );
   app.use(express.json());
   app.use(cookieParser());
+
+  const openApiDocument = getOpenApiDocument();
+
+  app.get("/api/openapi.json", (_req, res) => {
+    res.json(openApiDocument);
+  });
+  app.use(
+    "/api/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(openApiDocument, {
+      customSiteTitle: "프래그먼트 API Docs",
+    }),
+  );
 
   app.use("/api", apiRoutes);
 
