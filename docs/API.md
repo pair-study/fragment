@@ -545,7 +545,11 @@ Query:
 year=2026&month=7
 ```
 
-`month`가 없으면 해당 연도의 확정 이력을 조회합니다.
+`month`가 없으면 해당 연도와 스케줄 기간이 겹치는 확정 이력을 조회합니다.
+`month`가 있으면 해당 연월과 스케줄 기간이 겹치는 확정 이력을 조회합니다.
+
+예를 들어 `2026-06-25 ~ 2026-07-05` 확정 스케줄은 2026년 6월 필터와 2026년 7월 필터에 모두 포함됩니다.
+목록은 `confirmedAt desc, id desc` 순서로 정렬합니다.
 
 Response `200`:
 
@@ -562,9 +566,13 @@ Response `200`:
 }
 ```
 
+조건에 맞는 확정 이력이 없으면 `items`는 빈 배열입니다.
+
 ### GET /schedule-history/:scheduleId
 
 **Auth:** Bearer token
+
+현재 사용자의 조직에 속한 `CONFIRMED` 스케줄만 조회합니다.
 
 Response `200`: `ScheduleHistoryDetailResponse`
 
@@ -572,7 +580,18 @@ Response `200`: `ScheduleHistoryDetailResponse`
 
 **Auth:** Bearer token
 
-Response `200`: `text/csv`
+현재 사용자의 조직에 속한 `CONFIRMED` 스케줄을 CSV로 내보냅니다.
+CSV는 스케줄 배정 기록의 snapshot 값을 사용합니다.
+
+Response `200`: `text/csv; charset=utf-8`
+
+CSV columns:
+
+```txt
+날짜,요일,시작시간,종료시간,사번,근무자명
+```
+
+조회 가능한 확정 스케줄이 없으면 `404 SCHEDULE_NOT_FOUND`를 반환합니다.
 
 ## Dashboard
 
@@ -580,20 +599,30 @@ Response `200`: `text/csv`
 
 **Auth:** Bearer token
 
+현재 조직 정보와 가장 최근 확정 스케줄 1개를 조회합니다.
+가장 최근 확정 스케줄은 `confirmedAt desc, id desc` 기준으로 선택합니다.
+
 Response `200`:
 
 ```json
 {
   "organization": {
     "id": "1",
-    "name": "프래그먼트 카페"
+    "name": "프래그먼트 카페",
+    "businessHours": [
+      {
+        "id": "1",
+        "dayOfWeek": "MON",
+        "isClosed": false,
+        "openTime": "09:00",
+        "closeTime": "18:00",
+        "closesNextDay": false
+      }
+    ]
   },
   "latestConfirmedSchedule": null
 }
 ```
 
-### GET /dashboard/latest-confirmed-schedule/export.csv
-
-**Auth:** Bearer token
-
-Response `200`: `text/csv`
+확정 스케줄이 없으면 `latestConfirmedSchedule`은 `null`입니다.
+대시보드에서 CSV export가 필요하면 `latestConfirmedSchedule.id`로 `GET /schedule-history/:scheduleId/export.csv`를 호출합니다.
