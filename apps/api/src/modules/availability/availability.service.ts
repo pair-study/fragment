@@ -72,6 +72,9 @@ const toAvailability = (availability: PrismaWorkerAvailableTime): Availability =
   endsAt: availability.endsAt.toISOString(),
 });
 
+const isPrismaClient = (client: AvailabilityDatabaseClient): client is PrismaClient =>
+  "$transaction" in client;
+
 const assertAvailabilityItemsInDateRange = (input: ReplaceAvailabilityRequest) => {
   for (const item of input.items) {
     if (item.availableDate < input.startDate || item.availableDate > input.endDate) {
@@ -231,18 +234,27 @@ export async function pruneOrganizationAvailabilityForActivePlanningPeriod(
   });
   const prunedItems = createPrunedAvailabilityItems(organization, existingItems);
 
-  await client.workerAvailableTime.deleteMany({
-    where: {
-      worker: {
-        organizationId,
+  const replaceAvailability = async (transaction: AvailabilityDatabaseClient) => {
+    await transaction.workerAvailableTime.deleteMany({
+      where: {
+        worker: {
+          organizationId,
+        },
+        availableDate: dateRange,
       },
-      availableDate: dateRange,
-    },
-  });
-
-  if (prunedItems.length > 0) {
-    await client.workerAvailableTime.createMany({
-      data: prunedItems,
     });
+
+    if (prunedItems.length > 0) {
+      await transaction.workerAvailableTime.createMany({
+        data: prunedItems,
+      });
+    }
+  };
+
+  if (isPrismaClient(client)) {
+    await client.$transaction(replaceAvailability);
+    return;
   }
+
+  await replaceAvailability(client);
 }

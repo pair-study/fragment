@@ -119,7 +119,10 @@ function createTimeOptions(
   const endMinutes = getBusinessHourEndMinutes(businessHour);
   const firstMinutes =
     boundary === "start" ? startMinutes : startMinutes + TIME_OPTION_STEP_MINUTES;
-  const lastMinutes = boundary === "start" ? endMinutes - TIME_OPTION_STEP_MINUTES : endMinutes;
+  const lastMinutes =
+    boundary === "start"
+      ? Math.min(endMinutes - TIME_OPTION_STEP_MINUTES, MINUTES_IN_DAY - TIME_OPTION_STEP_MINUTES)
+      : endMinutes;
   const options: { label: string; value: string }[] = [];
 
   for (let minutes = firstMinutes; minutes <= lastMinutes; minutes += TIME_OPTION_STEP_MINUTES) {

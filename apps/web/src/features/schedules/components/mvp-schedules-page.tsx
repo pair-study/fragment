@@ -197,11 +197,11 @@ function dateTimeToTime(date: string, dateTime: string) {
   return minutesToTime(dateTimeToMinutes(date, dateTime));
 }
 
-function createDateTime(date: string, time: string) {
+function createDateTime(date: string, time: string, addDay = false) {
   const [year, month, day] = date.split("-").map(Number);
   const [hours, minutes] = time.split(":").map(Number);
 
-  return new Date(Date.UTC(year, month - 1, day, hours, minutes)).toISOString();
+  return new Date(Date.UTC(year, month - 1, day + (addDay ? 1 : 0), hours, minutes)).toISOString();
 }
 
 function createDraftFromSchedule(schedule: ScheduleItem): ScheduleDraft {
@@ -214,8 +214,10 @@ function createDraftFromSchedule(schedule: ScheduleItem): ScheduleDraft {
 }
 
 function createScheduleAssignmentInput(draft: ScheduleDraft): ScheduleAssignmentInput {
+  const endsNextDay = draft.endTime < draft.startTime;
+
   return {
-    endsAt: createDateTime(draft.date, draft.endTime),
+    endsAt: createDateTime(draft.date, draft.endTime, endsNextDay),
     startsAt: createDateTime(draft.date, draft.startTime),
     workDate: draft.date,
     workerId: draft.workerId,
@@ -231,12 +233,19 @@ function validateScheduleDraft(draft: ScheduleDraft, workStartDate: string, work
         : "",
     endTime: !draft.endTime
       ? "종료 시간을 선택하세요."
-      : draft.startTime && draft.endTime <= draft.startTime
-        ? "종료 시간은 시작 시간보다 늦어야 합니다."
+      : draft.startTime && draft.endTime === draft.startTime
+        ? "종료 시간은 시작 시간과 달라야 합니다."
         : "",
     startTime: !draft.startTime ? "시작 시간을 선택하세요." : "",
     workerId: !draft.workerId ? "근무자를 선택하세요." : "",
   };
+}
+
+function createScheduleEndTimeOptions(startTime: string) {
+  return SCHEDULE_TIME_OPTIONS.filter((option) => option.value !== startTime).map((option) => ({
+    ...option,
+    label: startTime && option.value < startTime ? `${option.value} 다음날` : option.label,
+  }));
 }
 
 function getStatusLabel(status: ScheduleStatus | null) {
@@ -425,10 +434,7 @@ export function MvpSchedulesPage() {
   );
   const isSelectedDateScheduleTarget = scheduleTargetDates.has(selectedDate);
   const scheduleEndTimeOptions = useMemo(
-    () =>
-      draft.startTime
-        ? SCHEDULE_TIME_OPTIONS.filter((option) => option.value > draft.startTime)
-        : SCHEDULE_TIME_OPTIONS,
+    () => createScheduleEndTimeOptions(draft.startTime),
     [draft.startTime],
   );
 
@@ -994,7 +1000,7 @@ export function MvpSchedulesPage() {
                           setDraft((current) => ({
                             ...current,
                             endTime:
-                              current.endTime && current.endTime <= value ? "" : current.endTime,
+                              current.endTime && current.endTime === value ? "" : current.endTime,
                             startTime: value,
                           }))
                         }

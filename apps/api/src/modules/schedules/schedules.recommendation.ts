@@ -53,6 +53,8 @@ type DemandWindow = {
 
 const MINUTES_IN_DAY = 24 * 60;
 
+const compareBigInt = (left: bigint, right: bigint) => (left < right ? -1 : left > right ? 1 : 0);
+
 const hasOverlap = (
   assignments: RecommendationAssignment[],
   workerId: bigint,
@@ -282,32 +284,53 @@ export const createInputHash = ({
   const payload = {
     startDate: dateToDateString(startDate),
     endDate: dateToDateString(endDate),
-    workers: workers.map((worker) => ({
-      id: toApiId(worker.id),
-      employeeCode: worker.employeeCode,
-      name: worker.name,
-      weeklyContractHours: worker.weeklyContractHours,
-    })),
-    availableTimes: availableTimes.map((availableTime) => ({
-      workerId: toApiId(availableTime.workerId),
-      availableDate: dateToDateString(availableTime.availableDate),
-      startsAt: availableTime.startsAt.toISOString(),
-      endsAt: availableTime.endsAt.toISOString(),
-    })),
-    businessHours: businessHours.map((businessHour) => ({
-      dayOfWeek: businessHour.dayOfWeek,
-      isClosed: businessHour.isClosed,
-      openTime: businessHour.openTime ? dateToTimeString(businessHour.openTime) : null,
-      closeTime: businessHour.closeTime ? dateToTimeString(businessHour.closeTime) : null,
-      closesNextDay: businessHour.closesNextDay,
-    })),
-    rules: rules.map((rule) => ({
-      dayOfWeek: rule.dayOfWeek,
-      startTime: dateToTimeString(rule.startTime),
-      endTime: dateToTimeString(rule.endTime),
-      endsNextDay: rule.endsNextDay,
-      requiredCount: rule.requiredCount,
-    })),
+    workers: [...workers]
+      .sort((left, right) => compareBigInt(left.id, right.id))
+      .map((worker) => ({
+        id: toApiId(worker.id),
+        employeeCode: worker.employeeCode,
+        name: worker.name,
+        weeklyContractHours: worker.weeklyContractHours,
+      })),
+    availableTimes: [...availableTimes]
+      .sort(
+        (left, right) =>
+          compareBigInt(left.workerId, right.workerId) ||
+          left.availableDate.getTime() - right.availableDate.getTime() ||
+          left.startsAt.getTime() - right.startsAt.getTime() ||
+          left.endsAt.getTime() - right.endsAt.getTime(),
+      )
+      .map((availableTime) => ({
+        workerId: toApiId(availableTime.workerId),
+        availableDate: dateToDateString(availableTime.availableDate),
+        startsAt: availableTime.startsAt.toISOString(),
+        endsAt: availableTime.endsAt.toISOString(),
+      })),
+    businessHours: [...businessHours]
+      .sort((left, right) => left.dayOfWeek.localeCompare(right.dayOfWeek))
+      .map((businessHour) => ({
+        dayOfWeek: businessHour.dayOfWeek,
+        isClosed: businessHour.isClosed,
+        openTime: businessHour.openTime ? dateToTimeString(businessHour.openTime) : null,
+        closeTime: businessHour.closeTime ? dateToTimeString(businessHour.closeTime) : null,
+        closesNextDay: businessHour.closesNextDay,
+      })),
+    rules: [...rules]
+      .sort(
+        (left, right) =>
+          left.dayOfWeek.localeCompare(right.dayOfWeek) ||
+          left.startTime.getTime() - right.startTime.getTime() ||
+          left.endTime.getTime() - right.endTime.getTime() ||
+          Number(left.endsNextDay) - Number(right.endsNextDay) ||
+          left.requiredCount - right.requiredCount,
+      )
+      .map((rule) => ({
+        dayOfWeek: rule.dayOfWeek,
+        startTime: dateToTimeString(rule.startTime),
+        endTime: dateToTimeString(rule.endTime),
+        endsNextDay: rule.endsNextDay,
+        requiredCount: rule.requiredCount,
+      })),
   };
 
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");

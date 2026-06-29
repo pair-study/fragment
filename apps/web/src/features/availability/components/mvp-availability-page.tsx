@@ -213,8 +213,10 @@ function isSlotSchedulable(
   date: string,
   startMinutes: number,
 ) {
+  const endMinutes = startMinutes + SLOT_INTERVAL_MINUTES;
+
   return getSchedulableRanges(businessHours, staffingRules, date).some(
-    (range) => startMinutes >= range.startMinutes && startMinutes < range.endMinutes,
+    (range) => startMinutes >= range.startMinutes && endMinutes <= range.endMinutes,
   );
 }
 

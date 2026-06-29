@@ -48,13 +48,16 @@ const isCandidateRecommended = (
   candidate: PrismaScheduleCandidate,
   assignments: PrismaScheduleAssignment[],
 ) =>
-  candidate.workerId !== null &&
   assignments.some(
     (assignment) =>
-      assignment.workerId === candidate.workerId &&
       assignment.workDate.getTime() === candidate.workDate.getTime() &&
       assignment.startsAt.getTime() === candidate.startsAt.getTime() &&
-      assignment.endsAt.getTime() === candidate.endsAt.getTime(),
+      assignment.endsAt.getTime() === candidate.endsAt.getTime() &&
+      (candidate.workerId !== null
+        ? assignment.workerId === candidate.workerId
+        : assignment.workerId === null &&
+          assignment.workerNameSnapshot === candidate.workerNameSnapshot &&
+          assignment.employeeCodeSnapshot === candidate.employeeCodeSnapshot),
   );
 
 export const toScheduleCandidate = (
