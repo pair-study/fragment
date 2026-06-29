@@ -5,6 +5,8 @@ import { createApp } from "@/app";
 import { createAccessToken } from "@/modules/auth/auth.tokens";
 import { createFakePrisma, createTimeDate } from "./helpers/fake-prisma";
 
+const now = new Date("2026-06-25T00:00:00.000Z");
+
 const createOrganization = (
   businessHours = [
     {
@@ -32,7 +34,22 @@ const createWorker = () => ({
   weeklyContractHours: 40,
 });
 
-const now = new Date("2026-06-25T00:00:00.000Z");
+const createMinimumStaffingRule = ({
+  dayOfWeek = "WED" as const,
+  endTime = "18:00",
+  endsNextDay = false,
+  startTime = "09:00",
+} = {}) => ({
+  id: BigInt(1),
+  organizationId: BigInt(1),
+  dayOfWeek,
+  startTime: createTimeDate(startTime),
+  endTime: createTimeDate(endTime),
+  endsNextDay,
+  requiredCount: 1,
+  createdAt: now,
+  updatedAt: now,
+});
 
 describe("availability routes", () => {
   beforeEach(() => {
@@ -205,6 +222,12 @@ describe("availability routes", () => {
 
   it("accepts bulk save times on the original offset 30-minute boundary", async () => {
     const { prisma } = createFakePrisma({
+      minimumStaffingRules: [
+        createMinimumStaffingRule({
+          endTime: "02:00",
+          startTime: "00:00",
+        }),
+      ],
       organizations: [
         createOrganization([
           {
@@ -265,6 +288,7 @@ describe("availability routes", () => {
           updatedAt: now,
         },
       ],
+      minimumStaffingRules: [createMinimumStaffingRule()],
       organizations: [createOrganization()],
       workers: [createWorker()],
     });

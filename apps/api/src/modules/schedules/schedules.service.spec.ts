@@ -13,11 +13,41 @@ import {
 const timestamp = new Date("2026-06-25T00:00:00.000Z");
 const dateOnly = (date: string) => new Date(`${date}T00:00:00.000Z`);
 
-const createOrganization = (id = BigInt(1), userId = BigInt(1)) => ({
+const createBusinessHour = ({
+  closeTime = "14:00",
+  closesNextDay = false,
+  dayOfWeek = "WED",
+  id = BigInt(1),
+  isClosed = false,
+  openTime = "10:00",
+  organizationId = BigInt(1),
+}: {
+  closeTime?: string;
+  closesNextDay?: boolean;
+  dayOfWeek?: DayOfWeek;
+  id?: bigint;
+  isClosed?: boolean;
+  openTime?: string;
+  organizationId?: bigint;
+} = {}) => ({
+  id,
+  organizationId,
+  dayOfWeek,
+  isClosed,
+  openTime: isClosed ? null : createTimeDate(openTime),
+  closeTime: isClosed ? null : createTimeDate(closeTime),
+  closesNextDay,
+});
+
+const createOrganization = (
+  id = BigInt(1),
+  userId = BigInt(1),
+  businessHours = [createBusinessHour({ organizationId: id })],
+) => ({
   id,
   userId,
   name: "프래그먼트 카페",
-  businessHours: [],
+  businessHours,
 });
 
 const createPlanningPeriod = ({ endDate = "2026-07-01", startDate = "2026-07-01" } = {}) => ({
@@ -34,12 +64,13 @@ const createWorker = ({
   organizationId = BigInt(1),
   employeeCode = "W-0001",
   name = "김민수",
+  weeklyContractHours = 40,
 } = {}) => ({
   id,
   organizationId,
   employeeCode,
   name,
-  weeklyContractHours: 40,
+  weeklyContractHours,
 });
 
 const createAvailableTime = ({
@@ -169,6 +200,233 @@ describe("recommendSchedule", () => {
     ]);
   });
 
+  it("blocks recommendation when no minimum staffing rule exists", async () => {
+    const { prisma } = createFakePrisma({
+      activeSchedulePlanningPeriods: [createPlanningPeriod()],
+      availableTimes: [createAvailableTime()],
+      minimumStaffingRules: [],
+      organizations: [createOrganization()],
+      workers: [createWorker()],
+    });
+
+    await expect(
+      recommendSchedule(prisma, "1", {
+        startDate: "2026-07-01",
+        endDate: "2026-07-01",
+      }),
+    ).rejects.toMatchObject({
+      code: ERROR_CODES.VALIDATION_ERROR,
+      statusCode: 400,
+    });
+  });
+
+  it("creates recommendations only for minimum staffing rule windows", async () => {
+    const { prisma } = createFakePrisma({
+      activeSchedulePlanningPeriods: [createPlanningPeriod()],
+      availableTimes: [
+        createAvailableTime(),
+        createAvailableTime({
+          id: BigInt(2),
+          workerId: BigInt(2),
+        }),
+      ],
+      minimumStaffingRules: [
+        createMinimumStaffingRule({
+          startTime: "12:00",
+          endTime: "14:00",
+          requiredCount: 2,
+        }),
+      ],
+      organizations: [
+        createOrganization(BigInt(1), BigInt(1), [
+          createBusinessHour({
+            closeTime: "18:00",
+            openTime: "09:00",
+          }),
+        ]),
+      ],
+      workers: [
+        createWorker(),
+        createWorker({
+          id: BigInt(2),
+          employeeCode: "W-0002",
+          name: "박지민",
+        }),
+      ],
+    });
+
+    const schedule = await recommendSchedule(prisma, "1", {
+      startDate: "2026-07-01",
+      endDate: "2026-07-01",
+    });
+
+    expect(schedule.assignments).toEqual([
+      expect.objectContaining({
+        workerId: "1",
+        startsAt: "2026-07-01T12:00:00.000Z",
+        endsAt: "2026-07-01T14:00:00.000Z",
+      }),
+      expect.objectContaining({
+        workerId: "2",
+        startsAt: "2026-07-01T12:00:00.000Z",
+        endsAt: "2026-07-01T14:00:00.000Z",
+      }),
+    ]);
+    expect(schedule.workerShortages).toEqual([]);
+  });
+
+  it("returns all candidates while marking selected recommendations", async () => {
+    const { prisma } = createFakePrisma({
+      activeSchedulePlanningPeriods: [createPlanningPeriod()],
+      availableTimes: [
+        createAvailableTime(),
+        createAvailableTime({
+          id: BigInt(2),
+          workerId: BigInt(2),
+        }),
+      ],
+      minimumStaffingRules: [
+        createMinimumStaffingRule({
+          requiredCount: 1,
+        }),
+      ],
+      organizations: [createOrganization()],
+      workers: [
+        createWorker(),
+        createWorker({
+          id: BigInt(2),
+          employeeCode: "W-0002",
+          name: "박지민",
+        }),
+      ],
+    });
+
+    const schedule = await recommendSchedule(prisma, "1", {
+      startDate: "2026-07-01",
+      endDate: "2026-07-01",
+    });
+
+    expect(schedule.assignments).toHaveLength(1);
+    expect(schedule.candidates).toEqual([
+      expect.objectContaining({
+        workerId: "1",
+        startsAt: "2026-07-01T10:00:00.000Z",
+        endsAt: "2026-07-01T14:00:00.000Z",
+        isRecommended: true,
+      }),
+      expect.objectContaining({
+        workerId: "2",
+        startsAt: "2026-07-01T10:00:00.000Z",
+        endsAt: "2026-07-01T14:00:00.000Z",
+        isRecommended: false,
+      }),
+    ]);
+  });
+
+  it("splits recommendation windows by availability boundaries inside a staffing rule", async () => {
+    const { prisma } = createFakePrisma({
+      activeSchedulePlanningPeriods: [createPlanningPeriod()],
+      availableTimes: [
+        createAvailableTime({
+          endsAt: "2026-07-01T11:00:00.000Z",
+          startsAt: "2026-07-01T09:00:00.000Z",
+        }),
+        createAvailableTime({
+          id: BigInt(2),
+          workerId: BigInt(2),
+          endsAt: "2026-07-01T11:00:00.000Z",
+          startsAt: "2026-07-01T09:00:00.000Z",
+        }),
+        createAvailableTime({
+          id: BigInt(3),
+          workerId: BigInt(2),
+          endsAt: "2026-07-01T16:00:00.000Z",
+          startsAt: "2026-07-01T12:00:00.000Z",
+        }),
+      ],
+      minimumStaffingRules: [
+        createMinimumStaffingRule({
+          endTime: "16:00",
+          requiredCount: 2,
+          startTime: "09:00",
+        }),
+      ],
+      organizations: [
+        createOrganization(BigInt(1), BigInt(1), [
+          createBusinessHour({
+            closeTime: "16:00",
+            openTime: "09:00",
+          }),
+        ]),
+      ],
+      workers: [
+        createWorker(),
+        createWorker({
+          id: BigInt(2),
+          employeeCode: "W-0002",
+          name: "박지민",
+        }),
+      ],
+    });
+
+    const schedule = await recommendSchedule(prisma, "1", {
+      startDate: "2026-07-01",
+      endDate: "2026-07-01",
+    });
+
+    expect(schedule.candidates).toEqual([
+      expect.objectContaining({
+        workerId: "1",
+        startsAt: "2026-07-01T09:00:00.000Z",
+        endsAt: "2026-07-01T11:00:00.000Z",
+        isRecommended: true,
+      }),
+      expect.objectContaining({
+        workerId: "2",
+        startsAt: "2026-07-01T09:00:00.000Z",
+        endsAt: "2026-07-01T11:00:00.000Z",
+        isRecommended: true,
+      }),
+      expect.objectContaining({
+        workerId: "2",
+        startsAt: "2026-07-01T12:00:00.000Z",
+        endsAt: "2026-07-01T16:00:00.000Z",
+        isRecommended: true,
+      }),
+    ]);
+    expect(schedule.assignments).toEqual([
+      expect.objectContaining({
+        workerId: "1",
+        startsAt: "2026-07-01T09:00:00.000Z",
+        endsAt: "2026-07-01T11:00:00.000Z",
+      }),
+      expect.objectContaining({
+        workerId: "2",
+        startsAt: "2026-07-01T09:00:00.000Z",
+        endsAt: "2026-07-01T11:00:00.000Z",
+      }),
+      expect.objectContaining({
+        workerId: "2",
+        startsAt: "2026-07-01T12:00:00.000Z",
+        endsAt: "2026-07-01T16:00:00.000Z",
+      }),
+    ]);
+    expect(schedule.workerShortages).toEqual([
+      expect.objectContaining({
+        startTime: "11:00",
+        endTime: "12:00",
+        requiredCount: 2,
+        assignedCount: 0,
+      }),
+      expect.objectContaining({
+        startTime: "12:00",
+        endTime: "16:00",
+        requiredCount: 2,
+        assignedCount: 1,
+      }),
+    ]);
+  });
+
   it("creates next-day assignments for overnight staffing rules", async () => {
     const { prisma } = createFakePrisma({
       activeSchedulePlanningPeriods: [
@@ -192,7 +450,16 @@ describe("recommendSchedule", () => {
           endsNextDay: true,
         }),
       ],
-      organizations: [createOrganization()],
+      organizations: [
+        createOrganization(BigInt(1), BigInt(1), [
+          createBusinessHour({
+            closeTime: "02:00",
+            closesNextDay: true,
+            dayOfWeek: "FRI",
+            openTime: "22:00",
+          }),
+        ]),
+      ],
       workers: [createWorker()],
     });
 

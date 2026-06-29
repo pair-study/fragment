@@ -82,6 +82,19 @@ type FakeScheduleAssignment = {
   updatedAt: Date;
 };
 
+type FakeScheduleCandidate = {
+  id: bigint;
+  scheduleId: bigint;
+  workerId: bigint | null;
+  workDate: Date;
+  startsAt: Date;
+  endsAt: Date;
+  workerNameSnapshot: string;
+  employeeCodeSnapshot: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type FakeScheduleWorkerShortage = {
   id: bigint;
   scheduleId: bigint;
@@ -119,6 +132,7 @@ type CreateFakePrismaOptions = {
   organizations?: FakeOrganization[];
   refreshTokens?: FakeRefreshToken[];
   scheduleAssignments?: FakeScheduleAssignment[];
+  scheduleCandidates?: FakeScheduleCandidate[];
   scheduleWorkerShortages?: FakeScheduleWorkerShortage[];
   schedules?: FakeSchedule[];
   users?: FakeUser[];
@@ -184,6 +198,15 @@ const cloneScheduleAssignment = (assignment: FakeScheduleAssignment): FakeSchedu
   workDate: cloneRequiredDate(assignment.workDate),
 });
 
+const cloneScheduleCandidate = (candidate: FakeScheduleCandidate): FakeScheduleCandidate => ({
+  ...candidate,
+  createdAt: cloneRequiredDate(candidate.createdAt),
+  endsAt: cloneRequiredDate(candidate.endsAt),
+  startsAt: cloneRequiredDate(candidate.startsAt),
+  updatedAt: cloneRequiredDate(candidate.updatedAt),
+  workDate: cloneRequiredDate(candidate.workDate),
+});
+
 const cloneScheduleWorkerShortage = (
   shortage: FakeScheduleWorkerShortage,
 ): FakeScheduleWorkerShortage => ({
@@ -209,6 +232,7 @@ export function createFakePrisma({
   organizations = [],
   refreshTokens = [],
   scheduleAssignments = [],
+  scheduleCandidates = [],
   scheduleWorkerShortages = [],
   schedules = [],
   users = [],
@@ -223,6 +247,7 @@ export function createFakePrisma({
     nextPlanningPeriodId: getNextId(activeSchedulePlanningPeriods),
     nextRefreshTokenId: getNextId(refreshTokens),
     nextScheduleAssignmentId: getNextId(scheduleAssignments),
+    nextScheduleCandidateId: getNextId(scheduleCandidates),
     nextScheduleId: getNextId(schedules),
     nextScheduleWorkerShortageId: getNextId(scheduleWorkerShortages),
     nextUserId: getNextId(users),
@@ -237,6 +262,7 @@ export function createFakePrisma({
     })),
     refreshTokens: refreshTokens.map((refreshToken) => ({ ...refreshToken })),
     scheduleAssignments: scheduleAssignments.map(cloneScheduleAssignment),
+    scheduleCandidates: scheduleCandidates.map(cloneScheduleCandidate),
     scheduleWorkerShortages: scheduleWorkerShortages.map(cloneScheduleWorkerShortage),
     schedules: schedules.map(cloneSchedule),
     users: [...users],
@@ -260,6 +286,22 @@ export function createFakePrisma({
           .filter((key) => options.select[key])
           .map((key) => [key, organization[key as keyof FakeOrganization]]),
       );
+    }
+
+    if (options?.include) {
+      return {
+        ...organization,
+        ...(options.include.businessHours
+          ? { businessHours: organization.businessHours.map(cloneBusinessHour) }
+          : {}),
+        ...(options.include.minimumStaffingRules
+          ? {
+              minimumStaffingRules: state.minimumStaffingRules
+                .filter((rule) => rule.organizationId === organization.id)
+                .map(cloneMinimumStaffingRule),
+            }
+          : {}),
+      };
     }
 
     return {
@@ -286,6 +328,19 @@ export function createFakePrisma({
       }
 
       return Number(a.id - b.id);
+    });
+
+  const sortScheduleCandidates = (candidates: FakeScheduleCandidate[]) =>
+    candidates.sort((a, b) => {
+      if (a.workDate.getTime() !== b.workDate.getTime()) {
+        return a.workDate.getTime() - b.workDate.getTime();
+      }
+
+      if (a.startsAt.getTime() !== b.startsAt.getTime()) {
+        return a.startsAt.getTime() - b.startsAt.getTime();
+      }
+
+      return a.employeeCodeSnapshot.localeCompare(b.employeeCodeSnapshot);
     });
 
   const sortScheduleWorkerShortages = (shortages: FakeScheduleWorkerShortage[]) =>
@@ -319,6 +374,11 @@ export function createFakePrisma({
           state.scheduleAssignments
             .filter((assignment) => assignment.scheduleId === schedule.id)
             .map(cloneScheduleAssignment),
+        ),
+        candidates: sortScheduleCandidates(
+          state.scheduleCandidates
+            .filter((candidate) => candidate.scheduleId === schedule.id)
+            .map(cloneScheduleCandidate),
         ),
         workerShortages: sortScheduleWorkerShortages(
           state.scheduleWorkerShortages
@@ -436,6 +496,62 @@ export function createFakePrisma({
       },
     },
     minimumStaffingRule: {
+      create: async ({ data }: any) => {
+        const now = new Date("2026-06-25T00:00:00.000Z");
+        const rule: FakeMinimumStaffingRule = {
+          id: getNextId(state.minimumStaffingRules),
+          createdAt: now,
+          updatedAt: now,
+          ...data,
+        };
+
+        state.minimumStaffingRules.push(rule);
+
+        return cloneMinimumStaffingRule(rule);
+      },
+      deleteMany: async ({ where }: any) => {
+        const initialCount = state.minimumStaffingRules.length;
+        state.minimumStaffingRules = state.minimumStaffingRules.filter((rule) => {
+          if (where.id !== undefined && rule.id !== where.id) {
+            return true;
+          }
+
+          if (where.organizationId !== undefined && rule.organizationId !== where.organizationId) {
+            return true;
+          }
+
+          return false;
+        });
+
+        return { count: initialCount - state.minimumStaffingRules.length };
+      },
+      findFirst: async ({ select, where }: any) => {
+        const rule =
+          state.minimumStaffingRules.find((currentRule) => {
+            if (where.id !== undefined && currentRule.id !== where.id) {
+              return false;
+            }
+
+            if (
+              where.organizationId !== undefined &&
+              currentRule.organizationId !== where.organizationId
+            ) {
+              return false;
+            }
+
+            return true;
+          }) ?? null;
+
+        if (!rule || !select) {
+          return rule ? cloneMinimumStaffingRule(rule) : null;
+        }
+
+        return Object.fromEntries(
+          Object.keys(select)
+            .filter((key) => select[key])
+            .map((key) => [key, rule[key as keyof FakeMinimumStaffingRule]]),
+        );
+      },
       findMany: async ({ orderBy, where }: any) => {
         const rules = state.minimumStaffingRules
           .filter((rule) => rule.organizationId === where.organizationId)
@@ -458,6 +574,20 @@ export function createFakePrisma({
         }
 
         return rules;
+      },
+      update: async ({ data, where }: any) => {
+        const rule = state.minimumStaffingRules.find((currentRule) => currentRule.id === where.id);
+
+        if (!rule) {
+          return null;
+        }
+
+        Object.assign(rule, {
+          ...data,
+          updatedAt: new Date("2026-06-25T00:00:00.000Z"),
+        });
+
+        return cloneMinimumStaffingRule(rule);
       },
     },
     organization: {
@@ -577,6 +707,16 @@ export function createFakePrisma({
             return true;
           }
 
+          if (where.worker?.organizationId !== undefined) {
+            const worker = state.workers.find(
+              (currentWorker) => currentWorker.id === availableTime.workerId,
+            );
+
+            if (!worker || worker.organizationId !== where.worker.organizationId) {
+              return true;
+            }
+          }
+
           if (
             where.availableDate?.gte !== undefined &&
             availableTime.availableDate < where.availableDate.gte
@@ -683,6 +823,22 @@ export function createFakePrisma({
             endsAt: cloneRequiredDate(assignment.endsAt),
             workerNameSnapshot: assignment.workerNameSnapshot,
             employeeCodeSnapshot: assignment.employeeCodeSnapshot,
+            createdAt: now,
+            updatedAt: now,
+          })),
+        );
+
+        const candidatesToCreate = data.candidates?.create ?? [];
+        state.scheduleCandidates.push(
+          ...candidatesToCreate.map((candidate: any) => ({
+            id: state.nextScheduleCandidateId++,
+            scheduleId: schedule.id,
+            workerId: candidate.worker?.connect?.id ?? candidate.workerId ?? null,
+            workDate: cloneRequiredDate(candidate.workDate),
+            startsAt: cloneRequiredDate(candidate.startsAt),
+            endsAt: cloneRequiredDate(candidate.endsAt),
+            workerNameSnapshot: candidate.workerNameSnapshot,
+            employeeCodeSnapshot: candidate.employeeCodeSnapshot,
             createdAt: now,
             updatedAt: now,
           })),
