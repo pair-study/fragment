@@ -5,6 +5,7 @@ import {
   type OrganizationDetail,
   Availability,
   AvailabilityQuery,
+  MinimumStaffingRule,
   ReplaceAvailabilityRequest,
   Worker,
 } from "@fragment/shared";
@@ -22,6 +23,7 @@ import {
   useOrganizationQuery,
   useUpsertActiveSchedulePlanningPeriodMutation,
 } from "@/features/organization/queries/organization-queries";
+import { useMinimumStaffingRulesQuery } from "@/features/staffing-rules/queries/staffing-rules-queries";
 import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +44,10 @@ type AvailabilitySlot = {
 };
 
 type BusinessHour = OrganizationDetail["businessHours"][number];
+type TimeRange = {
+  endMinutes: number;
+  startMinutes: number;
+};
 
 const SLOT_INTERVAL_MINUTES = 30;
 const TIMETABLE_DATE_COLUMN_WIDTH = 76;
@@ -50,6 +56,7 @@ const DEFAULT_TIMETABLE_START_MINUTES = 9 * 60;
 const DEFAULT_TIMETABLE_END_MINUTES = 22 * 60;
 const EMPTY_WORKERS: Worker[] = [];
 const EMPTY_BUSINESS_HOURS: BusinessHour[] = [];
+const EMPTY_STAFFING_RULES: MinimumStaffingRule[] = [];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   month: "2-digit",
@@ -140,10 +147,48 @@ function getBusinessHourRange(businessHour: BusinessHour | undefined) {
   };
 }
 
-function getTimetableRange(businessHours: BusinessHour[], dateRange: string[]) {
+function getStaffingRuleRanges(staffingRules: MinimumStaffingRule[], date: string): TimeRange[] {
+  return staffingRules
+    .filter((rule) => rule.dayOfWeek === getDayOfWeek(date))
+    .map((rule) => {
+      const startMinutes = timeToMinutes(rule.startTime);
+      const endMinutes = timeToMinutes(rule.endTime) + (rule.endsNextDay ? 24 * 60 : 0);
+
+      return {
+        endMinutes,
+        startMinutes,
+      };
+    })
+    .filter((range) => range.startMinutes < range.endMinutes);
+}
+
+function getSchedulableRanges(
+  businessHours: BusinessHour[],
+  staffingRules: MinimumStaffingRule[],
+  date: string,
+): TimeRange[] {
+  const businessHourRange = getBusinessHourRange(getBusinessHourForDate(businessHours, date));
+
+  if (!businessHourRange) {
+    return [];
+  }
+
+  return getStaffingRuleRanges(staffingRules, date)
+    .map((range) => ({
+      endMinutes: Math.min(range.endMinutes, businessHourRange.endMinutes),
+      startMinutes: Math.max(range.startMinutes, businessHourRange.startMinutes),
+    }))
+    .filter((range) => range.startMinutes < range.endMinutes);
+}
+
+function getTimetableRange(
+  businessHours: BusinessHour[],
+  staffingRules: MinimumStaffingRule[],
+  dateRange: string[],
+) {
   const ranges = dateRange
-    .map((date) => getBusinessHourRange(getBusinessHourForDate(businessHours, date)))
-    .filter((range): range is NonNullable<typeof range> => Boolean(range));
+    .flatMap((date) => getSchedulableRanges(businessHours, staffingRules, date))
+    .filter((range) => Boolean(range));
 
   if (ranges.length === 0) {
     return {
@@ -162,14 +207,15 @@ function isClosedDate(businessHours: BusinessHour[], date: string) {
   return !getBusinessHourRange(getBusinessHourForDate(businessHours, date));
 }
 
-function isSlotInBusinessHours(businessHours: BusinessHour[], date: string, startMinutes: number) {
-  const range = getBusinessHourRange(getBusinessHourForDate(businessHours, date));
-
-  if (!range) {
-    return false;
-  }
-
-  return startMinutes >= range.startMinutes && startMinutes < range.endMinutes;
+function isSlotSchedulable(
+  businessHours: BusinessHour[],
+  staffingRules: MinimumStaffingRule[],
+  date: string,
+  startMinutes: number,
+) {
+  return getSchedulableRanges(businessHours, staffingRules, date).some(
+    (range) => startMinutes >= range.startMinutes && startMinutes < range.endMinutes,
+  );
 }
 
 function formatDateLabel(date: string) {
@@ -283,11 +329,13 @@ function createAvailabilityItems(slots: AvailabilitySlot[]) {
 export function MvpAvailabilityPage() {
   const workersQuery = useWorkersQuery();
   const organizationQuery = useOrganizationQuery();
+  const staffingRulesQuery = useMinimumStaffingRulesQuery();
   const planningPeriodQuery = useActiveSchedulePlanningPeriodQuery();
   const upsertPlanningPeriodMutation = useUpsertActiveSchedulePlanningPeriodMutation();
   const replaceAvailabilityMutation = useReplaceAvailabilityMutation();
   const workers = workersQuery.data?.items ?? EMPTY_WORKERS;
   const businessHours = organizationQuery.data?.businessHours ?? EMPTY_BUSINESS_HOURS;
+  const staffingRules = staffingRulesQuery.data?.items ?? EMPTY_STAFFING_RULES;
   const activePlanningPeriod = planningPeriodQuery.data?.period ?? null;
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [selectedAvailabilityDate, setSelectedAvailabilityDate] = useState("");
@@ -308,10 +356,14 @@ export function MvpAvailabilityPage() {
     Boolean(selectedWorkerId && workStartDate && workEndDate) && workStartDate <= workEndDate;
   const availabilityResult = useAvailabilityQuery(availabilityQuery, canFetchAvailability);
   const isPageLoading =
-    organizationQuery.isLoading || planningPeriodQuery.isLoading || workersQuery.isLoading;
+    organizationQuery.isLoading ||
+    planningPeriodQuery.isLoading ||
+    staffingRulesQuery.isLoading ||
+    workersQuery.isLoading;
   const queryError =
     organizationQuery.error ??
     planningPeriodQuery.error ??
+    staffingRulesQuery.error ??
     workersQuery.error ??
     availabilityResult.error;
   const queryErrorMessage = queryError
@@ -323,8 +375,8 @@ export function MvpAvailabilityPage() {
     [workEndDate, workStartDate],
   );
   const timetableRange = useMemo(
-    () => getTimetableRange(businessHours, dateRange),
-    [businessHours, dateRange],
+    () => getTimetableRange(businessHours, staffingRules, dateRange),
+    [businessHours, dateRange, staffingRules],
   );
   const timeSlots = useMemo(
     () => createTimeSlots(timetableRange.startMinutes, timetableRange.endMinutes),
@@ -371,7 +423,10 @@ export function MvpAvailabilityPage() {
   const selectedWorker = workers.find((worker) => worker.id === selectedWorkerId);
   const selectedDraftAvailability = draftAvailability.filter(
     (slot) =>
-      slot.workerId === selectedWorkerId && slot.date >= workStartDate && slot.date <= workEndDate,
+      slot.workerId === selectedWorkerId &&
+      slot.date >= workStartDate &&
+      slot.date <= workEndDate &&
+      isSlotSchedulable(businessHours, staffingRules, slot.date, slot.startMinutes),
   );
   const selectedAvailabilityByDate = summarizeAvailabilityByDate(selectedDraftAvailability);
   const activeAvailabilityDate =
@@ -402,7 +457,7 @@ export function MvpAvailabilityPage() {
       return;
     }
 
-    if (!isSlotInBusinessHours(businessHours, date, startMinutes)) {
+    if (!isSlotSchedulable(businessHours, staffingRules, date, startMinutes)) {
       return;
     }
 
@@ -478,7 +533,7 @@ export function MvpAvailabilityPage() {
   return (
     <AdminPageShell
       title="가능 시간 관리"
-      description="근무 기간을 정하고, 근무자별로 일할 수 있는 날짜와 시간대를 30분 단위로 선택한 뒤 저장합니다."
+      description="근무 기간을 정하고, 최소 인원 조건이 있는 시간대에 근무자별 가능 시간을 30분 단위로 선택한 뒤 저장합니다."
       actions={
         <div className="flex flex-wrap justify-end gap-2">
           <Button
@@ -598,7 +653,7 @@ export function MvpAvailabilityPage() {
                 <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 운영 시간은 요일별
-                  조직 설정을 따릅니다.
+                  조직 설정과 최소 인원 조건을 따릅니다.
                 </p>
               </>
             ) : (
@@ -679,8 +734,7 @@ export function MvpAvailabilityPage() {
             <div>
               <h2 className="text-base font-semibold text-foreground">가능 시간 타임테이블</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                셀을 선택한 뒤 상단의 변경사항 저장 버튼을 눌러 등록합니다. 선택된 셀을 다시 누르면
-                삭제됩니다.
+                최소 인원 조건이 있는 셀만 선택할 수 있습니다. 선택된 셀을 다시 누르면 삭제됩니다.
               </p>
             </div>
             {hasUnsavedChanges ? <Badge variant="brand-weak">저장 전 변경 있음</Badge> : null}
@@ -709,6 +763,10 @@ export function MvpAvailabilityPage() {
                     <Badge variant="neutral-weak" size="sm" className="mt-2">
                       휴무
                     </Badge>
+                  ) : getSchedulableRanges(businessHours, staffingRules, date).length === 0 ? (
+                    <Badge variant="neutral-weak" size="sm" className="mt-2">
+                      조건 없음
+                    </Badge>
                   ) : null}
                 </div>
               ))}
@@ -723,7 +781,12 @@ export function MvpAvailabilityPage() {
                       {showHourLabel ? timeLabel : ""}
                     </div>
                     {dateRange.map((date) => {
-                      const disabled = !isSlotInBusinessHours(businessHours, date, startMinutes);
+                      const disabled = !isSlotSchedulable(
+                        businessHours,
+                        staffingRules,
+                        date,
+                        startMinutes,
+                      );
                       const selected = draftSlotKeys.has(
                         getSlotKey(selectedWorkerId, date, startMinutes),
                       );
