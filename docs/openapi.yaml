@@ -483,7 +483,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MinimumStaffingRule"
         "400":
-          $ref: "#/components/responses/ValidationError"
+          $ref: "#/components/responses/MinimumStaffingRuleBadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -514,7 +514,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MinimumStaffingRule"
         "400":
-          $ref: "#/components/responses/ValidationError"
+          $ref: "#/components/responses/MinimumStaffingRuleBadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -758,6 +758,31 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    MinimumStaffingRuleBadRequest:
+      description: 요청 값 검증 실패 또는 최소 인원 조건 도메인 규칙 위반
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            validationError:
+              summary: 요청 형식 오류
+              value:
+                statusCode: 400
+                errorCode: VALIDATION_ERROR
+                message: 요청 형식이 올바르지 않습니다.
+            closedDay:
+              summary: 휴무일 요청
+              value:
+                statusCode: 400
+                errorCode: CLOSED_DAY
+                message: 휴무일에는 최소 인원 조건을 등록할 수 없습니다.
+            invalidTimeRange:
+              summary: 운영시간 밖 요청
+              value:
+                statusCode: 400
+                errorCode: INVALID_TIME_RANGE
+                message: 최소 인원 조건은 조직 운영시간 안에서만 등록할 수 있습니다.
     Unauthorized:
       description: 인증 실패
       content:

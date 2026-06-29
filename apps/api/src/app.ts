@@ -43,9 +43,6 @@ export const createApp = ({ prisma }: AppDependencies) => {
     swaggerUi.serve,
     swaggerUi.setup(openApiDocument, {
       customSiteTitle: "프래그먼트 API Docs",
-      swaggerOptions: {
-        persistAuthorization: true,
-      },
     }),
   );
 

@@ -21,6 +21,16 @@ describe("docs routes", () => {
     expect(response.text).toContain("swagger-ui");
   });
 
+  it("does not persist Swagger UI authorization in browser storage", async () => {
+    const { prisma } = createFakePrisma();
+    const app = createApp({ prisma });
+
+    const response = await request(app).get("/api/docs/swagger-ui-init.js");
+
+    expect(response.status).toBe(200);
+    expect(response.text).not.toContain("persistAuthorization");
+  });
+
   it("serves OpenAPI JSON with the configured public server first", async () => {
     process.env.API_PUBLIC_BASE_URL = "https://api.example.com/api";
 
@@ -36,5 +46,13 @@ describe("docs routes", () => {
       description: "Configured deployment",
     });
     expect(response.body.paths["/staffing-rules"]).toBeDefined();
+    expect(
+      response.body.components.responses.MinimumStaffingRuleBadRequest.content["application/json"]
+        .examples.closedDay.value.errorCode,
+    ).toBe("CLOSED_DAY");
+    expect(
+      response.body.components.responses.MinimumStaffingRuleBadRequest.content["application/json"]
+        .examples.invalidTimeRange.value.errorCode,
+    ).toBe("INVALID_TIME_RANGE");
   });
 });
