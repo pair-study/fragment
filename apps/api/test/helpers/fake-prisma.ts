@@ -454,6 +454,37 @@ export function createFakePrisma({
     return true;
   };
 
+  const sortSchedules = (schedules: FakeSchedule[], orderBy: any) => {
+    if (Array.isArray(orderBy)) {
+      return [...schedules].sort((first, second) => {
+        for (const order of orderBy) {
+          if (order.confirmedAt === "desc") {
+            const firstTime = first.confirmedAt?.getTime() ?? 0;
+            const secondTime = second.confirmedAt?.getTime() ?? 0;
+
+            if (firstTime !== secondTime) {
+              return secondTime - firstTime;
+            }
+          }
+
+          if (order.id === "desc" && first.id !== second.id) {
+            return first.id < second.id ? 1 : -1;
+          }
+        }
+
+        return 0;
+      });
+    }
+
+    if (orderBy?.id === "desc") {
+      return [...schedules].sort((first, second) =>
+        first.id < second.id ? 1 : first.id > second.id ? -1 : 0,
+      );
+    }
+
+    return schedules;
+  };
+
   const prisma = {
     $transaction: async <T>(callback: (transaction: PrismaClient) => T | Promise<T>) =>
       callback(prisma as unknown as PrismaClient),
@@ -888,11 +919,7 @@ export function createFakePrisma({
           matchesScheduleWhere(currentSchedule, where),
         );
 
-        if (orderBy?.id === "desc") {
-          schedules = [...schedules].sort((first, second) =>
-            first.id < second.id ? 1 : first.id > second.id ? -1 : 0,
-          );
-        }
+        schedules = sortSchedules(schedules, orderBy);
 
         const schedule = schedules[0];
 
@@ -903,26 +930,7 @@ export function createFakePrisma({
           matchesScheduleWhere(currentSchedule, where),
         );
 
-        if (Array.isArray(orderBy)) {
-          schedules = [...schedules].sort((first, second) => {
-            for (const order of orderBy) {
-              if (order.confirmedAt === "desc") {
-                const firstTime = first.confirmedAt?.getTime() ?? 0;
-                const secondTime = second.confirmedAt?.getTime() ?? 0;
-
-                if (firstTime !== secondTime) {
-                  return secondTime - firstTime;
-                }
-              }
-
-              if (order.id === "desc" && first.id !== second.id) {
-                return first.id < second.id ? 1 : -1;
-              }
-            }
-
-            return 0;
-          });
-        }
+        schedules = sortSchedules(schedules, orderBy);
 
         return schedules.map((schedule) => toScheduleResult(schedule, options));
       },
