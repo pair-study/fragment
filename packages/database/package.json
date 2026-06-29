@@ -1,5 +1,5 @@
 {
-  "name": "@ilgam/database",
+  "name": "@fragment/database",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
@@ -22,11 +22,8 @@
   "dependencies": {
     "@prisma/client": "~6.8.0"
   },
-  "peerDependencies": {
-    "@nestjs/common": "^11.0.0"
-  },
   "devDependencies": {
-    "@nestjs/common": "^11.0.0",
+    "bcryptjs": "^3.0.3",
     "prisma": "~6.8.0",
     "ts-node": "^10.9.1",
     "typescript": "^5"

@@ -2,92 +2,115 @@
 
 ## 역할 및 범위
 
-**NestJS 기반 REST API 서버**입니다.
-인증, 조직 관리, 스케줄 엔진, 근태 처리, 급여 계산, Push 알림 발송을 담당합니다.
-모든 비즈니스 로직의 원천이며, 웹·앱 양쪽에서 소비합니다.
+**Express 기반 REST API 서버**입니다.
+MVP에서는 운영 웹이 소비하는 인증, 단일 조직 관리, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·조정·확정·보관함 조회 API를 담당합니다.
 
 ## 기술 스택
 
-| 항목 | 기술 | 버전 |
-|------|------|------|
-| Framework | NestJS | 11.x |
-| Language | TypeScript | 5.8.x |
-| Runtime | Node.js | 22.x LTS |
-| Database | PostgreSQL | 17.x |
-| ORM | Prisma | 6.8.x (`packages/database`에서 관리) |
-| Validation | class-validator + class-transformer | 0.14.x / 0.5.x |
-| Auth | @nestjs/jwt + @nestjs/passport | 10.x / 10.x |
-| API Docs | @nestjs/swagger | 11.x |
-| Task Scheduler | @nestjs/schedule | 4.x |
-| Queue (선택적) | @nestjs/bull + bull | 4.x / 4.x (급여 계산·알림 대량 발송 비동기화 시 도입) |
-| Testing (Unit) | Jest | 29.x |
-| Testing (E2E) | Supertest | 7.x |
+기술 스택과 버전은 루트 `docs/stack.md`를 단일 출처로 따른다. 이 문서에는 API 서버에서 사용하는 기술의 역할과 적용 규칙만 기록한다.
+
+- Framework: Express
+- Language: TypeScript
+- Runtime: Node.js
+- Database: PostgreSQL
+- ORM: Prisma (`packages/database`에서 관리)
+- Validation: Zod (`packages/shared` 우선 활용)
+- Auth: JWT
+- API Docs: Markdown API 명세 + OpenAPI
+- Testing: Jest + Supertest
 
 ## 디렉터리 구조
 
 ```
 # apps/api/
 ├── src/
-│   ├── auth/             # JWT 발급, 소셜 OAuth, 가드
-│   ├── organizations/    # 조직 CRUD (FR-1.3~1.6)
-│   ├── members/          # 근로자 초대·등록·퇴사 (FR-5)
-│   ├── schedules/        # 스케줄 생성·확정·교환 (FR-2)
-│   ├── attendance/       # 출퇴근 체크, 근태 수정 (FR-3)
-│   ├── payroll/          # 급여 계산 엔진, 명세서 발급 (FR-4)
-│   ├── notifications/    # Expo Push 알림 발송
-│   └── common/           # 공통 필터, 인터셉터, 데코레이터, 파이프
-└── test/                 # E2E 테스트
+│   ├── app.ts            # Express 앱 설정
+│   ├── main.ts           # 서버 엔트리포인트
+│   ├── routes/           # Express router 등록
+│   ├── modules/          # 도메인별 handler/service
+│   ├── middlewares/      # 공통 Express middleware
+│   ├── errors/           # 공통 error class
+│   ├── common/           # 공통 상수
+│   ├── utils/            # API 내부 유틸
+│   └── types/            # API 타입 확장
 
 # packages/database/       ← apps/api와 동일 레벨, 별도 패키지
 ├── prisma/
-│   ├── schema.prisma
-│   ├── migrations/
-│   └── seed.ts
+│   └── schema.prisma
 ├── src/
-│   ├── prisma.service.ts
-│   └── database.module.ts  # DatabaseModule로 export
+│   ├── prisma.ts
+│   └── index.ts
 └── package.json
+```
+
+API 도메인 구현이 추가되면 `src/routes`와 `src/modules` 아래에 도메인 단위 파일/디렉터리를 생성합니다.
+
+```txt
+src/
+├── routes/
+│   ├── auth.routes.ts
+│   ├── organization.routes.ts
+│   └── staffing-rules.routes.ts
+└── modules/
+    ├── auth/
+    │   ├── auth.handlers.ts
+    │   └── auth.service.ts
+    ├── organization/
+    │   ├── organization.handlers.ts
+    │   └── organization.service.ts
+    └── staffing-rules/
+        ├── staffing-rules.handlers.ts
+        └── staffing-rules.service.ts
 ```
 
 ## 주요 규칙
 
-### 모듈 구조 (NestJS)
-- **도메인 단위로 모듈을 분리**합니다. 하나의 모듈이 다른 모듈의 내부 서비스를 직접 import하지 않고, 필요한 경우 해당 모듈을 `exports`에 노출합니다.
-- Controller → Service → PrismaService 계층을 엄격히 지킵니다. 별도 Repository 클래스를 두지 않으며, Service가 `PrismaService`를 직접 주입받아 쿼리를 작성합니다.
-- Controller는 요청/응답 처리만 담당합니다. 비즈니스 로직은 Service에 작성합니다.
+### 라우터 구조 (Express)
+
+- **도메인 단위로 라우터를 분리**합니다. 라우터는 HTTP 요청/응답 처리만 담당하고, 비즈니스 로직은 service 함수에 작성합니다.
+- Router → Service → Prisma 계층을 기본으로 합니다. 별도 Repository 추상화는 중복이 명확해질 때만 도입합니다.
+- 공통 미들웨어는 `middlewares/`, 공통 에러 클래스는 `errors/`, 공통 상수는 `common/` 아래에 둡니다.
 
 ### Prisma 사용 규칙
-- Prisma schema, migrations, `PrismaService`, `seed.ts`는 모두 **`packages/database`에서 관리**합니다. `apps/api`에 Prisma 관련 파일을 직접 두지 않습니다.
-- `apps/api`에서는 `packages/database`가 export하는 `DatabaseModule`을 `AppModule`에 import해서 사용합니다.
+
+- Prisma schema, migrations, client helper, `seed.ts`는 모두 **`packages/database`에서 관리**합니다. `apps/api`에 Prisma 관련 파일을 직접 두지 않습니다.
+- `apps/api`에서는 `packages/database`가 export하는 `createPrismaClient()`만 사용합니다.
+- `prisma` singleton 직접 import/use는 금지합니다.
+- 앱 시작점에서 `createPrismaClient()`로 Prisma client를 한 번 생성하고, `createApp({ prisma })` 형태로 app/router/service에 주입합니다.
+- 테스트에서는 실제 client 대신 mock/fake Prisma client를 주입할 수 있게 구현합니다.
 - 쿼리 결과 타입은 Prisma가 생성하는 타입을 활용합니다. 별도로 타입을 재정의하지 않습니다.
 - 마이그레이션은 `packages/database`에서 `prisma migrate dev`로 생성하고, 파일명에 목적을 명확히 기재합니다.
-- **소프트 딜리트**(FR-1.5, FR-5.2)는 `deletedAt` 필드로 구현합니다. 모든 조회 쿼리에서 `deletedAt: null` 필터를 기본으로 포함합니다.
 
 ### 인증 및 인가
+
 - **JWT Access Token** (유효기간 15분) + **Refresh Token** (7일, HTTP-only 쿠키) 방식을 사용합니다.
-- 관리자 전용 엔드포인트에는 `@Roles('ADMIN')` 가드를 적용합니다.
-- 근로자 전용 엔드포인트에는 `@Roles('WORKER')` 가드를 적용합니다.
+- MVP에서는 단일 사용자 계정만 사용합니다.
+- 운영 화면 엔드포인트에는 인증 확인 미들웨어를 적용합니다.
+- 단일 조직 생성 전에는 조직 생성 API만 허용하고, 운영 화면 API는 조직 존재 여부를 확인합니다.
 
 ### 유효성 검증
-- 모든 DTO는 **class-validator + class-transformer**로 정의합니다.
-- 전역 `ValidationPipe`를 `whitelist: true`, `forbidNonWhitelisted: true` 옵션으로 설정합니다.
 
-### 급여 계산 엔진 (FR-4)
-- 급여 계산 로직은 `payroll/` 모듈의 `PayrollCalculatorService`에 순수 함수로 구현합니다.
-- 계산 결과는 항상 **감사 로그**(`PayrollAuditLog`)에 스냅샷(임금명세서 템플릿 포함)과 함께 저장합니다.
-- 성능 목표: 1초 이하 응답 (FR-4.1). 계산이 복잡한 경우 Bull Queue로 비동기 처리합니다.
+- 요청 body, params, query는 **Zod schema**로 검증합니다.
+- 공유 가능한 입력/응답 스키마는 `packages/shared`에 정의하고 API와 클라이언트에서 함께 사용합니다.
 
-### 스케줄 자동화 (FR-2.2, FR-3.3)
-- `@nestjs/schedule`의 `@Cron` 데코레이터로 주기 작업을 구현합니다.
-- Cron 표현식은 상수로 분리하여 관리합니다.
-- 퇴근 미처리 자동화 타임라인(예정 퇴근 +30분, +2시간, +12시간)은 `AttendanceScheduler`에서 처리합니다.
+### 스케줄 추천 및 확정
+
+- 추천 생성 API는 조직의 인력, 가능 시간, 최소 인원 조건, 근무 시작/종료 날짜를 기준으로 `DRAFT` 스케줄을 생성합니다.
+- 같은 입력 조건의 DRAFT가 이미 있으면 중복 생성하지 않습니다.
+- 사용자는 DRAFT 스케줄을 직접 추가·수정·삭제할 수 있습니다.
+- 확정 API는 DRAFT를 `CONFIRMED`로 변경하고, 이후 보관함 조회/export 대상으로 사용합니다.
+- 확정된 스케줄은 조회/export 대상으로 사용합니다.
 
 ### API 문서화
-- 모든 Controller와 DTO에 `@ApiTags`, `@ApiOperation`, `@ApiResponse` 데코레이터를 작성합니다.
-- Swagger UI: `http://localhost:4000/api` (개발 환경만 활성화)
+
+- 엔드포인트별 요청/응답 계약은 `docs/API.md`에 기록합니다.
+- `docs/openapi.yaml`에 포함된 엔드포인트를 변경하는 경우 OpenAPI 문서도 함께 갱신합니다.
+- Zod schema를 사용하는 경우 문서와 schema가 어긋나지 않도록 변경 시 함께 갱신합니다.
 
 ### 에러 응답 형식
+
 모든 에러 응답은 다음 형식을 따릅니다:
+
 ```json
 {
   "statusCode": 400,
@@ -95,52 +118,41 @@
   "message": "이미 사용 중인 이메일입니다"
 }
 ```
-- `errorCode`는 `common/constants/error-codes.ts`에서 상수로 관리합니다.
 
-### 데이터 보존 정책
-- 근태·급여 이력은 **3년 보존** (근로기준법 제42조)합니다. 실제 삭제 로직을 구현하지 않습니다.
-- 탈퇴 근로자 데이터는 익명화(`anonymize()`) 처리 후 보존합니다.
+- `errorCode`는 `common/constants/error-codes.ts`에서 상수로 관리합니다.
 
 ## 테스트
 
-```bash
-pnpm --filter @ilgam/api test         # 단위 테스트 (Jest)
-pnpm --filter @ilgam/api test:e2e     # E2E 테스트 (Supertest)
-pnpm --filter @ilgam/api test:cov     # 커버리지
-```
+API 테스트는 새로 만든 핵심 로직이 깨졌는지 확인하는 범위부터 작성합니다.
 
-- **Service 단위 테스트**: 의존성은 Jest mock으로 처리합니다. Prisma는 `mockDeep<PrismaClient>()`로 모킹합니다.
-- **E2E 테스트**: 테스트 전용 PostgreSQL DB(`DATABASE_URL_TEST`)를 사용합니다. 각 테스트 전후로 DB를 초기화합니다.
-- 커버리지 목표: Service 레이어 80% 이상.
+- **Service 단위 테스트**: `src/**/*.spec.ts`에 작성합니다. 권한, DB 접근 조건, 비즈니스 규칙을 Jest mock으로 검증합니다.
+- **API 통합 테스트**: `test/**/*.test.ts`에 작성합니다. Supertest로 인증, 요청 검증, 성공 흐름 중 대표 케이스를 검증합니다.
+- 버그 수정이나 리뷰 반영으로 검증 로직을 수정한 경우 재발 방지 테스트를 1개 이상 추가합니다.
+- 테스트 전용 DB가 필요한 시점에 `DATABASE_URL_TEST`와 초기화 전략을 함께 정의합니다.
 
 ## 개발 실행
 
 ```bash
-pnpm --filter @ilgam/api start:dev   # http://localhost:4000 (watch 모드)
-pnpm --filter @ilgam/api build
-pnpm --filter @ilgam/api lint
+pnpm --filter @fragment/api start:dev   # http://localhost:3001 (watch 모드)
+pnpm --filter @fragment/api build
+pnpm --filter @fragment/api lint
 
 # Prisma (packages/database에서 실행)
-pnpm --filter @ilgam/database db:migrate  # prisma migrate dev
-pnpm --filter @ilgam/database db:studio   # Prisma Studio (DB GUI)
-pnpm --filter @ilgam/database db:seed     # 시드 데이터 삽입
+pnpm --filter @fragment/database db:migrate  # prisma migrate dev
+pnpm --filter @fragment/database db:studio   # Prisma Studio (DB GUI)
+pnpm --filter @fragment/database db:seed     # 시드 데이터 삽입
 ```
 
 ## 환경 변수 (.env.example)
 
-`DATABASE_URL`, `DATABASE_URL_TEST`는 `packages/database/.env`에서 관리합니다.
+`DATABASE_URL`은 `packages/database/.env`에서 관리합니다.
 나머지 변수는 `apps/api/.env`에서 관리합니다.
 
 ```
 # packages/database/.env
-DATABASE_URL=postgresql://user:password@localhost:5432/ilgam
-DATABASE_URL_TEST=postgresql://user:password@localhost:5432/ilgam_test
+DATABASE_URL=postgresql://user:password@localhost:5432/fragment
 
 # apps/api/.env
 JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
-KAKAO_CLIENT_ID=
-NAVER_CLIENT_ID=
-NAVER_CLIENT_SECRET=
-EXPO_ACCESS_TOKEN=           # Expo Push 알림 발송용
 ```

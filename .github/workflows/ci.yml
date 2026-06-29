@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  ci:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Type check — shared
+        run: pnpm --filter @fragment/shared build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @fragment/database db:generate
+
+      - name: Type check — database
+        run: pnpm --filter @fragment/database build
+
+      - name: Lint — web
+        run: pnpm --filter @fragment/web lint
+
+      - name: Type check — web
+        run: pnpm --filter @fragment/web typecheck
+
+      - name: Test — web
+        run: pnpm --filter @fragment/web test
+
+      - name: Lint — api
+        run: pnpm --filter @fragment/api lint
+
+      - name: Type check — api
+        run: pnpm --filter @fragment/api typecheck
+
+      - name: Test — api
+        run: pnpm --filter @fragment/api test

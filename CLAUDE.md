@@ -2,10 +2,10 @@
 
 ## 프로젝트 개요
 
-소·중형 단일 매장부터 다점포 사업장까지, 근무 스케줄 편성과 급여 계산을 자동화하는 SaaS
+단일 조직의 인력 정보, 가능 시간, 최소 인원 조건을 기반으로 스케줄 초안을 추천하고, 조정·확정·보관까지 지원하는 근무 스케줄 관리 도구 MVP입니다.
 
-- **관리자(웹)**: 스케줄 편성, 근태 관리, 급여 정산
-- **근무자(모바일 앱)**: 희망 근무 신청, 스케줄 확인, 대타 요청, 급여 명세 확인
+- **운영 웹 (`apps/web`)**: 회원가입/로그인, 단일 조직 생성·수정, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·조정·확정, 확정 스케줄 보관함 조회/export. MVP에서는 별도 앱 없이 웹이 전체 사용자 화면을 담당하므로 반응형으로 구현한다.
+- **백엔드 API (`apps/api`)**: 인증, 단일 조직 관리, 인력 관리, 가능 시간 관리, 최소 인원 조건 관리, 스케줄 추천·확정·조회 API
 
 ---
 
@@ -15,16 +15,17 @@
 `docs/stack.md`에 명시된 라이브러리 버전을 임의로 변경하거나 업그레이드하지 않는다. 버전 변경이 필요한 경우 반드시 팀과 협의 후 `docs/stack.md`를 먼저 업데이트한다.
 앱별 상세 규칙은 각 앱의 `CLAUDE.md`를 참조한다.
 
-| 영역 | 핵심 기술 |
-| ---- | --------- |
-| 관리자 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui |
-| 근무자 앱 (`apps/mobile`) | Expo (React Native), TypeScript, Expo Router, NativeWind, Gluestack UI |
-| 백엔드 (`apps/api`) | NestJS, TypeScript, PostgreSQL, Prisma |
-| 공통 (웹·앱) | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼) |
-| 테스트 | Vitest + React Testing Library + MSW (Frontend), Jest + Supertest (Backend) |
-| 인프라 | AWS EC2 (백엔드 API + Next.js SSR), S3 + CloudFront (정적 에셋 CDN), GitHub Actions (CI/CD), pnpm Workspaces |
+| 영역                 | 핵심 기술                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| 운영 웹 (`apps/web`) | Next.js (App Router), React, TypeScript, Tailwind CSS, @moyeorak/design-system(1순위) + shadcn/ui(보조) |
+| 백엔드 (`apps/api`)  | Express, TypeScript, PostgreSQL, Prisma                                                                 |
+| 공통                 | Zustand (전역 상태), TanStack Query (서버 상태), React Hook Form + Zod (폼)                             |
+| 테스트               | Web: Vitest + React Testing Library, API: Jest + Supertest                                              |
+| 인프라               | MVP: Vercel(Next.js 운영 웹) + Railway(Express API + PostgreSQL)                                        |
 
 **상태 분류 원칙**: 서버 데이터 → TanStack Query / UI 전역 상태 → Zustand / 폼 상태 → React Hook Form / 컴포넌트 로컬 상태 → useState
+
+상태/폼/인증/테스트 라이브러리는 해당 기능 구현 코드 또는 테스트 설정 파일과 함께 `package.json`에 추가한다.
 
 ---
 
@@ -33,30 +34,27 @@
 ```
 final-project/
 ├── apps/
-│   ├── web/          # Next.js — 관리자 웹 (데스크탑 전용)
-│   ├── mobile/       # Expo — 근무자 네이티브 앱 (iOS·Android)
-│   └── api/          # NestJS — 백엔드 API 서버
+│   ├── web/          # Next.js — 운영 웹 (반응형)
+│   └── api/          # Express — 백엔드 API 서버
 ├── packages/
-│   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@ilgam/shared)
-│   └── database/     # Prisma 스키마·마이그레이션·PrismaService (@ilgam/database)
-└── docs/             # PRD, 기능 명세, 기술 스택 정의서, 아키텍처 결정 기록 등
+│   ├── shared/       # 공유 Zod 스키마, API 타입, 유틸 (@fragment/shared)
+│   └── database/     # Prisma 스키마·마이그레이션·클라이언트 헬퍼 (@fragment/database)
+└── docs/             # PRD, 기능 명세, 기술 스택 정의서, 디자인 참고 문서, ADR 등
 ```
 
 **패키지 역할 구분**
-- `packages/shared` — 웹·앱·API가 공유하는 Zod 스키마, API 요청·응답 타입, 순수 유틸(GPS 계산 등). 앱 간 공유가 필요한 타입은 `packages/shared/src/index.ts`에서 export한다.
-- `packages/database` — Prisma schema, migrations, seed, `PrismaService` 전담. `apps/api`는 여기서 export하는 `DatabaseModule`만 import한다.
+
+- `packages/database` — Prisma schema, migrations, seed, Prisma client helper 전담. `apps/api`는 여기서 export하는 `createPrismaClient()`로 앱 시작점에서 Prisma client를 생성하고 app/router/service에 주입한다. `prisma` singleton 직접 import는 금지한다.
+- `packages/shared` — 웹·API가 공유하는 Zod 스키마, API 요청·응답 타입, 순수 유틸. 공유가 필요한 타입은 `packages/shared/src/index.ts`에서 export한다.
 
 ---
 
 ## 개발 명령어
 
 ```bash
-pnpm dev                # Next.js 웹만 실행
-pnpm dev:api            # DB 빌드 후 NestJS API 실행
-pnpm dev:all            # 웹 + API 병렬 실행
-pnpm dev:mobile         # Expo Metro 번들러 시작
-pnpm dev:mobile:ios     # iOS 시뮬레이터
-pnpm dev:mobile:android # Android 에뮬레이터
+pnpm dev          # Next.js 웹만 실행
+pnpm dev:api      # DB 빌드 후 Express API 실행
+pnpm dev:all      # 웹 + API 병렬 실행
 
 pnpm db:generate  # Prisma 클라이언트 재생성 (스키마 변경 후 필수)
 pnpm db:migrate   # 마이그레이션 실행
@@ -64,6 +62,17 @@ pnpm db:push      # 스키마 즉시 반영 (개발 전용)
 pnpm db:studio    # Prisma Studio 실행
 pnpm db:reset     # DB 초기화
 ```
+
+---
+
+## 테스트 작성 기준
+
+테스트는 처음부터 모든 케이스를 촘촘히 작성하기보다, 새로 만든 핵심 로직이 깨졌는지 확인하는 범위부터 작성한다.
+
+- API service의 권한, DB 접근 조건, 비즈니스 규칙은 테스트를 작성한다.
+- API route는 인증, 요청 검증, 성공 흐름 중 대표 케이스를 테스트한다.
+- Web은 기본적으로 typecheck/lint를 우선하고, 복잡한 유틸 또는 hook을 추가할 때만 테스트를 작성한다.
+- 버그 수정이나 리뷰 반영으로 검증 로직을 수정한 경우 재발 방지 테스트를 1개 이상 추가한다.
 
 ---
 
@@ -107,20 +116,19 @@ type(scope): 한 줄 설명 (50자 이내)
 
 어떤 모듈이 변경되었는지 타입 뒤 괄호에 명시한다. 여러 패키지가 복합적으로 변경된 경우 스코프를 생략한다.
 
-| 스코프   | 해당 경로                                        |
-| -------- | ------------------------------------------------ |
-| `web`    | `apps/web`                                       |
-| `api`    | `apps/api`                                       |
-| `db`     | `packages/database` (스키마·마이그레이션)        |
-| `shared` | `packages/shared` (공유 타입·Zod 스키마·유틸)    |
-| `mobile` | `apps/mobile`                                    |
-| `repo`   | 루트 설정, CI/CD, 문서 전체                      |
+| 스코프   | 해당 경로                                     |
+| -------- | --------------------------------------------- |
+| `web`    | `apps/web`                                    |
+| `api`    | `apps/api`                                    |
+| `db`     | `packages/database` (스키마·마이그레이션)     |
+| `shared` | `packages/shared` (공유 타입·Zod 스키마·유틸) |
+| `repo`   | 루트 설정, CI/CD, 문서 전체                   |
 
 **예시**
 
 - `feat(web): 조직 생성 페이지 UI 구현`
 - `feat(api): 조직 생성 API 구현`
-- `fix(db): 근로자 테이블 상태 컬럼명 수정`
+- `fix(db): 인력 테이블 상태 컬럼명 수정`
 - `chore(repo): pnpm 의존성 업데이트`
 - `feat: 회원가입 기능 및 DB 스키마 연동` ← 여러 패키지 복합 변경 시 스코프 생략
 
@@ -136,12 +144,12 @@ type(scope): 한 줄 설명 (50자 이내)
 
 **1 이슈 = 1 PR** 원칙. 레이어(DB / API / UI)가 다르면 이슈를 분리한다.
 
-| 레이어       | 스코프   | 이슈 제목 예시                          |
-| ------------ | -------- | --------------------------------------- |
-| DB 스키마    | `db`     | `feat(db): 조직·근로자 테이블 설계`     |
-| 공유 타입    | `shared` | `feat(shared): 조직 API 응답 타입 정의` |
-| 백엔드 API   | `api`    | `feat(api): 조직 생성 API 구현`         |
-| 관리자 웹 UI | `web`    | `feat(web): 조직 생성 페이지 UI 구현`   |
+| 레이어     | 스코프   | 이슈 제목 예시                          |
+| ---------- | -------- | --------------------------------------- |
+| DB 스키마  | `db`     | `feat(db): 조직·인력 테이블 설계`       |
+| 공유 타입  | `shared` | `feat(shared): 조직 API 응답 타입 정의` |
+| 백엔드 API | `api`    | `feat(api): 조직 생성 API 구현`         |
+| 운영 웹 UI | `web`    | `feat(web): 조직 생성 페이지 UI 구현`   |
 
 이슈 제목 형식은 커밋 컨벤션과 동일하다(`type(scope): 설명`).
 이슈 본문 작성 형식 → `.github/ISSUE_TEMPLATE/feature_request.md`
@@ -164,8 +172,23 @@ main
 - `main`, `develop`에 직접 push 금지
 - 모든 작업은 이슈를 먼저 생성하고 브랜치명에 이슈 번호 포함 권장 (`feature/12-login-api`)
 - `feature → develop`: **Squash and merge**
-- `develop → main`: **Merge commit**
+- `develop → main`: **Merge commit** + 버전 태그 (`v0.1.0`)
 - PR은 가능하면 **500줄 이내**로 분리
+
+### develop → main 머지 기준
+
+`develop → main` 머지는 **일정이 아닌 배포 이벤트**에 맞춘다. **마일스톤(FR) 단위**로 관련 기능이 모두 완료되고 `develop`에서 검증이 끝났을 때 머지한다.
+
+```
+예시
+feat(db): 회원·조직 테이블 설계  ─┐
+feat(api): 조직 생성 API        ─┤→ develop 검증 → main 머지 → v0.1.0 태그
+feat(web): 조직 생성 UI         ─┘
+```
+
+- `develop`은 항상 실행 가능한 상태를 유지한다. CI가 깨진 채로 두지 않는다.
+- 기능이 절반만 구현된 상태로 `develop`에 머지하지 않는다.
+- `main` 머지 후 반드시 버전 태그를 달아 롤백 기준점을 남긴다.
 
 ### 브랜치 생성 의무 조건
 
@@ -210,9 +233,7 @@ git push origin feature/fr-1-org-management
 - 제품 요구사항 → `docs/PRD.md`
 - 기능 명세 → `docs/SPEC.md`
 - 기술 스택 정의 (버전·호환성) → `docs/stack.md`
-- 검증 계획 및 기술 리스크 → `docs/TEST_PLAN.md`
 - API 서버 개발 규칙 → `apps/api/CLAUDE.md`
-- 관리자 웹 개발 규칙 → `apps/web/CLAUDE.md`
-- 근무자 앱 개발 규칙 → `apps/mobile/CLAUDE.md`
+- 운영 웹 개발 규칙 → `apps/web/CLAUDE.md`
 - PR 작성 형식 → `.github/pull_request_template.md`
 - 이슈 작성 형식 → `.github/ISSUE_TEMPLATE/feature_request.md`

@@ -1,5 +1,4 @@
 // GPS 반경 판정 유틸
-// apps/mobile과 apps/api에서 동일하게 사용합니다.
 
 export interface Coordinates {
   latitude: number;
@@ -18,15 +17,12 @@ export function getDistanceInMeters(a: Coordinates, b: Coordinates): number {
   const sinDLon = Math.sin(dLon / 2);
   const x =
     sinDLat * sinDLat +
-    Math.cos(toRad(a.latitude)) *
-      Math.cos(toRad(b.latitude)) *
-      sinDLon *
-      sinDLon;
+    Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * sinDLon * sinDLon;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
 /**
- * 현재 위치가 매장 반경 내에 있는지 판정합니다.
+ * 현재 위치가 조직 반경 내에 있는지 판정합니다.
  */
 export function isWithinRadius(
   current: Coordinates,

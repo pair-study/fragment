@@ -7,11 +7,219 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 여기에 모델을 추가하세요
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum ScheduleStatus {
+  DRAFT
+  CONFIRMED
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            BigInt         @id @default(autoincrement())
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  name          String
+  organization  Organization?
+  refreshTokens RefreshToken[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        BigInt    @id @default(autoincrement())
+  userId    BigInt    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Organization {
+  id                           BigInt                        @id @default(autoincrement())
+  userId                       BigInt                        @unique @map("user_id")
+  name                         String
+  lastWorkerSequence           Int                           @default(0) @map("last_worker_sequence")
+  user                         User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessHours                OrganizationBusinessHour[]
+  workers                      Worker[]
+  minimumStaffingRules         MinimumStaffingRule[]
+  activeSchedulePlanningPeriod ActiveSchedulePlanningPeriod?
+  schedules                    Schedule[]
+  createdAt                    DateTime                      @default(now()) @map("created_at")
+  updatedAt                    DateTime                      @updatedAt @map("updated_at")
+
+  @@map("organizations")
+}
+
+model OrganizationBusinessHour {
+  id             BigInt       @id @default(autoincrement())
+  organizationId BigInt       @map("organization_id")
+  dayOfWeek      DayOfWeek    @map("day_of_week")
+  isClosed       Boolean      @default(false) @map("is_closed")
+  openTime       DateTime?    @map("open_time") @db.Time(0)
+  closeTime      DateTime?    @map("close_time") @db.Time(0)
+  closesNextDay  Boolean      @default(false) @map("closes_next_day")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@unique([organizationId, dayOfWeek])
+  @@index([organizationId])
+  @@map("organization_business_hours")
+}
+
+model Worker {
+  id                  BigInt                @id @default(autoincrement())
+  organizationId      BigInt                @map("organization_id")
+  employeeCode        String                @map("employee_code")
+  name                String
+  weeklyContractHours Int                   @map("weekly_contract_hours")
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  availableTimes      WorkerAvailableTime[]
+  scheduleAssignments ScheduleAssignment[]
+  scheduleCandidates  ScheduleCandidate[]
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+
+  @@unique([organizationId, employeeCode])
+  @@index([organizationId])
+  @@map("workers")
+}
+
+model MinimumStaffingRule {
+  id             BigInt       @id @default(autoincrement())
+  organizationId BigInt       @map("organization_id")
+  dayOfWeek      DayOfWeek    @map("day_of_week")
+  startTime      DateTime     @map("start_time") @db.Time(0)
+  endTime        DateTime     @map("end_time") @db.Time(0)
+  endsNextDay    Boolean      @default(false) @map("ends_next_day")
+  requiredCount  Int          @map("required_count")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@index([organizationId, dayOfWeek])
+  @@map("minimum_staffing_rules")
+}
+
+model ActiveSchedulePlanningPeriod {
+  id             BigInt       @id @default(autoincrement())
+  organizationId BigInt       @unique @map("organization_id")
+  startDate      DateTime     @map("start_date") @db.Date
+  endDate        DateTime     @map("end_date") @db.Date
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("active_schedule_planning_periods")
+}
+
+model WorkerAvailableTime {
+  id            BigInt   @id @default(autoincrement())
+  workerId      BigInt   @map("worker_id")
+  availableDate DateTime @map("available_date") @db.Date
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime @map("ends_at")
+  worker        Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([workerId, availableDate])
+  @@index([startsAt, endsAt])
+  @@map("worker_available_times")
+}
+
+model Schedule {
+  id              BigInt                   @id @default(autoincrement())
+  organizationId  BigInt                   @map("organization_id")
+  status          ScheduleStatus
+  inputHash       String                   @map("input_hash")
+  startDate       DateTime                 @map("start_date") @db.Date
+  endDate         DateTime                 @map("end_date") @db.Date
+  generatedAt     DateTime                 @default(now()) @map("generated_at")
+  confirmedAt     DateTime?                @map("confirmed_at")
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments     ScheduleAssignment[]
+  candidates       ScheduleCandidate[]
+  workerShortages ScheduleWorkerShortage[]
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  @@index([organizationId, status, startDate, endDate])
+  @@index([organizationId, inputHash])
+  @@map("schedules")
+}
+
+model ScheduleAssignment {
+  id                   BigInt   @id @default(autoincrement())
+  scheduleId           BigInt   @map("schedule_id")
+  workerId             BigInt?  @map("worker_id")
+  workDate             DateTime @map("work_date") @db.Date
+  startsAt             DateTime @map("starts_at")
+  endsAt               DateTime @map("ends_at")
+  workerNameSnapshot   String   @map("worker_name_snapshot")
+  employeeCodeSnapshot String   @map("employee_code_snapshot")
+  schedule             Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  worker               Worker?  @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([scheduleId, workDate])
+  @@index([workerId])
+  @@index([startsAt, endsAt])
+  @@map("schedule_assignments")
+}
+
+model ScheduleCandidate {
+  id                   BigInt   @id @default(autoincrement())
+  scheduleId           BigInt   @map("schedule_id")
+  workerId             BigInt?  @map("worker_id")
+  workDate             DateTime @map("work_date") @db.Date
+  startsAt             DateTime @map("starts_at")
+  endsAt               DateTime @map("ends_at")
+  workerNameSnapshot   String   @map("worker_name_snapshot")
+  employeeCodeSnapshot String   @map("employee_code_snapshot")
+  schedule             Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  worker               Worker?  @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([scheduleId, workDate])
+  @@index([workerId])
+  @@index([startsAt, endsAt])
+  @@map("schedule_candidates")
+}
+
+model ScheduleWorkerShortage {
+  id            BigInt    @id @default(autoincrement())
+  scheduleId    BigInt    @map("schedule_id")
+  workDate      DateTime  @map("work_date") @db.Date
+  dayOfWeek     DayOfWeek @map("day_of_week")
+  startTime     DateTime  @map("start_time") @db.Time(0)
+  endTime       DateTime  @map("end_time") @db.Time(0)
+  endsNextDay   Boolean   @default(false) @map("ends_next_day")
+  requiredCount Int       @map("required_count")
+  assignedCount Int       @map("assigned_count")
+  schedule      Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([scheduleId, workDate])
+  @@map("schedule_worker_shortages")
 }
