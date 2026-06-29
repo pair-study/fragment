@@ -24,6 +24,11 @@ const expectResponseExamplesToMatchStatusCodes = (document: any) => {
           typeof responseDefinition.$ref === "string"
             ? resolveOpenApiRef(document, responseDefinition.$ref)
             : responseDefinition;
+
+        if (typeof responseDefinition.$ref === "string") {
+          expect(response).toBeDefined();
+        }
+
         const jsonContent = response?.content?.["application/json"];
         const expectedStatusCode = Number(statusCode);
 
