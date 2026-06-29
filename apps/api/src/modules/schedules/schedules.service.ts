@@ -265,6 +265,9 @@ export async function getDraftSchedule(
       startDate: dateStringToDate(query.startDate),
       endDate: dateStringToDate(query.endDate),
     },
+    orderBy: {
+      id: "desc",
+    },
     include: scheduleDetailInclude,
   });
 

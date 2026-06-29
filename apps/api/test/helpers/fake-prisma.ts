@@ -863,10 +863,18 @@ export function createFakePrisma({
 
         return toScheduleResult(schedule, options);
       },
-      findFirst: async ({ where, ...options }: any) => {
-        const schedule = state.schedules.find((currentSchedule) =>
+      findFirst: async ({ orderBy, where, ...options }: any) => {
+        let schedules = state.schedules.filter((currentSchedule) =>
           matchesScheduleWhere(currentSchedule, where),
         );
+
+        if (orderBy?.id === "desc") {
+          schedules = [...schedules].sort((first, second) =>
+            first.id < second.id ? 1 : first.id > second.id ? -1 : 0,
+          );
+        }
+
+        const schedule = schedules[0];
 
         return toScheduleResult(schedule ?? null, options);
       },

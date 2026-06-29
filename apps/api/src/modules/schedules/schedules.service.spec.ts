@@ -6,6 +6,7 @@ import { createFakePrisma, createTimeDate } from "../../../test/helpers/fake-pri
 import {
   confirmSchedule,
   createScheduleAssignment,
+  getDraftSchedule,
   recommendSchedule,
   updateScheduleAssignment,
 } from "./schedules.service";
@@ -500,6 +501,25 @@ describe("recommendSchedule", () => {
     ).rejects.toMatchObject({
       code: ERROR_CODES.DRAFT_ALREADY_EXISTS,
       statusCode: 409,
+    });
+  });
+});
+
+describe("getDraftSchedule", () => {
+  it("returns the latest draft schedule for the same period", async () => {
+    const { prisma } = createFakePrisma({
+      schedules: [createDraftSchedule({ id: BigInt(1) }), createDraftSchedule({ id: BigInt(2) })],
+    });
+
+    await expect(
+      getDraftSchedule(prisma, "1", {
+        startDate: "2026-07-01",
+        endDate: "2026-07-01",
+      }),
+    ).resolves.toMatchObject({
+      schedule: {
+        id: "2",
+      },
     });
   });
 });

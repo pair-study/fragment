@@ -376,7 +376,7 @@ export function MvpSchedulesPage() {
   const canGenerate =
     Boolean(activePlanningPeriod) &&
     staffingRules.length > 0 &&
-    !schedule &&
+    (!schedule || isDraft) &&
     !draftScheduleResult.isFetching &&
     !recommendScheduleMutation.isPending &&
     !queryErrorMessage;
@@ -469,7 +469,7 @@ export function MvpSchedulesPage() {
       setSelectedDate(response.workerShortages[0]?.workDate ?? response.startDate);
       setOperationMessage({
         tone: "success",
-        text: "추천 스케줄이 생성되었습니다.",
+        text: schedule ? "추천 스케줄이 다시 생성되었습니다." : "추천 스케줄이 생성되었습니다.",
       });
     } catch (error) {
       setOperationMessage({
@@ -583,7 +583,7 @@ export function MvpSchedulesPage() {
       description="최소 인원 조건이 있는 시간대의 가능 시간과 계약 시간 균형을 기준으로 추천 결과를 생성하고 확정합니다."
       actions={
         <div className="flex flex-wrap justify-end gap-2">
-          {scheduleStatus === null ? (
+          {scheduleStatus === null || isDraft ? (
             <Button
               type="button"
               variant="brand"
@@ -593,7 +593,11 @@ export function MvpSchedulesPage() {
               disabled={!canGenerate}
             >
               <Sparkles className="size-4" aria-hidden="true" />
-              {recommendScheduleMutation.isPending ? "생성 중" : "추천 생성"}
+              {recommendScheduleMutation.isPending
+                ? "생성 중"
+                : schedule
+                  ? "추천 다시 생성"
+                  : "추천 생성"}
             </Button>
           ) : null}
           {isDraft ? (
