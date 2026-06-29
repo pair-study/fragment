@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ScheduleAssignment, ScheduleHistoryItem } from "@fragment/shared";
 import { Button } from "@moyeorak/design-system";
 import { Download } from "lucide-react";
 
@@ -12,55 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-type ConfirmedSchedule = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  workerName: string;
-};
-
-type ScheduleHistory = {
-  id: string;
-  period: string;
-  startDate: string;
-  endDate: string;
-  confirmedAt: string;
-  scheduleCount: number;
-  schedules: ConfirmedSchedule[];
-};
+import {
+  useExportScheduleHistoryCsvMutation,
+  useScheduleHistoryDetailQuery,
+  useScheduleHistoryQuery,
+} from "@/features/schedule-history/queries/schedule-history-queries";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
-const WORKER_NAMES = [
-  "김민지",
-  "박준호",
-  "이서연",
-  "최유나",
-  "정도윤",
-  "한서준",
-  "오하린",
-  "강지우",
-  "윤태오",
-  "임서아",
-  "조민규",
-  "배수빈",
-  "문지훈",
-  "신예린",
-  "남현우",
-  "서다은",
-  "권도현",
-  "백지민",
-  "유시우",
-  "홍나연",
-];
-const TIME_RANGES = [
-  ["09:00", "13:00"],
-  ["10:00", "14:00"],
-  ["13:00", "17:00"],
-  ["14:00", "18:00"],
-  ["18:00", "22:00"],
-];
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
+const INITIAL_HISTORY_YEAR = new Date().getFullYear();
+const HISTORY_YEAR_OPTIONS = Array.from({ length: 6 }, (_, index) =>
+  String(INITIAL_HISTORY_YEAR - index),
+);
 
 function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
@@ -93,92 +58,81 @@ function createCalendarDates(startDate: string, endDate: string) {
   return createDateRange(getMonday(startDate), addDays(getMonday(endDate), 6));
 }
 
-function createConfirmedSchedules(startDate: string, endDate: string) {
-  const dates = createDateRange(startDate, endDate);
-
-  return WORKER_NAMES.map((workerName, index) => {
-    const [startTime, endTime] = TIME_RANGES[index % TIME_RANGES.length];
-    const date = index < 17 ? dates[6] : (dates[(index + 2) % dates.length] ?? endDate);
-
-    return {
-      id: `${startDate}-confirmed-${index + 1}`,
-      date,
-      startTime,
-      endTime,
-      workerName,
-    };
-  });
+function formatScheduleRange(startDate: string, endDate: string) {
+  return `${startDate} ~ ${endDate}`;
 }
 
-const SCHEDULE_HISTORIES: ScheduleHistory[] = [
-  {
-    id: "history-1",
-    period: "2026-06-20 ~ 2026-07-05",
-    startDate: "2026-06-20",
-    endDate: "2026-07-05",
-    confirmedAt: "2026-06-20",
-    scheduleCount: 20,
-    schedules: createConfirmedSchedules("2026-06-20", "2026-07-05"),
-  },
-  {
-    id: "history-2",
-    period: "2026-06-01 ~ 2026-06-15",
-    startDate: "2026-06-01",
-    endDate: "2026-06-15",
-    confirmedAt: "2026-05-30",
-    scheduleCount: 18,
-    schedules: createConfirmedSchedules("2026-06-01", "2026-06-15").slice(0, 18),
-  },
-  {
-    id: "history-3",
-    period: "2026-05-16 ~ 2026-05-31",
-    startDate: "2026-05-16",
-    endDate: "2026-05-31",
-    confirmedAt: "2026-05-14",
-    scheduleCount: 16,
-    schedules: createConfirmedSchedules("2026-05-16", "2026-05-31").slice(0, 16),
-  },
-  {
-    id: "history-4",
-    period: "2025-12-16 ~ 2025-12-31",
-    startDate: "2025-12-16",
-    endDate: "2025-12-31",
-    confirmedAt: "2025-12-14",
-    scheduleCount: 15,
-    schedules: createConfirmedSchedules("2025-12-16", "2025-12-31").slice(0, 15),
-  },
-];
-
-function getHistoryYear(history: ScheduleHistory) {
-  return history.startDate.slice(0, 4);
+function formatConfirmedAt(confirmedAt: string) {
+  return confirmedAt.slice(0, 10);
 }
 
-function getHistoryMonth(history: ScheduleHistory) {
-  return history.startDate.slice(5, 7);
+function formatDateTimeToTime(dateTime: string) {
+  return dateTime.slice(11, 16);
+}
+
+function createCsvFileName(startDate: string, endDate: string) {
+  return `schedule-${startDate}-${endDate}.csv`;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function findSelectedHistory(items: ScheduleHistoryItem[], selectedHistoryId: string) {
+  return items.find((history) => history.id === selectedHistoryId) ?? items[0] ?? null;
 }
 
 export function MvpScheduleHistoryPage() {
-  const [selectedHistoryId, setSelectedHistoryId] = useState(SCHEDULE_HISTORIES[0]?.id ?? "");
-  const [selectedYear, setSelectedYear] = useState(getHistoryYear(SCHEDULE_HISTORIES[0]));
+  const [selectedHistoryId, setSelectedHistoryId] = useState("");
+  const [selectedYear, setSelectedYear] = useState(String(INITIAL_HISTORY_YEAR));
   const [selectedMonth, setSelectedMonth] = useState("ALL");
   const [exportMessage, setExportMessage] = useState("");
-  const historyYears = Array.from(new Set(SCHEDULE_HISTORIES.map(getHistoryYear)));
-  const selectedYearHistories = SCHEDULE_HISTORIES.filter(
-    (history) => getHistoryYear(history) === selectedYear,
+  const scheduleHistoryQuery = useScheduleHistoryQuery({
+    year: Number(selectedYear),
+    ...(selectedMonth === "ALL" ? {} : { month: Number(selectedMonth) }),
+  });
+  const historyItems = scheduleHistoryQuery.data?.items ?? [];
+  const selectedHistoryItem = findSelectedHistory(historyItems, selectedHistoryId);
+  const selectedScheduleId = selectedHistoryItem?.id ?? "";
+  const scheduleHistoryDetailQuery = useScheduleHistoryDetailQuery(
+    selectedScheduleId,
+    selectedScheduleId !== "",
   );
-  const historyMonths = Array.from(new Set(selectedYearHistories.map(getHistoryMonth)));
-  const filteredHistories = selectedYearHistories.filter(
-    (history) => selectedMonth === "ALL" || getHistoryMonth(history) === selectedMonth,
-  );
-  const selectedHistory =
-    filteredHistories.find((history) => history.id === selectedHistoryId) ??
-    filteredHistories[0] ??
-    selectedYearHistories[0] ??
-    SCHEDULE_HISTORIES[0];
+  const exportScheduleHistoryCsvMutation = useExportScheduleHistoryCsvMutation();
+  const selectedHistory = scheduleHistoryDetailQuery.data ?? null;
   const calendarDates = useMemo(
-    () => createCalendarDates(selectedHistory.startDate, selectedHistory.endDate),
-    [selectedHistory.endDate, selectedHistory.startDate],
+    () =>
+      selectedHistory
+        ? createCalendarDates(selectedHistory.startDate, selectedHistory.endDate)
+        : [],
+    [selectedHistory],
   );
+  const canExportSchedule = selectedHistory !== null && !exportScheduleHistoryCsvMutation.isPending;
+
+  const handleExportSchedule = async () => {
+    if (!selectedHistory) {
+      return;
+    }
+
+    setExportMessage("");
+
+    try {
+      const blob = await exportScheduleHistoryCsvMutation.mutateAsync(selectedHistory.id);
+
+      downloadBlob(blob, createCsvFileName(selectedHistory.startDate, selectedHistory.endDate));
+      setExportMessage("CSV 파일을 다운로드했습니다.");
+    } catch (error) {
+      setExportMessage(getApiErrorMessage(error, "CSV 다운로드에 실패했습니다."));
+    }
+  };
 
   return (
     <AdminPageShell
@@ -200,9 +154,24 @@ export function MvpScheduleHistoryPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-base font-semibold text-foreground">읽기 모드 달력</h2>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                확정일 {selectedHistory.confirmedAt} · 총 {selectedHistory.scheduleCount}개 배정
-              </p>
+              {scheduleHistoryQuery.isPending ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  확정 스케줄 보관함을 불러오는 중입니다.
+                </p>
+              ) : scheduleHistoryQuery.isError || scheduleHistoryDetailQuery.isError ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  확정 스케줄 보관함을 불러오지 못했습니다.
+                </p>
+              ) : selectedHistory ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  확정일 {formatConfirmedAt(selectedHistory.confirmedAt)} · 총{" "}
+                  {selectedHistory.assignments.length}개 배정
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  선택한 조건에 해당하는 확정 스케줄이 없습니다.
+                </p>
+              )}
             </div>
             <div className="grid gap-2 sm:grid-cols-[7rem_7rem_15rem_auto]">
               <Select
@@ -210,6 +179,7 @@ export function MvpScheduleHistoryPage() {
                 onValueChange={(value) => {
                   setSelectedYear(value);
                   setSelectedMonth("ALL");
+                  setSelectedHistoryId("");
                   setExportMessage("");
                 }}
               >
@@ -217,7 +187,7 @@ export function MvpScheduleHistoryPage() {
                   <SelectValue placeholder="연도 선택" />
                 </SelectTrigger>
                 <SelectContent>
-                  {historyYears.map((year) => (
+                  {HISTORY_YEAR_OPTIONS.map((year) => (
                     <SelectItem key={year} value={year}>
                       {year}년
                     </SelectItem>
@@ -229,6 +199,7 @@ export function MvpScheduleHistoryPage() {
                 value={selectedMonth}
                 onValueChange={(value) => {
                   setSelectedMonth(value);
+                  setSelectedHistoryId("");
                   setExportMessage("");
                 }}
               >
@@ -237,16 +208,21 @@ export function MvpScheduleHistoryPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">전체</SelectItem>
-                  {historyMonths.map((month) => (
-                    <SelectItem key={month} value={month}>
-                      {Number(month)}월
+                  {MONTH_OPTIONS.map((month) => (
+                    <SelectItem key={month} value={String(month)}>
+                      {month}월
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
               <Select
-                value={selectedHistory.id}
+                value={selectedHistoryItem?.id ?? ""}
+                disabled={
+                  scheduleHistoryQuery.isPending ||
+                  scheduleHistoryQuery.isError ||
+                  historyItems.length === 0
+                }
                 onValueChange={(value) => {
                   setSelectedHistoryId(value);
                   setExportMessage("");
@@ -256,9 +232,9 @@ export function MvpScheduleHistoryPage() {
                   <SelectValue placeholder="확정 이력 선택" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredHistories.map((history) => (
+                  {historyItems.map((history) => (
                     <SelectItem key={history.id} value={history.id}>
-                      {history.period}
+                      {formatScheduleRange(history.startDate, history.endDate)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -267,66 +243,88 @@ export function MvpScheduleHistoryPage() {
               <Button
                 type="button"
                 variant="brand"
-                onClick={() =>
-                  setExportMessage(`${selectedHistory.period} CSV export가 준비되었습니다.`)
-                }
+                onClick={handleExportSchedule}
+                disabled={!canExportSchedule}
               >
                 <Download className="size-4" aria-hidden="true" />
-                CSV export
+                {exportScheduleHistoryCsvMutation.isPending ? "내보내는 중" : "CSV export"}
               </Button>
             </div>
           </div>
-          <div className="overflow-x-auto p-6">
-            <div className="grid min-w-3xl grid-cols-7 border-l border-t border-border">
-              {WEEKDAY_LABELS.map((weekday) => (
-                <div
-                  key={weekday}
-                  className="border-b border-r border-border bg-surface-secondary px-3 py-2 text-center text-xs font-semibold text-muted-foreground"
-                >
-                  {weekday}
-                </div>
-              ))}
 
-              {calendarDates.map((date) => {
-                const inRange =
-                  date >= selectedHistory.startDate && date <= selectedHistory.endDate;
-                const dateSchedules = selectedHistory.schedules.filter(
-                  (schedule) => schedule.date === date,
-                );
-
-                return (
-                  <div
-                    key={date}
-                    className={
-                      inRange
-                        ? "min-h-36 border-b border-r border-border bg-card p-3"
-                        : "min-h-36 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
-                    }
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
-                      {inRange ? (
-                        <span className="text-xs text-muted-foreground">
-                          {dateSchedules.length}명
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-3 space-y-1">
-                      {dateSchedules.map((schedule) => (
-                        <p
-                          key={schedule.id}
-                          className="truncate text-xs font-medium text-foreground"
-                        >
-                          {schedule.startTime}-{schedule.endTime} {schedule.workerName}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+          {scheduleHistoryQuery.isPending || scheduleHistoryDetailQuery.isPending ? (
+            <div className="px-6 py-16 text-center">
+              <p className="text-sm font-medium text-foreground">
+                확정 스케줄을 불러오는 중입니다.
+              </p>
             </div>
-          </div>
+          ) : scheduleHistoryQuery.isError || scheduleHistoryDetailQuery.isError ? (
+            <div className="px-6 py-16 text-center">
+              <p className="text-sm font-medium text-foreground">
+                확정 스케줄 보관함을 불러오지 못했습니다.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">잠시 후 다시 시도해 주세요.</p>
+            </div>
+          ) : selectedHistory ? (
+            <div className="overflow-x-auto p-6">
+              <div className="grid min-w-3xl grid-cols-7 border-l border-t border-border">
+                {WEEKDAY_LABELS.map((weekday) => (
+                  <div
+                    key={weekday}
+                    className="border-b border-r border-border bg-surface-secondary px-3 py-2 text-center text-xs font-semibold text-muted-foreground"
+                  >
+                    {weekday}
+                  </div>
+                ))}
+
+                {calendarDates.map((date) => {
+                  const inRange =
+                    date >= selectedHistory.startDate && date <= selectedHistory.endDate;
+                  const dateSchedules = selectedHistory.assignments.filter(
+                    (assignment) => assignment.workDate === date,
+                  );
+
+                  return (
+                    <div
+                      key={date}
+                      className={
+                        inRange
+                          ? "min-h-36 border-b border-r border-border bg-card p-3"
+                          : "min-h-36 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
+                        {inRange ? (
+                          <span className="text-xs text-muted-foreground">
+                            {dateSchedules.length}명
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-3 space-y-1">
+                        {dateSchedules.map((assignment: ScheduleAssignment) => (
+                          <p
+                            key={assignment.id}
+                            className="truncate text-xs font-medium text-foreground"
+                          >
+                            {formatDateTimeToTime(assignment.startsAt)}-
+                            {formatDateTimeToTime(assignment.endsAt)}{" "}
+                            {assignment.workerNameSnapshot}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="px-6 py-16 text-center">
+              <p className="text-sm font-medium text-foreground">확정된 스케줄이 없습니다.</p>
+              <p className="mt-2 text-sm text-muted-foreground">다른 연도나 월을 선택해 주세요.</p>
+            </div>
+          )}
         </section>
       </section>
     </AdminPageShell>
