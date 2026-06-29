@@ -23,7 +23,7 @@ export function PasswordInput({ className, ...props }: PasswordInputProps) {
         className="absolute right-1 top-1/2 size-9 -translate-y-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground"
         onClick={() => setVisible((current) => !current)}
       >
-        {visible ? <EyeOff /> : <Eye />}
+        {visible ? <Eye /> : <EyeOff />}
       </Button>
     </div>
   );
