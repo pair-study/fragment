@@ -557,7 +557,7 @@ export function MvpAvailabilityPage() {
               void saveAvailability();
             }}
           >
-            {replaceAvailabilityMutation.isPending ? "저장 중" : "변경사항 저장"}
+            {replaceAvailabilityMutation.isPending ? "저장 중" : "저장"}
           </Button>
         </div>
       }

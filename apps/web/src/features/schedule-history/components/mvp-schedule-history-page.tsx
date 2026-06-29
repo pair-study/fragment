@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@moyeorak/design-system";
 import { Download } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import { ConfirmedScheduleCalendar } from "@/features/schedules/components/confirmed-schedule-calendar";
 import {
   Select,
   SelectContent,
@@ -27,11 +28,9 @@ type ScheduleHistory = {
   startDate: string;
   endDate: string;
   confirmedAt: string;
-  scheduleCount: number;
   schedules: ConfirmedSchedule[];
 };
 
-const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const WORKER_NAMES = [
   "김민지",
   "박준호",
@@ -80,19 +79,6 @@ function createDateRange(startDate: string, endDate: string) {
   return dates;
 }
 
-function getMonday(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const targetDate = new Date(Date.UTC(year, month - 1, day));
-  const dayIndex = targetDate.getUTCDay();
-  const diff = dayIndex === 0 ? -6 : 1 - dayIndex;
-
-  return addDays(date, diff);
-}
-
-function createCalendarDates(startDate: string, endDate: string) {
-  return createDateRange(getMonday(startDate), addDays(getMonday(endDate), 6));
-}
-
 function createConfirmedSchedules(startDate: string, endDate: string) {
   const dates = createDateRange(startDate, endDate);
 
@@ -117,7 +103,6 @@ const SCHEDULE_HISTORIES: ScheduleHistory[] = [
     startDate: "2026-06-20",
     endDate: "2026-07-05",
     confirmedAt: "2026-06-20",
-    scheduleCount: 20,
     schedules: createConfirmedSchedules("2026-06-20", "2026-07-05"),
   },
   {
@@ -126,7 +111,6 @@ const SCHEDULE_HISTORIES: ScheduleHistory[] = [
     startDate: "2026-06-01",
     endDate: "2026-06-15",
     confirmedAt: "2026-05-30",
-    scheduleCount: 18,
     schedules: createConfirmedSchedules("2026-06-01", "2026-06-15").slice(0, 18),
   },
   {
@@ -135,7 +119,6 @@ const SCHEDULE_HISTORIES: ScheduleHistory[] = [
     startDate: "2026-05-16",
     endDate: "2026-05-31",
     confirmedAt: "2026-05-14",
-    scheduleCount: 16,
     schedules: createConfirmedSchedules("2026-05-16", "2026-05-31").slice(0, 16),
   },
   {
@@ -144,7 +127,6 @@ const SCHEDULE_HISTORIES: ScheduleHistory[] = [
     startDate: "2025-12-16",
     endDate: "2025-12-31",
     confirmedAt: "2025-12-14",
-    scheduleCount: 15,
     schedules: createConfirmedSchedules("2025-12-16", "2025-12-31").slice(0, 15),
   },
 ];
@@ -175,11 +157,6 @@ export function MvpScheduleHistoryPage() {
     filteredHistories[0] ??
     selectedYearHistories[0] ??
     SCHEDULE_HISTORIES[0];
-  const calendarDates = useMemo(
-    () => createCalendarDates(selectedHistory.startDate, selectedHistory.endDate),
-    [selectedHistory.endDate, selectedHistory.startDate],
-  );
-
   return (
     <AdminPageShell
       title="보관함"
@@ -198,10 +175,10 @@ export function MvpScheduleHistoryPage() {
           <div className="flex flex-col gap-4 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-base font-semibold text-foreground">읽기 모드 달력</h2>
+                <h2 className="text-base font-semibold text-foreground">확정 스케줄 기록</h2>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                확정일 {selectedHistory.confirmedAt} · 총 {selectedHistory.scheduleCount}개 배정
+                확정일 {selectedHistory.confirmedAt}
               </p>
             </div>
             <div className="grid gap-2 sm:grid-cols-[7rem_7rem_15rem_auto]">
@@ -276,57 +253,11 @@ export function MvpScheduleHistoryPage() {
               </Button>
             </div>
           </div>
-          <div className="overflow-x-auto p-6">
-            <div className="grid min-w-3xl grid-cols-7 border-l border-t border-border">
-              {WEEKDAY_LABELS.map((weekday) => (
-                <div
-                  key={weekday}
-                  className="border-b border-r border-border bg-surface-secondary px-3 py-2 text-center text-xs font-semibold text-muted-foreground"
-                >
-                  {weekday}
-                </div>
-              ))}
-
-              {calendarDates.map((date) => {
-                const inRange =
-                  date >= selectedHistory.startDate && date <= selectedHistory.endDate;
-                const dateSchedules = selectedHistory.schedules.filter(
-                  (schedule) => schedule.date === date,
-                );
-
-                return (
-                  <div
-                    key={date}
-                    className={
-                      inRange
-                        ? "min-h-36 border-b border-r border-border bg-card p-3"
-                        : "min-h-36 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
-                    }
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
-                      {inRange ? (
-                        <span className="text-xs text-muted-foreground">
-                          {dateSchedules.length}명
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-3 space-y-1">
-                      {dateSchedules.map((schedule) => (
-                        <p
-                          key={schedule.id}
-                          className="truncate text-xs font-medium text-foreground"
-                        >
-                          {schedule.startTime}-{schedule.endTime} {schedule.workerName}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <ConfirmedScheduleCalendar
+            startDate={selectedHistory.startDate}
+            endDate={selectedHistory.endDate}
+            schedules={selectedHistory.schedules}
+          />
         </section>
       </section>
     </AdminPageShell>
