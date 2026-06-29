@@ -24,7 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -106,6 +105,8 @@ const EMPTY_DRAFT: ScheduleDraft = {
   workerId: "",
 };
 
+const TIME_OPTION_STEP_MINUTES = 30;
+
 const KST_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   weekday: "long",
   timeZone: "Asia/Seoul",
@@ -167,6 +168,23 @@ function minutesToTime(minutes: number) {
 
   return `${String(hours).padStart(2, "0")}:${String(restMinutes).padStart(2, "0")}`;
 }
+
+function createTimeOptions() {
+  const options: { label: string; value: string }[] = [];
+
+  for (let minutes = 0; minutes < 24 * 60; minutes += TIME_OPTION_STEP_MINUTES) {
+    const time = minutesToTime(minutes);
+
+    options.push({
+      label: time,
+      value: time,
+    });
+  }
+
+  return options;
+}
+
+const SCHEDULE_TIME_OPTIONS = createTimeOptions();
 
 function dateTimeToMinutes(date: string, dateTime: string) {
   const baseDate = new Date(`${date}T00:00:00.000Z`);
@@ -332,6 +350,19 @@ export function MvpSchedulesPage() {
     () => schedule?.workerShortages.map(shortageToUnfilledCondition) ?? [],
     [schedule],
   );
+  const scheduleTargetDates = useMemo(
+    () =>
+      new Set([
+        ...schedules.map((item) => item.date),
+        ...candidates.map((item) => item.date),
+        ...unfilledConditions.map((condition) => condition.date),
+      ]),
+    [candidates, schedules, unfilledConditions],
+  );
+  const firstScheduleTargetDate = useMemo(
+    () => unfilledConditions[0]?.date ?? schedules[0]?.date ?? candidates[0]?.date ?? "",
+    [candidates, schedules, unfilledConditions],
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<ScheduleFormMode>("create");
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
@@ -392,6 +423,14 @@ export function MvpSchedulesPage() {
   const selectedDateUnfilledConditions = unfilledConditions.filter(
     (condition) => condition.date === selectedDate,
   );
+  const isSelectedDateScheduleTarget = scheduleTargetDates.has(selectedDate);
+  const scheduleEndTimeOptions = useMemo(
+    () =>
+      draft.startTime
+        ? SCHEDULE_TIME_OPTIONS.filter((option) => option.value > draft.startTime)
+        : SCHEDULE_TIME_OPTIONS,
+    [draft.startTime],
+  );
 
   useEffect(() => {
     if (!schedule) {
@@ -408,12 +447,17 @@ export function MvpSchedulesPage() {
       return;
     }
 
-    if (selectedDate && selectedDate >= schedule.startDate && selectedDate <= schedule.endDate) {
+    if (
+      selectedDate &&
+      selectedDate >= schedule.startDate &&
+      selectedDate <= schedule.endDate &&
+      scheduleTargetDates.has(selectedDate)
+    ) {
       return;
     }
 
-    setSelectedDate(unfilledConditions[0]?.date ?? schedule.startDate);
-  }, [dateDetailDismissed, schedule, selectedDate, unfilledConditions]);
+    setSelectedDate(firstScheduleTargetDate);
+  }, [dateDetailDismissed, firstScheduleTargetDate, schedule, scheduleTargetDates, selectedDate]);
 
   function openCreateForm(date: string) {
     if (!isDraft) {
@@ -743,8 +787,8 @@ export function MvpSchedulesPage() {
                 {calendarDates.map((date) => {
                   const inWorkRange = date >= workStartDate && date <= workEndDate;
                   const dateSchedules = schedules.filter((item) => item.date === date);
-                  const dateCandidates = candidates.filter((item) => item.date === date);
                   const unfilled = unfilledConditions.some((condition) => condition.date === date);
+                  const hasScheduleTarget = scheduleTargetDates.has(date);
                   const selected = selectedDate === date;
                   const visibleSchedules = dateSchedules.slice(0, 3);
                   const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
@@ -753,7 +797,7 @@ export function MvpSchedulesPage() {
                     <button
                       key={date}
                       type="button"
-                      disabled={!inWorkRange}
+                      disabled={!inWorkRange || !hasScheduleTarget}
                       onClick={() => {
                         setDateDetailDismissed(false);
                         setSelectedDate(date);
@@ -762,14 +806,16 @@ export function MvpSchedulesPage() {
                       className={
                         inWorkRange
                           ? [
-                              "min-h-40 border-b border-r p-3 text-left transition-colors",
-                              selected
-                                ? "border-primary bg-accent"
-                                : unfilled
-                                  ? "border-destructive bg-destructive/5 hover:bg-destructive/10"
-                                  : "border-border bg-card hover:bg-accent/60",
+                              "flex min-h-40 flex-col items-stretch border-b border-r p-3 text-left transition-colors",
+                              !hasScheduleTarget
+                                ? "cursor-not-allowed border-border bg-surface-secondary opacity-45"
+                                : selected
+                                  ? "border-primary bg-accent"
+                                  : unfilled
+                                    ? "border-destructive bg-destructive/5 hover:bg-destructive/10"
+                                    : "border-border bg-card hover:bg-accent/60",
                             ].join(" ")
-                          : "min-h-40 cursor-not-allowed border-b border-r border-border bg-surface-secondary p-3 text-left opacity-45"
+                          : "flex min-h-40 cursor-not-allowed flex-col items-stretch border-b border-r border-border bg-surface-secondary p-3 text-left opacity-45"
                       }
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -782,32 +828,26 @@ export function MvpSchedulesPage() {
                           >
                             미충족
                           </Badge>
-                        ) : !inWorkRange ? (
-                          <span className="text-xs font-medium text-muted-foreground">범위 밖</span>
                         ) : null}
                       </div>
 
-                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>
-                          후보 {dateCandidates.length}명 · 추천 {dateSchedules.length}명
-                        </span>
-                      </div>
+                      {inWorkRange && hasScheduleTarget ? (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>추천 {dateSchedules.length}건</span>
+                        </div>
+                      ) : null}
 
                       <div className="mt-3 space-y-1">
-                        {visibleSchedules.length > 0 ? (
-                          visibleSchedules.map((item) => (
-                            <p
-                              key={item.id}
-                              className="truncate text-xs font-medium text-foreground"
-                            >
-                              {item.startTime}-{item.endTime} {item.workerName}
-                            </p>
-                          ))
-                        ) : !inWorkRange ? null : (
-                          <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                            추천 배정 없음
-                          </p>
-                        )}
+                        {visibleSchedules.length > 0
+                          ? visibleSchedules.map((item) => (
+                              <p
+                                key={item.id}
+                                className="truncate text-xs font-medium text-foreground"
+                              >
+                                {item.startTime}-{item.endTime} {item.workerName}
+                              </p>
+                            ))
+                          : null}
                         {hiddenScheduleCount > 0 ? (
                           <p className="text-xs font-medium text-muted-foreground">
                             +{hiddenScheduleCount}개 더보기
@@ -830,7 +870,7 @@ export function MvpSchedulesPage() {
         </section>
       ) : null}
 
-      {selectedDate && schedule ? (
+      {selectedDate && schedule && isSelectedDateScheduleTarget ? (
         <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-border bg-card shadow-modal">
           <div className="border-b border-border px-6 py-5">
             <div className="flex items-start justify-between gap-4">
@@ -840,10 +880,7 @@ export function MvpSchedulesPage() {
                   {formatDateTitle(selectedDate)}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {selectedDateSchedules.length}명 추천
-                  {selectedDateCandidates.length > 0
-                    ? ` · 후보 ${selectedDateCandidates.length}명`
-                    : ""}
+                  추천 {selectedDateSchedules.length}건
                 </p>
               </div>
               <button
@@ -951,15 +988,31 @@ export function MvpSchedulesPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="schedule-start-time">시작 시간</Label>
-                      <Input
-                        id="schedule-start-time"
-                        type="time"
+                      <Select
                         value={draft.startTime}
-                        aria-invalid={submitted && Boolean(errors.startTime)}
-                        onChange={(event) =>
-                          setDraft((current) => ({ ...current, startTime: event.target.value }))
+                        onValueChange={(value) =>
+                          setDraft((current) => ({
+                            ...current,
+                            endTime:
+                              current.endTime && current.endTime <= value ? "" : current.endTime,
+                            startTime: value,
+                          }))
                         }
-                      />
+                      >
+                        <SelectTrigger
+                          id="schedule-start-time"
+                          aria-invalid={submitted && Boolean(errors.startTime)}
+                        >
+                          <SelectValue placeholder="시작 시간 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SCHEDULE_TIME_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {submitted && errors.startTime ? (
                         <p className="text-sm text-destructive">{errors.startTime}</p>
                       ) : null}
@@ -967,15 +1020,26 @@ export function MvpSchedulesPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="schedule-end-time">종료 시간</Label>
-                      <Input
-                        id="schedule-end-time"
-                        type="time"
+                      <Select
                         value={draft.endTime}
-                        aria-invalid={submitted && Boolean(errors.endTime)}
-                        onChange={(event) =>
-                          setDraft((current) => ({ ...current, endTime: event.target.value }))
+                        onValueChange={(value) =>
+                          setDraft((current) => ({ ...current, endTime: value }))
                         }
-                      />
+                      >
+                        <SelectTrigger
+                          id="schedule-end-time"
+                          aria-invalid={submitted && Boolean(errors.endTime)}
+                        >
+                          <SelectValue placeholder="종료 시간 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {scheduleEndTimeOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {submitted && errors.endTime ? (
                         <p className="text-sm text-destructive">{errors.endTime}</p>
                       ) : null}
@@ -1077,11 +1141,7 @@ export function MvpSchedulesPage() {
                     ) : null}
                   </div>
                 ))
-              ) : (
-                <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-                  이 날짜에 추천 배정이 없습니다.
-                </p>
-              )}
+              ) : null}
             </div>
           </div>
         </aside>
