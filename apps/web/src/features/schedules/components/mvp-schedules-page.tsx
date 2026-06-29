@@ -1,8 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import type {
+  DraftScheduleQuery,
+  ScheduleAssignment,
+  ScheduleAssignmentInput,
+  ScheduleCandidate,
+  ScheduleDetail,
+  ScheduleWorkerShortage,
+  Worker,
+} from "@fragment/shared";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
-import { CalendarDays, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import {
@@ -24,27 +33,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActiveSchedulePlanningPeriodQuery } from "@/features/organization/queries/organization-queries";
+import {
+  useConfirmScheduleMutation,
+  useCreateScheduleAssignmentMutation,
+  useDeleteScheduleAssignmentMutation,
+  useDraftScheduleQuery,
+  useRecommendScheduleMutation,
+  useUpdateScheduleAssignmentMutation,
+} from "@/features/schedules/queries/schedules-queries";
+import { useMinimumStaffingRulesQuery } from "@/features/staffing-rules/queries/staffing-rules-queries";
+import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 
-type ScheduleStatus = "DRAFT" | "CONFIRMED";
-
-type Worker = {
-  id: string;
-  name: string;
-};
+type ScheduleStatus = ScheduleDetail["status"];
 
 type ScheduleItem = {
   id: string;
   date: string;
   dayLabel: string;
-  startTime: string;
   endTime: string;
-  workerId: string;
+  startTime: string;
+  workerId: string | null;
+  workerName: string;
+};
+
+type ScheduleCandidateItem = {
+  id: string;
+  date: string;
+  endTime: string;
+  isRecommended: boolean;
+  startTime: string;
+  workerId: string | null;
+  workerName: string;
 };
 
 type ScheduleDraft = {
   date: string;
-  startTime: string;
   endTime: string;
+  startTime: string;
   workerId: string;
 };
 
@@ -52,55 +79,30 @@ type ScheduleFormMode = "create" | "edit";
 
 type UnfilledCondition = {
   id: string;
+  assignedWorkers: number;
   date: string;
   dayLabel: string;
-  timeRange: string;
   requiredWorkers: number;
-  assignedWorkers: number;
+  timeRange: string;
 };
 
-const WORKERS: Worker[] = [
-  { id: "worker-1", name: "김민지" },
-  { id: "worker-2", name: "박준호" },
-  { id: "worker-3", name: "이서연" },
-  { id: "worker-4", name: "최유나" },
-  { id: "worker-5", name: "정도윤" },
-  { id: "worker-6", name: "한서준" },
-  { id: "worker-7", name: "오하린" },
-  { id: "worker-8", name: "강지우" },
-  { id: "worker-9", name: "윤태오" },
-  { id: "worker-10", name: "임서아" },
-  { id: "worker-11", name: "조민규" },
-  { id: "worker-12", name: "배수빈" },
-  { id: "worker-13", name: "문지훈" },
-  { id: "worker-14", name: "신예린" },
-  { id: "worker-15", name: "남현우" },
-  { id: "worker-16", name: "서다은" },
-  { id: "worker-17", name: "권도현" },
-  { id: "worker-18", name: "백지민" },
-  { id: "worker-19", name: "유시우" },
-  { id: "worker-20", name: "홍나연" },
-];
+type WorkerOption = {
+  id: string;
+  name: string;
+};
 
-const INITIAL_UNFILLED_CONDITIONS: UnfilledCondition[] = [
-  {
-    id: "unfilled-1",
-    date: "2026-06-26",
-    dayLabel: "금요일",
-    timeRange: "18:00-22:00",
-    requiredWorkers: 20,
-    assignedWorkers: 17,
-  },
-];
+type OperationMessage = {
+  tone: "success" | "error";
+  text: string;
+};
 
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
-const RECOMMENDATION_WORK_START_DATE = "2026-06-20";
-const RECOMMENDATION_WORK_END_DATE = "2026-07-05";
+const EMPTY_WORKERS: Worker[] = [];
 
 const EMPTY_DRAFT: ScheduleDraft = {
   date: "",
-  startTime: "",
   endTime: "",
+  startTime: "",
   workerId: "",
 };
 
@@ -109,10 +111,6 @@ const KST_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
 });
 
-function getWorkerName(workerId: string) {
-  return WORKERS.find((worker) => worker.id === workerId)?.name ?? "알 수 없음";
-}
-
 function getDayLabel(date: string) {
   return KST_DATE_FORMATTER.format(new Date(`${date}T00:00:00+09:00`));
 }
@@ -120,6 +118,7 @@ function getDayLabel(date: string) {
 function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
   const nextDate = new Date(Date.UTC(year, month - 1, day + days));
+
   return nextDate.toISOString().slice(0, 10);
 }
 
@@ -160,12 +159,48 @@ function createCalendarDates(startDate: string, endDate: string) {
   return createDateRange(getMonday(startDate), getSunday(endDate));
 }
 
+function minutesToTime(minutes: number) {
+  const minutesInDay = 24 * 60;
+  const normalizedMinutes = ((minutes % minutesInDay) + minutesInDay) % minutesInDay;
+  const hours = Math.floor(normalizedMinutes / 60);
+  const restMinutes = normalizedMinutes % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(restMinutes).padStart(2, "0")}`;
+}
+
+function dateTimeToMinutes(date: string, dateTime: string) {
+  const baseDate = new Date(`${date}T00:00:00.000Z`);
+  const targetDate = new Date(dateTime);
+
+  return Math.round((targetDate.getTime() - baseDate.getTime()) / 60000);
+}
+
+function dateTimeToTime(date: string, dateTime: string) {
+  return minutesToTime(dateTimeToMinutes(date, dateTime));
+}
+
+function createDateTime(date: string, time: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day, hours, minutes)).toISOString();
+}
+
 function createDraftFromSchedule(schedule: ScheduleItem): ScheduleDraft {
   return {
     date: schedule.date,
-    startTime: schedule.startTime,
     endTime: schedule.endTime,
-    workerId: schedule.workerId,
+    startTime: schedule.startTime,
+    workerId: schedule.workerId ?? "",
+  };
+}
+
+function createScheduleAssignmentInput(draft: ScheduleDraft): ScheduleAssignmentInput {
+  return {
+    endsAt: createDateTime(draft.date, draft.endTime),
+    startsAt: createDateTime(draft.date, draft.startTime),
+    workDate: draft.date,
+    workerId: draft.workerId,
   };
 }
 
@@ -176,12 +211,12 @@ function validateScheduleDraft(draft: ScheduleDraft, workStartDate: string, work
       : draft.date < workStartDate || draft.date > workEndDate
         ? "근무 시작 날짜와 종료 날짜 사이에서만 선택할 수 있습니다."
         : "",
-    startTime: !draft.startTime ? "시작 시간을 선택하세요." : "",
     endTime: !draft.endTime
       ? "종료 시간을 선택하세요."
       : draft.startTime && draft.endTime <= draft.startTime
         ? "종료 시간은 시작 시간보다 늦어야 합니다."
         : "",
+    startTime: !draft.startTime ? "시작 시간을 선택하세요." : "",
     workerId: !draft.workerId ? "근무자를 선택하세요." : "",
   };
 }
@@ -202,81 +237,211 @@ function formatDateTitle(date: string) {
   return `${date} ${getDayLabel(date)}`;
 }
 
-function createRecommendedSchedules(workStartDate: string, workEndDate: string) {
-  const availableDates = createDateRange(workStartDate, workEndDate);
-  const denseDate = "2026-06-26";
-  const timeRanges = [
-    ["09:00", "13:00"],
-    ["10:00", "14:00"],
-    ["13:00", "17:00"],
-    ["14:00", "18:00"],
-    ["18:00", "22:00"],
-  ];
+function formatShortageTimeRange(shortage: ScheduleWorkerShortage) {
+  return `${shortage.startTime}-${shortage.endTime}${shortage.endsNextDay ? "+1" : ""}`;
+}
 
-  return WORKERS.map((worker, index) => {
-    const [startTime, endTime] = timeRanges[index % timeRanges.length];
-    const date =
-      index < 17 ? denseDate : (availableDates[(index + 2) % availableDates.length] ?? workEndDate);
+function assignmentToScheduleItem(assignment: ScheduleAssignment): ScheduleItem {
+  return {
+    date: assignment.workDate,
+    dayLabel: getDayLabel(assignment.workDate),
+    endTime: dateTimeToTime(assignment.workDate, assignment.endsAt),
+    id: assignment.id,
+    startTime: dateTimeToTime(assignment.workDate, assignment.startsAt),
+    workerId: assignment.workerId,
+    workerName: assignment.workerNameSnapshot,
+  };
+}
 
-    return {
-      id: `schedule-${index + 1}`,
-      date,
-      startTime,
-      endTime,
-      workerId: worker.id,
-    };
-  }).map((schedule) => ({
-    ...schedule,
-    dayLabel: getDayLabel(schedule.date),
+function candidateToScheduleCandidateItem(candidate: ScheduleCandidate): ScheduleCandidateItem {
+  return {
+    date: candidate.workDate,
+    endTime: dateTimeToTime(candidate.workDate, candidate.endsAt),
+    id: candidate.id,
+    isRecommended: candidate.isRecommended,
+    startTime: dateTimeToTime(candidate.workDate, candidate.startsAt),
+    workerId: candidate.workerId,
+    workerName: candidate.workerNameSnapshot,
+  };
+}
+
+function shortageToUnfilledCondition(shortage: ScheduleWorkerShortage): UnfilledCondition {
+  return {
+    assignedWorkers: shortage.assignedCount,
+    date: shortage.workDate,
+    dayLabel: getDayLabel(shortage.workDate),
+    id: shortage.id,
+    requiredWorkers: shortage.requiredCount,
+    timeRange: formatShortageTimeRange(shortage),
+  };
+}
+
+function createWorkerOptions(workers: Worker[], editingSchedule: ScheduleItem | null) {
+  const options: WorkerOption[] = workers.map((worker) => ({
+    id: worker.id,
+    name: worker.name,
   }));
+
+  if (
+    editingSchedule?.workerId &&
+    !options.some((option) => option.id === editingSchedule.workerId)
+  ) {
+    options.push({
+      id: editingSchedule.workerId,
+      name: editingSchedule.workerName,
+    });
+  }
+
+  return options;
 }
 
 export function MvpSchedulesPage() {
-  const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatus | null>(null);
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
-  const [unfilledConditions, setUnfilledConditions] = useState<UnfilledCondition[]>([]);
+  const planningPeriodQuery = useActiveSchedulePlanningPeriodQuery();
+  const workersQuery = useWorkersQuery();
+  const staffingRulesQuery = useMinimumStaffingRulesQuery();
+  const recommendScheduleMutation = useRecommendScheduleMutation();
+  const createScheduleAssignmentMutation = useCreateScheduleAssignmentMutation();
+  const updateScheduleAssignmentMutation = useUpdateScheduleAssignmentMutation();
+  const deleteScheduleAssignmentMutation = useDeleteScheduleAssignmentMutation();
+  const confirmScheduleMutation = useConfirmScheduleMutation();
+  const activePlanningPeriod = planningPeriodQuery.data?.period ?? null;
+  const workStartDate = activePlanningPeriod?.startDate ?? "";
+  const workEndDate = activePlanningPeriod?.endDate ?? "";
+  const draftScheduleQuery: DraftScheduleQuery = useMemo(
+    () => ({
+      endDate: workEndDate,
+      startDate: workStartDate,
+    }),
+    [workEndDate, workStartDate],
+  );
+  const canQueryDraftSchedule = Boolean(workStartDate && workEndDate);
+  const draftScheduleResult = useDraftScheduleQuery(draftScheduleQuery, canQueryDraftSchedule);
+  const workers = workersQuery.data?.items ?? EMPTY_WORKERS;
+  const staffingRules = staffingRulesQuery.data?.items ?? [];
+  const schedule = draftScheduleResult.data?.schedule ?? null;
+  const scheduleStatus = schedule?.status ?? null;
+  const schedules = useMemo(
+    () => schedule?.assignments.map(assignmentToScheduleItem) ?? [],
+    [schedule],
+  );
+  const candidates = useMemo(
+    () => schedule?.candidates.map(candidateToScheduleCandidateItem) ?? [],
+    [schedule],
+  );
+  const unfilledConditions = useMemo(
+    () => schedule?.workerShortages.map(shortageToUnfilledCondition) ?? [],
+    [schedule],
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<ScheduleFormMode>("create");
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ScheduleItem | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
+  const [dateDetailDismissed, setDateDetailDismissed] = useState(false);
   const [draft, setDraft] = useState<ScheduleDraft>(EMPTY_DRAFT);
   const [submitted, setSubmitted] = useState(false);
-
+  const [operationMessage, setOperationMessage] = useState<OperationMessage | null>(null);
   const errors = useMemo(
-    () =>
-      validateScheduleDraft(draft, RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
-    [draft],
+    () => validateScheduleDraft(draft, workStartDate, workEndDate),
+    [draft, workEndDate, workStartDate],
   );
   const calendarDates = useMemo(
-    () => createCalendarDates(RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
-    [],
+    () => createCalendarDates(workStartDate, workEndDate),
+    [workEndDate, workStartDate],
+  );
+  const editingSchedule = useMemo(
+    () => schedules.find((item) => item.id === editingScheduleId) ?? null,
+    [editingScheduleId, schedules],
+  );
+  const workerOptions = useMemo(
+    () => createWorkerOptions(workers, editingSchedule),
+    [editingSchedule, workers],
   );
   const hasErrors = Object.values(errors).some(Boolean);
-  const canGenerate = scheduleStatus === null;
+  const isPageLoading =
+    planningPeriodQuery.isPending ||
+    staffingRulesQuery.isPending ||
+    workersQuery.isPending ||
+    (canQueryDraftSchedule && draftScheduleResult.isPending);
+  const queryError =
+    planningPeriodQuery.error ??
+    staffingRulesQuery.error ??
+    workersQuery.error ??
+    draftScheduleResult.error;
+  const queryErrorMessage = queryError
+    ? getApiErrorMessage(queryError, "스케줄 정보를 불러오지 못했습니다.")
+    : "";
   const isDraft = scheduleStatus === "DRAFT";
+  const canGenerate =
+    Boolean(activePlanningPeriod) &&
+    staffingRules.length > 0 &&
+    !schedule &&
+    !draftScheduleResult.isFetching &&
+    !recommendScheduleMutation.isPending &&
+    !queryErrorMessage;
+  const canConfirm =
+    Boolean(schedule) &&
+    isDraft &&
+    schedules.length > 0 &&
+    !confirmScheduleMutation.isPending &&
+    !queryErrorMessage;
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
-  const selectedDateSchedules = schedules.filter((schedule) => schedule.date === selectedDate);
+  const selectedDateSchedules = schedules.filter((item) => item.date === selectedDate);
+  const selectedDateCandidates = candidates.filter((item) => item.date === selectedDate);
   const selectedDateUnfilledConditions = unfilledConditions.filter(
     (condition) => condition.date === selectedDate,
   );
 
+  useEffect(() => {
+    if (!schedule) {
+      setSelectedDate("");
+      setDateDetailDismissed(false);
+      setFormOpen(false);
+      setEditingScheduleId(null);
+      setDraft(EMPTY_DRAFT);
+      setSubmitted(false);
+      return;
+    }
+
+    if (dateDetailDismissed) {
+      return;
+    }
+
+    if (selectedDate && selectedDate >= schedule.startDate && selectedDate <= schedule.endDate) {
+      return;
+    }
+
+    setSelectedDate(unfilledConditions[0]?.date ?? schedule.startDate);
+  }, [dateDetailDismissed, schedule, selectedDate, unfilledConditions]);
+
   function openCreateForm(date: string) {
+    if (!isDraft) {
+      return;
+    }
+
     setFormMode("create");
     setEditingScheduleId(null);
+    setDateDetailDismissed(false);
     setSelectedDate(date);
     setDraft({ ...EMPTY_DRAFT, date });
     setSubmitted(false);
+    setOperationMessage(null);
     setFormOpen(true);
   }
 
-  function openEditForm(schedule: ScheduleItem) {
+  function openEditForm(scheduleItem: ScheduleItem) {
+    if (!isDraft) {
+      return;
+    }
+
     setFormMode("edit");
-    setEditingScheduleId(schedule.id);
-    setSelectedDate(schedule.date);
-    setDraft(createDraftFromSchedule(schedule));
+    setEditingScheduleId(scheduleItem.id);
+    setDateDetailDismissed(false);
+    setSelectedDate(scheduleItem.date);
+    setDraft(createDraftFromSchedule(scheduleItem));
     setSubmitted(false);
+    setOperationMessage(null);
     setFormOpen(true);
   }
 
@@ -287,69 +452,148 @@ export function MvpSchedulesPage() {
     setDraft(EMPTY_DRAFT);
   }
 
-  function generateRecommendation() {
-    if (!canGenerate) {
+  async function generateRecommendation() {
+    if (!canGenerate || !activePlanningPeriod) {
       return;
     }
 
-    setScheduleStatus("DRAFT");
-    setSchedules(
-      createRecommendedSchedules(RECOMMENDATION_WORK_START_DATE, RECOMMENDATION_WORK_END_DATE),
-    );
-    setUnfilledConditions(INITIAL_UNFILLED_CONDITIONS);
-    setSelectedDate(INITIAL_UNFILLED_CONDITIONS[0]?.date ?? RECOMMENDATION_WORK_START_DATE);
+    setOperationMessage(null);
+
+    try {
+      const response = await recommendScheduleMutation.mutateAsync({
+        endDate: activePlanningPeriod.endDate,
+        startDate: activePlanningPeriod.startDate,
+      });
+
+      setDateDetailDismissed(false);
+      setSelectedDate(response.workerShortages[0]?.workDate ?? response.startDate);
+      setOperationMessage({
+        tone: "success",
+        text: "추천 스케줄이 생성되었습니다.",
+      });
+    } catch (error) {
+      setOperationMessage({
+        tone: "error",
+        text: getApiErrorMessage(error, "추천 스케줄을 생성하지 못했습니다."),
+      });
+    }
   }
 
-  function saveSchedule() {
+  async function saveSchedule() {
     setSubmitted(true);
+    setOperationMessage(null);
 
-    if (hasErrors) {
+    if (!schedule || !isDraft || hasErrors) {
       return;
     }
 
-    const nextSchedule = {
-      date: draft.date,
-      dayLabel: getDayLabel(draft.date),
-      startTime: draft.startTime,
-      endTime: draft.endTime,
-      workerId: draft.workerId,
-    };
+    const request = createScheduleAssignmentInput(draft);
 
-    if (formMode === "create") {
-      setSchedules((currentSchedules) => [
-        ...currentSchedules,
-        {
-          id: `schedule-${Date.now()}`,
-          ...nextSchedule,
-        },
-      ]);
-      setScheduleStatus("DRAFT");
-    } else if (editingScheduleId) {
-      setSchedules((currentSchedules) =>
-        currentSchedules.map((schedule) =>
-          schedule.id === editingScheduleId ? { ...schedule, ...nextSchedule } : schedule,
-        ),
-      );
+    try {
+      if (formMode === "create") {
+        await createScheduleAssignmentMutation.mutateAsync({
+          query: draftScheduleQuery,
+          request,
+          scheduleId: schedule.id,
+        });
+      } else if (editingScheduleId) {
+        await updateScheduleAssignmentMutation.mutateAsync({
+          assignmentId: editingScheduleId,
+          query: draftScheduleQuery,
+          request,
+          scheduleId: schedule.id,
+        });
+      }
+
+      setSelectedDate(draft.date);
+      setDateDetailDismissed(false);
+      closeForm();
+      setOperationMessage({
+        tone: "success",
+        text: "스케줄이 저장되었습니다.",
+      });
+    } catch (error) {
+      setOperationMessage({
+        tone: "error",
+        text: getApiErrorMessage(error, "스케줄을 저장하지 못했습니다."),
+      });
+    }
+  }
+
+  async function deleteSchedule() {
+    if (!schedule || !deleteTarget || deleteScheduleAssignmentMutation.isPending) {
+      return;
     }
 
-    closeForm();
+    setOperationMessage(null);
+
+    try {
+      await deleteScheduleAssignmentMutation.mutateAsync({
+        assignmentId: deleteTarget.id,
+        query: draftScheduleQuery,
+        scheduleId: schedule.id,
+      });
+
+      setDeleteTarget(null);
+      closeForm();
+      setOperationMessage({
+        tone: "success",
+        text: "스케줄이 삭제되었습니다.",
+      });
+    } catch (error) {
+      setOperationMessage({
+        tone: "error",
+        text: getApiErrorMessage(error, "스케줄을 삭제하지 못했습니다."),
+      });
+    }
+  }
+
+  async function confirmCurrentSchedule() {
+    if (!schedule || !canConfirm) {
+      return;
+    }
+
+    setOperationMessage(null);
+
+    try {
+      await confirmScheduleMutation.mutateAsync({
+        query: draftScheduleQuery,
+        scheduleId: schedule.id,
+      });
+
+      setDateDetailDismissed(false);
+      setSelectedDate("");
+      closeForm();
+      setConfirmOpen(false);
+      setOperationMessage({
+        tone: "success",
+        text: "스케줄이 확정되었습니다.",
+      });
+    } catch (error) {
+      setOperationMessage({
+        tone: "error",
+        text: getApiErrorMessage(error, "스케줄을 확정하지 못했습니다."),
+      });
+    }
   }
 
   return (
     <AdminPageShell
       title="스케줄"
-      description="근무자, 가능 시간, 최소 인원 조건을 기준으로 추천 결과를 생성하고 확정합니다."
+      description="최소 인원 조건이 있는 시간대의 가능 시간과 계약 시간 균형을 기준으로 추천 결과를 생성하고 확정합니다."
       actions={
         <div className="flex flex-wrap justify-end gap-2">
           {scheduleStatus === null ? (
             <Button
               type="button"
               variant="brand"
-              onClick={generateRecommendation}
+              onClick={() => {
+                void generateRecommendation();
+              }}
               disabled={!canGenerate}
             >
               <Sparkles className="size-4" aria-hidden="true" />
-              추천 생성
+              {recommendScheduleMutation.isPending ? "생성 중" : "추천 생성"}
             </Button>
           ) : null}
           {isDraft ? (
@@ -357,9 +601,9 @@ export function MvpSchedulesPage() {
               type="button"
               variant="brand"
               onClick={() => setConfirmOpen(true)}
-              disabled={schedules.length === 0}
+              disabled={!canConfirm}
             >
-              스케줄 확정
+              {confirmScheduleMutation.isPending ? "확정 중" : "스케줄 확정"}
             </Button>
           ) : null}
         </div>
@@ -367,26 +611,69 @@ export function MvpSchedulesPage() {
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
-      {scheduleStatus === null ? (
+      {isPageLoading ? (
+        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
+          스케줄 정보를 불러오는 중입니다.
+        </div>
+      ) : null}
+
+      {queryErrorMessage ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {queryErrorMessage}
+        </div>
+      ) : null}
+
+      {operationMessage ? (
+        <div
+          className={
+            operationMessage.tone === "error"
+              ? "rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              : "rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-foreground"
+          }
+        >
+          {operationMessage.text}
+        </div>
+      ) : null}
+
+      {!activePlanningPeriod && !planningPeriodQuery.isPending ? (
+        <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">근무 기간 없음</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                가능 시간 관리에서 근무 기간을 먼저 설정하면 추천 스케줄을 생성할 수 있습니다.
+              </p>
+            </div>
+            <Badge variant="neutral-weak">{getStatusLabel(null)}</Badge>
+          </div>
+        </section>
+      ) : null}
+
+      {activePlanningPeriod && !schedule && !draftScheduleResult.isPending ? (
         <section className="rounded-xl border border-border bg-card p-6 shadow-card">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-base font-semibold text-foreground">추천 결과 없음</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                가능 시간 관리에서 설정한 {RECOMMENDATION_WORK_START_DATE}~
-                {RECOMMENDATION_WORK_END_DATE} 기간을 기준으로 추천 결과를 생성합니다.
+                가능 시간 관리에서 설정한 {workStartDate}~{workEndDate} 기간을 기준으로 추천 결과를
+                생성합니다.
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                동일 입력 조건에서는 중복 생성하지 않습니다. 근무자, 가능 시간, 최소 인원 조건, 근무
-                기간 중 하나가 변경되면 다시 추천 생성할 수 있습니다.
+                동일 입력 조건에서는 중복 생성하지 않습니다. 최소 인원 조건이 있는 시간대만 추천
+                대상으로 사용합니다.
               </p>
+              {staffingRules.length === 0 ? (
+                <p className="mt-2 text-sm text-destructive">
+                  최소 인원 조건을 먼저 등록해야 추천 스케줄을 생성할 수 있습니다.
+                </p>
+              ) : null}
             </div>
             <Badge variant="neutral-weak">{getStatusLabel(scheduleStatus)}</Badge>
           </div>
         </section>
       ) : null}
 
-      {unfilledConditions.length > 0 && scheduleStatus === "DRAFT" ? (
+      {unfilledConditions.length > 0 && isDraft ? (
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-4">
             <h2 className="text-base font-semibold text-foreground">미충족 조건</h2>
@@ -398,7 +685,7 @@ export function MvpSchedulesPage() {
                   <th className="px-6 py-3">요일</th>
                   <th className="px-6 py-3">시간대</th>
                   <th className="px-6 py-3">필요 인원</th>
-                  <th className="px-6 py-3">배정 인원</th>
+                  <th className="px-6 py-3">추천 배정</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -420,7 +707,7 @@ export function MvpSchedulesPage() {
         </section>
       ) : null}
 
-      {scheduleStatus !== null ? (
+      {schedule ? (
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -430,10 +717,10 @@ export function MvpSchedulesPage() {
                   <h2 className="text-base font-semibold text-foreground">근무 기간 달력</h2>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {RECOMMENDATION_WORK_START_DATE}~{RECOMMENDATION_WORK_END_DATE} 추천 결과를
-                  달력에서 검토하고 직접 조정합니다.
+                  {workStartDate}~{workEndDate} 추천 결과를 달력에서 검토하고 직접 조정합니다.
                 </p>
               </div>
+              <Badge variant="neutral-weak">{getStatusLabel(scheduleStatus)}</Badge>
             </div>
           </div>
 
@@ -450,9 +737,9 @@ export function MvpSchedulesPage() {
                 ))}
 
                 {calendarDates.map((date) => {
-                  const inWorkRange =
-                    date >= RECOMMENDATION_WORK_START_DATE && date <= RECOMMENDATION_WORK_END_DATE;
-                  const dateSchedules = schedules.filter((schedule) => schedule.date === date);
+                  const inWorkRange = date >= workStartDate && date <= workEndDate;
+                  const dateSchedules = schedules.filter((item) => item.date === date);
+                  const dateCandidates = candidates.filter((item) => item.date === date);
                   const unfilled = unfilledConditions.some((condition) => condition.date === date);
                   const selected = selectedDate === date;
                   const visibleSchedules = dateSchedules.slice(0, 3);
@@ -464,6 +751,7 @@ export function MvpSchedulesPage() {
                       type="button"
                       disabled={!inWorkRange}
                       onClick={() => {
+                        setDateDetailDismissed(false);
                         setSelectedDate(date);
                         closeForm();
                       }}
@@ -496,23 +784,24 @@ export function MvpSchedulesPage() {
                       </div>
 
                       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{dateSchedules.length}명 배정</span>
+                        <span>
+                          후보 {dateCandidates.length}명 · 추천 {dateSchedules.length}명
+                        </span>
                       </div>
 
                       <div className="mt-3 space-y-1">
                         {visibleSchedules.length > 0 ? (
-                          visibleSchedules.map((schedule) => (
+                          visibleSchedules.map((item) => (
                             <p
-                              key={schedule.id}
+                              key={item.id}
                               className="truncate text-xs font-medium text-foreground"
                             >
-                              {schedule.startTime}-{schedule.endTime}{" "}
-                              {getWorkerName(schedule.workerId)}
+                              {item.startTime}-{item.endTime} {item.workerName}
                             </p>
                           ))
                         ) : !inWorkRange ? null : (
                           <p className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
-                            배정 없음
+                            추천 배정 없음
                           </p>
                         )}
                         {hiddenScheduleCount > 0 ? (
@@ -537,7 +826,7 @@ export function MvpSchedulesPage() {
         </section>
       ) : null}
 
-      {selectedDate && scheduleStatus !== null ? (
+      {selectedDate && schedule ? (
         <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-border bg-card shadow-modal">
           <div className="border-b border-border px-6 py-5">
             <div className="flex items-start justify-between gap-4">
@@ -547,7 +836,10 @@ export function MvpSchedulesPage() {
                   {formatDateTitle(selectedDate)}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {selectedDateSchedules.length}명 배정
+                  {selectedDateSchedules.length}명 추천
+                  {selectedDateCandidates.length > 0
+                    ? ` · 후보 ${selectedDateCandidates.length}명`
+                    : ""}
                 </p>
               </div>
               <button
@@ -555,6 +847,7 @@ export function MvpSchedulesPage() {
                 className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 aria-label="날짜 상세 닫기"
                 onClick={() => {
+                  setDateDetailDismissed(true);
                   setSelectedDate("");
                   closeForm();
                 }}
@@ -571,7 +864,7 @@ export function MvpSchedulesPage() {
                 <div className="mt-2 space-y-1">
                   {selectedDateUnfilledConditions.map((condition) => (
                     <p key={condition.id} className="text-sm text-foreground">
-                      {condition.timeRange} · 필요 {condition.requiredWorkers}명 / 배정{" "}
+                      {condition.timeRange} · 필요 {condition.requiredWorkers}명 / 추천{" "}
                       {condition.assignedWorkers}명
                     </p>
                   ))}
@@ -580,7 +873,7 @@ export function MvpSchedulesPage() {
             ) : null}
 
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-base font-semibold text-foreground">배정 목록</h3>
+              <h3 className="text-base font-semibold text-foreground">가능 후보 목록</h3>
               {isDraft ? (
                 <Button
                   type="button"
@@ -593,8 +886,46 @@ export function MvpSchedulesPage() {
               ) : null}
             </div>
 
+            <div className="mt-5 space-y-2">
+              {selectedDateCandidates.length > 0 ? (
+                selectedDateCandidates.map((candidate) => (
+                  <div
+                    key={candidate.id}
+                    className={
+                      candidate.isRecommended
+                        ? "flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2"
+                        : "flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-3 py-2"
+                    }
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        {candidate.startTime}-{candidate.endTime}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {candidate.workerName}
+                      </p>
+                    </div>
+                    {candidate.isRecommended ? (
+                      <Badge variant="brand-weak" className="shrink-0">
+                        <Check className="size-3" aria-hidden="true" />
+                        추천
+                      </Badge>
+                    ) : (
+                      <Badge variant="neutral-weak" className="shrink-0">
+                        후보
+                      </Badge>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                  이 날짜에 가능 후보가 없습니다.
+                </p>
+              )}
+            </div>
+
             {formOpen ? (
-              <section className="mt-5 rounded-xl border border-border bg-surface-secondary p-4">
+              <section className="mt-6 rounded-xl border border-border bg-surface-secondary p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">{formTitle}</h3>
@@ -662,7 +993,7 @@ export function MvpSchedulesPage() {
                         <SelectValue placeholder="근무자를 선택하세요" />
                       </SelectTrigger>
                       <SelectContent>
-                        {WORKERS.map((worker) => (
+                        {workerOptions.map((worker) => (
                           <SelectItem key={worker.id} value={worker.id}>
                             {worker.name}
                           </SelectItem>
@@ -679,26 +1010,43 @@ export function MvpSchedulesPage() {
                   <Button type="button" variant="outline" onClick={closeForm}>
                     취소
                   </Button>
-                  <Button type="button" variant="brand" onClick={saveSchedule}>
-                    저장
+                  <Button
+                    type="button"
+                    variant="brand"
+                    onClick={() => {
+                      void saveSchedule();
+                    }}
+                    disabled={
+                      createScheduleAssignmentMutation.isPending ||
+                      updateScheduleAssignmentMutation.isPending
+                    }
+                  >
+                    {createScheduleAssignmentMutation.isPending ||
+                    updateScheduleAssignmentMutation.isPending
+                      ? "저장 중"
+                      : "저장"}
                   </Button>
                 </div>
               </section>
             ) : null}
 
-            <div className="mt-5 space-y-2">
+            <div className="mt-6">
+              <h3 className="text-base font-semibold text-foreground">추천 배정 목록</h3>
+            </div>
+
+            <div className="mt-3 space-y-2">
               {selectedDateSchedules.length > 0 ? (
-                selectedDateSchedules.map((schedule) => (
+                selectedDateSchedules.map((item) => (
                   <div
-                    key={schedule.id}
+                    key={item.id}
                     className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">
-                        {schedule.startTime}-{schedule.endTime}
+                        {item.startTime}-{item.endTime}
                       </p>
                       <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                        {getWorkerName(schedule.workerId)}
+                        {item.workerName}
                       </p>
                     </div>
                     {isDraft ? (
@@ -706,18 +1054,18 @@ export function MvpSchedulesPage() {
                         <button
                           type="button"
                           className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                          aria-label={`${getWorkerName(schedule.workerId)} 스케줄 수정`}
+                          aria-label={`${item.workerName} 스케줄 수정`}
                           title="수정"
-                          onClick={() => openEditForm(schedule)}
+                          onClick={() => openEditForm(item)}
                         >
                           <Pencil className="size-4" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
                           className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          aria-label={`${getWorkerName(schedule.workerId)} 스케줄 삭제`}
+                          aria-label={`${item.workerName} 스케줄 삭제`}
                           title="삭제"
-                          onClick={() => setDeleteTarget(schedule)}
+                          onClick={() => setDeleteTarget(item)}
                         >
                           <Trash2 className="size-4" aria-hidden="true" />
                         </button>
@@ -727,7 +1075,7 @@ export function MvpSchedulesPage() {
                 ))
               ) : (
                 <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-                  이 날짜에 배정된 스케줄이 없습니다.
+                  이 날짜에 추천 배정이 없습니다.
                 </p>
               )}
             </div>
@@ -743,24 +1091,20 @@ export function MvpSchedulesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>스케줄 삭제</AlertDialogTitle>
             <AlertDialogDescription>
-              이 스케줄을 삭제하면 해당 근무 배정이 목록에서 제거됩니다.
+              이 스케줄을 삭제하면 해당 근무 후보가 목록에서 제거됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteScheduleAssignmentMutation.isPending}>
+              취소
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (!deleteTarget) {
-                  return;
-                }
-
-                setSchedules((currentSchedules) =>
-                  currentSchedules.filter((schedule) => schedule.id !== deleteTarget.id),
-                );
-                setDeleteTarget(null);
+                void deleteSchedule();
               }}
+              disabled={deleteScheduleAssignmentMutation.isPending}
             >
-              삭제
+              {deleteScheduleAssignmentMutation.isPending ? "삭제 중" : "삭제"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -771,22 +1115,18 @@ export function MvpSchedulesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>스케줄 확정</AlertDialogTitle>
             <AlertDialogDescription>
-              확정 후에는 이 근무 기간의 스케줄을 최종본으로 관리합니다.
+              확정 후에는 이 근무 기간의 DRAFT 스케줄을 더 이상 수정할 수 없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogCancel disabled={confirmScheduleMutation.isPending}>취소</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setScheduleStatus(null);
-                setSchedules([]);
-                setUnfilledConditions([]);
-                setSelectedDate("");
-                closeForm();
-                setConfirmOpen(false);
+                void confirmCurrentSchedule();
               }}
+              disabled={!canConfirm}
             >
-              확정
+              {confirmScheduleMutation.isPending ? "확정 중" : "확정"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
