@@ -109,8 +109,9 @@ const mergeAdjacentAssignments = (assignments: RecommendationAssignment[]) => {
   });
 };
 
-const getAssignmentDurationMinutes = (assignment: Pick<RecommendationAssignment, "endsAt" | "startsAt">) =>
-  Math.round((assignment.endsAt.getTime() - assignment.startsAt.getTime()) / 60000);
+const getAssignmentDurationMinutes = (
+  assignment: Pick<RecommendationAssignment, "endsAt" | "startsAt">,
+) => Math.round((assignment.endsAt.getTime() - assignment.startsAt.getTime()) / 60000);
 
 const getWeekStartDate = (date: Date) => {
   const day = date.getUTCDay();
@@ -146,7 +147,11 @@ const compareCandidatesByBalance = ({
 }) => {
   const weekStartDate = getWeekStartDate(workDate);
   const weekEndDate = new Date(
-    Date.UTC(weekStartDate.getUTCFullYear(), weekStartDate.getUTCMonth(), weekStartDate.getUTCDate() + 7),
+    Date.UTC(
+      weekStartDate.getUTCFullYear(),
+      weekStartDate.getUTCMonth(),
+      weekStartDate.getUTCDate() + 7,
+    ),
   );
   const isSameWeek = (assignment: RecommendationAssignment) =>
     assignment.workDate >= weekStartDate && assignment.workDate < weekEndDate;
@@ -355,7 +360,8 @@ export const createRecommendations = ({
         );
       const selectableCandidates = availableCandidates
         .filter(
-          (worker) => !hasOverlap(assignments, worker.id, demandWindow.startsAt, demandWindow.endsAt),
+          (worker) =>
+            !hasOverlap(assignments, worker.id, demandWindow.startsAt, demandWindow.endsAt),
         )
         .sort((firstWorker, secondWorker) =>
           compareCandidatesByBalance({

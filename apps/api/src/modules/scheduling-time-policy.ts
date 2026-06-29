@@ -4,12 +4,7 @@ import type {
   WorkerAvailableTime,
 } from "@fragment/database";
 
-import {
-  addDays,
-  dateToTimeString,
-  parseTimeToMinutes,
-  timeStringToDate,
-} from "@/utils/date-time";
+import { addDays, dateToTimeString, parseTimeToMinutes, timeStringToDate } from "@/utils/date-time";
 import { getDayOfWeek } from "@/utils/day-of-week";
 
 type TimeRange = {
@@ -66,12 +61,7 @@ const getBusinessHourRange = (
   const dayOfWeek = getDayOfWeek(workDate);
   const businessHour = businessHours.find((item) => item.dayOfWeek === dayOfWeek);
 
-  if (
-    !businessHour ||
-    businessHour.isClosed ||
-    !businessHour.openTime ||
-    !businessHour.closeTime
-  ) {
+  if (!businessHour || businessHour.isClosed || !businessHour.openTime || !businessHour.closeTime) {
     return null;
   }
 

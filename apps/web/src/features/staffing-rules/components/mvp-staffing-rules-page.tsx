@@ -119,15 +119,10 @@ function createTimeOptions(
   const endMinutes = getBusinessHourEndMinutes(businessHour);
   const firstMinutes =
     boundary === "start" ? startMinutes : startMinutes + TIME_OPTION_STEP_MINUTES;
-  const lastMinutes =
-    boundary === "start" ? endMinutes - TIME_OPTION_STEP_MINUTES : endMinutes;
+  const lastMinutes = boundary === "start" ? endMinutes - TIME_OPTION_STEP_MINUTES : endMinutes;
   const options: { label: string; value: string }[] = [];
 
-  for (
-    let minutes = firstMinutes;
-    minutes <= lastMinutes;
-    minutes += TIME_OPTION_STEP_MINUTES
-  ) {
+  for (let minutes = firstMinutes; minutes <= lastMinutes; minutes += TIME_OPTION_STEP_MINUTES) {
     const value = minutesToTime(minutes);
     const label = minutes >= MINUTES_IN_DAY ? `${value} 다음날` : value;
 

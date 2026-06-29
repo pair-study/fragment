@@ -1103,45 +1103,45 @@ export function MvpSchedulesPage() {
             </div>
 
             <div className="mt-3 space-y-2">
-              {selectedDateSchedules.length > 0 ? (
-                selectedDateSchedules.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {item.startTime}-{item.endTime}
-                      </p>
-                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                        {item.workerName}
-                      </p>
-                    </div>
-                    {isDraft ? (
-                      <div className="flex shrink-0 gap-1">
-                        <button
-                          type="button"
-                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                          aria-label={`${item.workerName} 스케줄 수정`}
-                          title="수정"
-                          onClick={() => openEditForm(item)}
-                        >
-                          <Pencil className="size-4" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          aria-label={`${item.workerName} 스케줄 삭제`}
-                          title="삭제"
-                          onClick={() => setDeleteTarget(item)}
-                        >
-                          <Trash2 className="size-4" aria-hidden="true" />
-                        </button>
+              {selectedDateSchedules.length > 0
+                ? selectedDateSchedules.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {item.startTime}-{item.endTime}
+                        </p>
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                          {item.workerName}
+                        </p>
                       </div>
-                    ) : null}
-                  </div>
-                ))
-              ) : null}
+                      {isDraft ? (
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            type="button"
+                            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            aria-label={`${item.workerName} 스케줄 수정`}
+                            title="수정"
+                            onClick={() => openEditForm(item)}
+                          >
+                            <Pencil className="size-4" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={`${item.workerName} 스케줄 삭제`}
+                            title="삭제"
+                            onClick={() => setDeleteTarget(item)}
+                          >
+                            <Trash2 className="size-4" aria-hidden="true" />
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))
+                : null}
             </div>
           </div>
         </aside>

@@ -16,11 +16,7 @@ import {
   pruneAvailabilityTimesToSchedulableRanges,
   type PrunedAvailabilityTime,
 } from "@/modules/scheduling-time-policy";
-import {
-  dateStringToDate,
-  dateTimeStringToDate,
-  dateToDateString,
-} from "@/utils/date-time";
+import { dateStringToDate, dateTimeStringToDate, dateToDateString } from "@/utils/date-time";
 import { toApiId, toPrismaId } from "@/utils/mapper";
 
 type AvailabilityDatabaseClient = PrismaClient | Prisma.TransactionClient;

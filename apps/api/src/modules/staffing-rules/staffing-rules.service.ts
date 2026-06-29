@@ -77,12 +77,7 @@ const assertMinimumStaffingRuleInsideBusinessHours = ({
 }) => {
   const businessHour = businessHours.find((item) => item.dayOfWeek === dayOfWeek);
 
-  if (
-    !businessHour ||
-    businessHour.isClosed ||
-    !businessHour.openTime ||
-    !businessHour.closeTime
-  ) {
+  if (!businessHour || businessHour.isClosed || !businessHour.openTime || !businessHour.closeTime) {
     throw createMinimumStaffingRuleClosedDayError();
   }
 
