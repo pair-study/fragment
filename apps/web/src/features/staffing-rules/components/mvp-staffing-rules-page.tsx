@@ -134,9 +134,16 @@ function getBusinessHourEndMinutes(businessHour: BusinessHour) {
   return businessHour.closesNextDay ? closeMinutes + MINUTES_IN_DAY : closeMinutes;
 }
 
+function getTimeMinutesWithinRange(time: string, rangeStartMinutes: number) {
+  const rawMinutes = parseTimeToMinutes(time);
+
+  return rawMinutes < rangeStartMinutes ? rawMinutes + MINUTES_IN_DAY : rawMinutes;
+}
+
 function createTimeOptions(
   businessHour: BusinessHour | undefined,
   boundary: "start" | "end",
+  selectedStartTime?: string,
 ): { label: string; value: string }[] {
   if (!isSelectableBusinessHour(businessHour) || !businessHour?.openTime) {
     return [];
@@ -144,8 +151,18 @@ function createTimeOptions(
 
   const startMinutes = parseTimeToMinutes(businessHour.openTime);
   const endMinutes = getBusinessHourEndMinutes(businessHour);
+  const selectedStartMinutes = selectedStartTime
+    ? getTimeMinutesWithinRange(selectedStartTime, startMinutes)
+    : null;
   const firstMinutes =
-    boundary === "start" ? startMinutes : startMinutes + TIME_OPTION_STEP_MINUTES;
+    boundary === "start"
+      ? startMinutes
+      : Math.max(
+          startMinutes + TIME_OPTION_STEP_MINUTES,
+          selectedStartMinutes !== null
+            ? selectedStartMinutes + TIME_OPTION_STEP_MINUTES
+            : startMinutes + TIME_OPTION_STEP_MINUTES,
+        );
   const lastMinutes =
     boundary === "start"
       ? Math.min(endMinutes - TIME_OPTION_STEP_MINUTES, MINUTES_IN_DAY - TIME_OPTION_STEP_MINUTES)
@@ -165,13 +182,24 @@ function createTimeOptions(
 function createTimeOptionsFromRange(
   range: { endMinutes: number; startMinutes: number } | null,
   boundary: "start" | "end",
+  selectedStartTime?: string,
 ): { label: string; value: string }[] {
   if (!range) {
     return [];
   }
 
+  const selectedStartMinutes = selectedStartTime
+    ? getTimeMinutesWithinRange(selectedStartTime, range.startMinutes)
+    : null;
   const firstMinutes =
-    boundary === "start" ? range.startMinutes : range.startMinutes + TIME_OPTION_STEP_MINUTES;
+    boundary === "start"
+      ? range.startMinutes
+      : Math.max(
+          range.startMinutes + TIME_OPTION_STEP_MINUTES,
+          selectedStartMinutes !== null
+            ? selectedStartMinutes + TIME_OPTION_STEP_MINUTES
+            : range.startMinutes + TIME_OPTION_STEP_MINUTES,
+        );
   const lastMinutes =
     boundary === "start"
       ? Math.min(
@@ -576,16 +604,22 @@ export function MvpStaffingRulesPage() {
   const selectedDayOfWeek = watchEditForm("dayOfWeek");
   const selectedBusinessHour = getBusinessHourForDay(businessHours, selectedDayOfWeek);
   const selectedBusinessHourLabel = getBusinessHourLabel(selectedBusinessHour);
+  const selectedStartTime = watchEditForm("startTime");
   const startTimeOptions = createTimeOptions(selectedBusinessHour, "start");
-  const endTimeOptions = createTimeOptions(selectedBusinessHour, "end");
+  const endTimeOptions = createTimeOptions(selectedBusinessHour, "end", selectedStartTime);
   const groupedDraftRules = useMemo(() => groupDraftRulesByDay(draftRules), [draftRules]);
   const selectedBatchDayOfWeeks = watchBatchForm("dayOfWeeks");
+  const selectedBatchStartTime = watchBatchForm("startTime");
   const batchCommonBusinessHourRange = getCommonBusinessHourRange(
     businessHours,
     selectedBatchDayOfWeeks,
   );
   const batchStartTimeOptions = createTimeOptionsFromRange(batchCommonBusinessHourRange, "start");
-  const batchEndTimeOptions = createTimeOptionsFromRange(batchCommonBusinessHourRange, "end");
+  const batchEndTimeOptions = createTimeOptionsFromRange(
+    batchCommonBusinessHourRange,
+    "end",
+    selectedBatchStartTime,
+  );
   const batchBusinessHourLabel = getBatchBusinessHourLabel(businessHours, selectedBatchDayOfWeeks);
   const batchInputErrorMessage =
     batchErrors.startTime?.message ??
@@ -861,7 +895,10 @@ export function MvpStaffingRulesPage() {
                 render={({ field }) => (
                   <Select
                     value={field.value}
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      setBatchValue("endTime", "");
+                    }}
                     disabled={!batchCommonBusinessHourRange || isOrganizationUnavailable}
                   >
                     <SelectTrigger
@@ -1139,7 +1176,10 @@ export function MvpStaffingRulesPage() {
               render={({ field }) => (
                 <Select
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    setEditValue("endTime", "");
+                  }}
                   disabled={!isSelectableBusinessHour(selectedBusinessHour)}
                 >
                   <SelectTrigger
