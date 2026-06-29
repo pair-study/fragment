@@ -93,6 +93,7 @@ model Worker {
   organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   availableTimes      WorkerAvailableTime[]
   scheduleAssignments ScheduleAssignment[]
+  scheduleCandidates  ScheduleCandidate[]
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @updatedAt @map("updated_at")
 
@@ -155,6 +156,7 @@ model Schedule {
   confirmedAt     DateTime?                @map("confirmed_at")
   organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignments     ScheduleAssignment[]
+  candidates       ScheduleCandidate[]
   workerShortages ScheduleWorkerShortage[]
   createdAt       DateTime                 @default(now()) @map("created_at")
   updatedAt       DateTime                 @updatedAt @map("updated_at")
@@ -182,6 +184,26 @@ model ScheduleAssignment {
   @@index([workerId])
   @@index([startsAt, endsAt])
   @@map("schedule_assignments")
+}
+
+model ScheduleCandidate {
+  id                   BigInt   @id @default(autoincrement())
+  scheduleId           BigInt   @map("schedule_id")
+  workerId             BigInt?  @map("worker_id")
+  workDate             DateTime @map("work_date") @db.Date
+  startsAt             DateTime @map("starts_at")
+  endsAt               DateTime @map("ends_at")
+  workerNameSnapshot   String   @map("worker_name_snapshot")
+  employeeCodeSnapshot String   @map("employee_code_snapshot")
+  schedule             Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  worker               Worker?  @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([scheduleId, workDate])
+  @@index([workerId])
+  @@index([startsAt, endsAt])
+  @@map("schedule_candidates")
 }
 
 model ScheduleWorkerShortage {

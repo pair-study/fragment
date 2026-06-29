@@ -25,6 +25,7 @@ import {
   replaceAvailabilityRequestSchema,
   scheduleAssignmentInputSchema,
   scheduleAssignmentSchema,
+  scheduleCandidateSchema,
   scheduleDetailSchema,
   scheduleHistoryDetailResponseSchema,
   scheduleHistoryItemSchema,
@@ -88,6 +89,7 @@ export type UpdateMinimumStaffingRuleRequest = z.infer<
 export type ScheduleSummary = z.infer<typeof scheduleSummarySchema>;
 export type ScheduleDetail = z.infer<typeof scheduleDetailSchema>;
 export type ScheduleAssignment = z.infer<typeof scheduleAssignmentSchema>;
+export type ScheduleCandidate = z.infer<typeof scheduleCandidateSchema>;
 export type ScheduleWorkerShortage = z.infer<typeof scheduleWorkerShortageSchema>;
 export type RecommendScheduleRequest = z.infer<typeof recommendScheduleRequestSchema>;
 export type DraftScheduleQuery = z.infer<typeof draftScheduleQuerySchema>;

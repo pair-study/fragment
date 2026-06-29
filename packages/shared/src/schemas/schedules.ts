@@ -21,6 +21,18 @@ export const scheduleAssignmentSchema = z.object({
   employeeCodeSnapshot: z.string(),
 });
 
+export const scheduleCandidateSchema = z.object({
+  id: idSchema,
+  scheduleId: idSchema,
+  workerId: idSchema.nullable(),
+  workDate: dateSchema,
+  startsAt: dateTimeSchema,
+  endsAt: dateTimeSchema,
+  workerNameSnapshot: z.string(),
+  employeeCodeSnapshot: z.string(),
+  isRecommended: z.boolean(),
+});
+
 const scheduleAssignmentInputBaseSchema = z.object({
   workerId: idSchema,
   workDate: dateSchema,
@@ -74,6 +86,7 @@ export const scheduleSummarySchema = z.object({
 
 export const scheduleDetailSchema = scheduleSummarySchema.extend({
   assignments: z.array(scheduleAssignmentSchema),
+  candidates: z.array(scheduleCandidateSchema),
   workerShortages: z.array(scheduleWorkerShortageSchema),
 });
 
