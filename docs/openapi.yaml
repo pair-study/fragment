@@ -441,6 +441,108 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /staffing-rules:
+    get:
+      tags:
+        - StaffingRules
+      summary: 최소 인원 조건 목록 조회
+      operationId: listMinimumStaffingRules
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 최소 인원 조건 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinimumStaffingRulesListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+
+    post:
+      tags:
+        - StaffingRules
+      summary: 최소 인원 조건 생성
+      description: 최소 인원 조건은 해당 요일의 조직 운영시간 안에서만 등록할 수 있습니다.
+      operationId: createMinimumStaffingRule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMinimumStaffingRuleRequest"
+      responses:
+        "201":
+          description: 최소 인원 조건 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinimumStaffingRule"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+
+  /staffing-rules/{ruleId}:
+    patch:
+      tags:
+        - StaffingRules
+      summary: 최소 인원 조건 수정
+      description: 수정 후의 조건도 해당 요일의 조직 운영시간 안에 있어야 합니다.
+      operationId: updateMinimumStaffingRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RuleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMinimumStaffingRuleRequest"
+      responses:
+        "200":
+          description: 최소 인원 조건 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinimumStaffingRule"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - StaffingRules
+      summary: 최소 인원 조건 삭제
+      operationId: deleteMinimumStaffingRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RuleId"
+      responses:
+        "204":
+          description: 최소 인원 조건 삭제 성공
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OrganizationRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /schedules/recommend:
     post:
       tags:
@@ -678,6 +780,14 @@ components:
   parameters:
     WorkerId:
       name: workerId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^\\d+$"
+      example: "1"
+    RuleId:
+      name: ruleId
       in: path
       required: true
       schema:
@@ -1158,6 +1268,97 @@ components:
           type: integer
           minimum: 1
           example: 32
+
+    MinimumStaffingRule:
+      type: object
+      required:
+        - id
+        - dayOfWeek
+        - startTime
+        - endTime
+        - endsNextDay
+        - requiredCount
+      properties:
+        id:
+          type: string
+          pattern: "^\\d+$"
+          example: "1"
+        dayOfWeek:
+          $ref: "#/components/schemas/DayOfWeek"
+        startTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "10:00"
+        endTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "14:00"
+        endsNextDay:
+          type: boolean
+          example: false
+        requiredCount:
+          type: integer
+          minimum: 1
+          example: 2
+
+    MinimumStaffingRulesListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MinimumStaffingRule"
+
+    CreateMinimumStaffingRuleRequest:
+      type: object
+      required:
+        - dayOfWeek
+        - startTime
+        - endTime
+        - endsNextDay
+        - requiredCount
+      properties:
+        dayOfWeek:
+          $ref: "#/components/schemas/DayOfWeek"
+        startTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "10:00"
+        endTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "14:00"
+        endsNextDay:
+          type: boolean
+          example: false
+        requiredCount:
+          type: integer
+          minimum: 1
+          example: 2
+
+    UpdateMinimumStaffingRuleRequest:
+      type: object
+      minProperties: 1
+      properties:
+        dayOfWeek:
+          $ref: "#/components/schemas/DayOfWeek"
+        startTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "10:00"
+        endTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "14:00"
+        endsNextDay:
+          type: boolean
+          example: false
+        requiredCount:
+          type: integer
+          minimum: 1
+          example: 3
 
     DateRangeRequest:
       type: object
