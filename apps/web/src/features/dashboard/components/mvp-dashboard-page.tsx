@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useDashboardQuery } from "@/features/dashboard/queries/dashboard-queries";
 import { useExportScheduleHistoryCsvMutation } from "@/features/schedule-history/queries/schedule-history-queries";
 import { getApiErrorMessage } from "@/lib/api-error-message";
+import { formatScheduleAssignmentTimeRange } from "@/lib/schedule-display";
 
 const DAY_LABELS = {
   MON: "월",
@@ -56,15 +57,6 @@ function createCalendarDates(startDate: string, endDate: string) {
 
 function formatScheduleRange(startDate: string, endDate: string) {
   return `${startDate} ~ ${endDate}`;
-}
-
-function formatScheduleAssignmentTimeRange(assignment: ScheduleAssignment) {
-  const startTime = assignment.startsAt.slice(11, 16);
-  const endTime = assignment.endsAt.slice(11, 16);
-  const endPrefix =
-    assignment.endsAt.slice(0, 10) > assignment.startsAt.slice(0, 10) ? "익일 " : "";
-
-  return `${startTime}-${endPrefix}${endTime}`;
 }
 
 function createCsvFileName(startDate: string, endDate: string) {

@@ -19,6 +19,7 @@ import {
   useScheduleHistoryQuery,
 } from "@/features/schedule-history/queries/schedule-history-queries";
 import { getApiErrorMessage } from "@/lib/api-error-message";
+import { formatScheduleAssignmentTimeRange } from "@/lib/schedule-display";
 
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const INITIAL_HISTORY_YEAR = new Date().getFullYear();
@@ -60,15 +61,6 @@ function formatScheduleRange(startDate: string, endDate: string) {
 
 function formatConfirmedAt(confirmedAt: string) {
   return confirmedAt.slice(0, 10);
-}
-
-function formatScheduleAssignmentTimeRange(assignment: ScheduleAssignment) {
-  const startTime = assignment.startsAt.slice(11, 16);
-  const endTime = assignment.endsAt.slice(11, 16);
-  const endPrefix =
-    assignment.endsAt.slice(0, 10) > assignment.startsAt.slice(0, 10) ? "익일 " : "";
-
-  return `${startTime}-${endPrefix}${endTime}`;
 }
 
 function createCsvFileName(startDate: string, endDate: string) {
