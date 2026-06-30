@@ -9,9 +9,9 @@ import {
   ReplaceAvailabilityRequest,
   Worker,
 } from "@fragment/shared";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
-import { Check } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import {
@@ -25,15 +25,17 @@ import {
 } from "@/features/organization/queries/organization-queries";
 import { useMinimumStaffingRulesQuery } from "@/features/staffing-rules/queries/staffing-rules-queries";
 import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +59,7 @@ const DEFAULT_TIMETABLE_END_MINUTES = 22 * 60;
 const EMPTY_WORKERS: Worker[] = [];
 const EMPTY_BUSINESS_HOURS: BusinessHour[] = [];
 const EMPTY_STAFFING_RULES: MinimumStaffingRule[] = [];
+const CALENDAR_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   month: "2-digit",
@@ -67,6 +70,19 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
 const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   weekday: "short",
   timeZone: "Asia/Seoul",
+});
+
+const MONTH_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+});
+
+const TODAY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: "Asia/Seoul",
+  year: "numeric",
 });
 
 function timeToMinutes(time: string) {
@@ -93,6 +109,30 @@ function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
   const nextDate = new Date(Date.UTC(year, month - 1, day + days));
   return nextDate.toISOString().slice(0, 10);
+}
+
+function addMonths(date: string, months: number) {
+  const [year, month] = date.split("-").map(Number);
+  const nextDate = new Date(Date.UTC(year, month - 1 + months, 1));
+  return nextDate.toISOString().slice(0, 10);
+}
+
+function getMonthStartDate(date: string) {
+  return `${date.slice(0, 7)}-01`;
+}
+
+function createCalendarMonthDates(monthDate: string) {
+  const [year, month] = monthDate.split("-").map(Number);
+  const firstDate = new Date(Date.UTC(year, month - 1, 1));
+  const day = firstDate.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const firstCalendarDate = addDays(monthDate, mondayOffset);
+
+  return Array.from({ length: 42 }, (_, index) => addDays(firstCalendarDate, index));
+}
+
+function getTodayDate() {
+  return TODAY_FORMATTER.format(new Date());
 }
 
 function createDateRange(startDate: string, endDate: string) {
@@ -228,6 +268,14 @@ function formatWeekday(date: string) {
   return WEEKDAY_FORMATTER.format(new Date(`${date}T00:00:00+09:00`));
 }
 
+function formatDateWithWeekday(date: string) {
+  return `${formatDateLabel(date)}(${formatWeekday(date)})`;
+}
+
+function formatMonthLabel(date: string) {
+  return MONTH_FORMATTER.format(new Date(`${date}T00:00:00+09:00`));
+}
+
 function createLocalDateTime(date: string, minutes: number) {
   const [year, month, day] = date.split("-").map(Number);
 
@@ -235,7 +283,7 @@ function createLocalDateTime(date: string, minutes: number) {
 }
 
 function formatSlotTime(minutes: number) {
-  return minutes >= 24 * 60 ? `${minutesToTime(minutes)}+1` : minutesToTime(minutes);
+  return minutes >= 24 * 60 ? `익일 ${minutesToTime(minutes)}` : minutesToTime(minutes);
 }
 
 function getSlotKey(workerId: string, date: string, startMinutes: number) {
@@ -341,11 +389,22 @@ export function MvpAvailabilityPage() {
   const activePlanningPeriod = planningPeriodQuery.data?.period ?? null;
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [selectedAvailabilityDate, setSelectedAvailabilityDate] = useState("");
+  const [workPeriodDialogOpen, setWorkPeriodDialogOpen] = useState(false);
+  const [calendarMonthDate, setCalendarMonthDate] = useState(() =>
+    getMonthStartDate(getTodayDate()),
+  );
   const [workStartDate, setWorkStartDate] = useState("");
   const [workEndDate, setWorkEndDate] = useState("");
   const [savedAvailability, setSavedAvailability] = useState<AvailabilitySlot[]>([]);
   const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
   const [saveMessage, setSaveMessage] = useState("");
+  const dragSelectionRef = useRef<{
+    lastColumnIndex: number;
+    lastRowIndex: number;
+    shouldSelect: boolean;
+    visitedKeys: Set<string>;
+  } | null>(null);
+  const suppressNextCellClickRef = useRef(false);
   const availabilityQuery: AvailabilityQuery = useMemo(
     () => ({
       endDate: workEndDate,
@@ -354,14 +413,15 @@ export function MvpAvailabilityPage() {
     }),
     [selectedWorkerId, workEndDate, workStartDate],
   );
-  const canFetchAvailability =
-    Boolean(selectedWorkerId && workStartDate && workEndDate) && workStartDate <= workEndDate;
-  const availabilityResult = useAvailabilityQuery(availabilityQuery, canFetchAvailability);
   const isPageLoading =
     organizationQuery.isLoading ||
     planningPeriodQuery.isLoading ||
     staffingRulesQuery.isLoading ||
     workersQuery.isLoading;
+  const hasValidDateRange = Boolean(workStartDate && workEndDate) && workStartDate <= workEndDate;
+  const hasSavedPlanningPeriod = Boolean(activePlanningPeriod && hasValidDateRange);
+  const canFetchAvailability = hasSavedPlanningPeriod && Boolean(selectedWorkerId);
+  const availabilityResult = useAvailabilityQuery(availabilityQuery, canFetchAvailability);
   const queryError =
     organizationQuery.error ??
     planningPeriodQuery.error ??
@@ -371,10 +431,29 @@ export function MvpAvailabilityPage() {
   const queryErrorMessage = queryError
     ? getApiErrorMessage(queryError, "가능 시간 정보를 불러오지 못했습니다.")
     : "";
-  const hasValidDateRange = Boolean(workStartDate && workEndDate) && workStartDate <= workEndDate;
   const dateRange = useMemo(
     () => createDateRange(workStartDate, workEndDate),
     [workEndDate, workStartDate],
+  );
+  const closedDates = useMemo(
+    () => dateRange.filter((date) => isClosedDate(businessHours, date)),
+    [businessHours, dateRange],
+  );
+  const datesWithoutStaffingRules = useMemo(
+    () =>
+      dateRange.filter(
+        (date) =>
+          !isClosedDate(businessHours, date) &&
+          getSchedulableRanges(businessHours, staffingRules, date).length === 0,
+      ),
+    [businessHours, dateRange, staffingRules],
+  );
+  const visibleTimetableDates = useMemo(
+    () =>
+      dateRange.filter(
+        (date) => getSchedulableRanges(businessHours, staffingRules, date).length > 0,
+      ),
+    [businessHours, dateRange, staffingRules],
   );
   const timetableRange = useMemo(
     () => getTimetableRange(businessHours, staffingRules, dateRange),
@@ -383,6 +462,10 @@ export function MvpAvailabilityPage() {
   const timeSlots = useMemo(
     () => createTimeSlots(timetableRange.startMinutes, timetableRange.endMinutes),
     [timetableRange],
+  );
+  const calendarDates = useMemo(
+    () => createCalendarMonthDates(calendarMonthDate),
+    [calendarMonthDate],
   );
 
   useEffect(() => {
@@ -398,6 +481,7 @@ export function MvpAvailabilityPage() {
 
     setWorkStartDate(activePlanningPeriod.startDate);
     setWorkEndDate(activePlanningPeriod.endDate);
+    setCalendarMonthDate(getMonthStartDate(activePlanningPeriod.startDate));
   }, [activePlanningPeriod, planningPeriodQuery.data]);
 
   useEffect(() => {
@@ -422,7 +506,23 @@ export function MvpAvailabilityPage() {
     setSaveMessage("");
   }, [availabilityResult.data]);
 
-  const selectedWorker = workers.find((worker) => worker.id === selectedWorkerId);
+  useEffect(() => {
+    function stopDragSelection() {
+      dragSelectionRef.current = null;
+      window.setTimeout(() => {
+        suppressNextCellClickRef.current = false;
+      }, 0);
+    }
+
+    window.addEventListener("pointerup", stopDragSelection);
+    window.addEventListener("pointercancel", stopDragSelection);
+
+    return () => {
+      window.removeEventListener("pointerup", stopDragSelection);
+      window.removeEventListener("pointercancel", stopDragSelection);
+    };
+  }, []);
+
   const selectedDraftAvailability = draftAvailability.filter(
     (slot) =>
       slot.workerId === selectedWorkerId &&
@@ -437,10 +537,6 @@ export function MvpAvailabilityPage() {
     "";
   const activeAvailabilityRanges =
     selectedAvailabilityByDate.find((group) => group.date === activeAvailabilityDate)?.ranges ?? [];
-  const selectedAvailabilityRangeCount = selectedAvailabilityByDate.reduce(
-    (total, group) => total + group.ranges.length,
-    0,
-  );
   const draftSlotKeys = new Set(
     selectedDraftAvailability.map((slot) =>
       getSlotKey(slot.workerId, slot.date, slot.startMinutes),
@@ -449,38 +545,157 @@ export function MvpAvailabilityPage() {
   const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
   const canSaveAvailability =
     hasUnsavedChanges &&
+    hasSavedPlanningPeriod &&
     hasValidDateRange &&
     Boolean(selectedWorkerId) &&
     !availabilityResult.isFetching &&
     !queryErrorMessage;
 
-  function toggleSlot(date: string, startMinutes: number) {
+  function updateSlotSelections(
+    slots: { date: string; startMinutes: number }[],
+    shouldSelect: boolean,
+  ) {
     if (!selectedWorkerId || queryErrorMessage || availabilityResult.isFetching) {
       return;
     }
 
-    if (!isSlotSchedulable(businessHours, staffingRules, date, startMinutes)) {
+    const schedulableSlots = slots.filter((slot) =>
+      isSlotSchedulable(businessHours, staffingRules, slot.date, slot.startMinutes),
+    );
+
+    if (schedulableSlots.length === 0) {
       return;
     }
 
-    const key = getSlotKey(selectedWorkerId, date, startMinutes);
-    const selected = draftSlotKeys.has(key);
-
-    setDraftAvailability((currentAvailability) =>
-      selected
-        ? currentAvailability.filter(
-            (slot) => getSlotKey(slot.workerId, slot.date, slot.startMinutes) !== key,
-          )
-        : [
-            ...currentAvailability,
-            {
-              workerId: selectedWorkerId,
-              date,
-              startMinutes,
-            },
-          ],
+    const targetKeys = new Set(
+      schedulableSlots.map((slot) => getSlotKey(selectedWorkerId, slot.date, slot.startMinutes)),
     );
+
+    setDraftAvailability((currentAvailability) => {
+      const currentKeys = new Set(
+        currentAvailability.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startMinutes)),
+      );
+
+      return shouldSelect
+        ? [
+            ...currentAvailability,
+            ...schedulableSlots
+              .filter(
+                (slot) =>
+                  !currentKeys.has(getSlotKey(selectedWorkerId, slot.date, slot.startMinutes)),
+              )
+              .map((slot) => ({
+                date: slot.date,
+                startMinutes: slot.startMinutes,
+                workerId: selectedWorkerId,
+              })),
+          ]
+        : currentAvailability.filter(
+            (slot) => !targetKeys.has(getSlotKey(slot.workerId, slot.date, slot.startMinutes)),
+          );
+    });
     setSaveMessage("");
+  }
+
+  function toggleSlot(date: string, startMinutes: number) {
+    const key = getSlotKey(selectedWorkerId, date, startMinutes);
+    updateSlotSelections([{ date, startMinutes }], !draftSlotKeys.has(key));
+  }
+
+  function applySlotDragRange(
+    fromRowIndex: number,
+    fromColumnIndex: number,
+    toRowIndex: number,
+    toColumnIndex: number,
+  ) {
+    const dragSelection = dragSelectionRef.current;
+
+    if (!dragSelection) {
+      return;
+    }
+
+    const rowStart = Math.min(fromRowIndex, toRowIndex);
+    const rowEnd = Math.max(fromRowIndex, toRowIndex);
+    const columnStart = Math.min(fromColumnIndex, toColumnIndex);
+    const columnEnd = Math.max(fromColumnIndex, toColumnIndex);
+    const slots: { date: string; startMinutes: number }[] = [];
+
+    for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex += 1) {
+      const startMinutes = timeSlots[rowIndex];
+
+      if (startMinutes === undefined) {
+        continue;
+      }
+
+      for (let columnIndex = columnStart; columnIndex <= columnEnd; columnIndex += 1) {
+        const date = visibleTimetableDates[columnIndex];
+
+        if (!date) {
+          continue;
+        }
+
+        const key = getSlotKey(selectedWorkerId, date, startMinutes);
+
+        if (dragSelection.visitedKeys.has(key)) {
+          continue;
+        }
+
+        dragSelection.visitedKeys.add(key);
+        slots.push({ date, startMinutes });
+      }
+    }
+
+    updateSlotSelections(slots, dragSelection.shouldSelect);
+  }
+
+  function startSlotDrag(
+    date: string,
+    startMinutes: number,
+    rowIndex: number,
+    columnIndex: number,
+  ) {
+    const key = getSlotKey(selectedWorkerId, date, startMinutes);
+    const shouldSelect = !draftSlotKeys.has(key);
+
+    dragSelectionRef.current = {
+      lastColumnIndex: columnIndex,
+      lastRowIndex: rowIndex,
+      shouldSelect,
+      visitedKeys: new Set(),
+    };
+    suppressNextCellClickRef.current = true;
+    applySlotDragRange(rowIndex, columnIndex, rowIndex, columnIndex);
+  }
+
+  function moveSlotDrag(clientX: number, clientY: number) {
+    const dragSelection = dragSelectionRef.current;
+
+    if (!dragSelection) {
+      return;
+    }
+
+    const element = document.elementFromPoint(clientX, clientY);
+    const cell = element?.closest<HTMLElement>("[data-availability-cell='true']");
+
+    if (!cell) {
+      return;
+    }
+
+    const rowIndex = Number(cell.dataset.rowIndex);
+    const columnIndex = Number(cell.dataset.columnIndex);
+
+    if (!Number.isInteger(rowIndex) || !Number.isInteger(columnIndex)) {
+      return;
+    }
+
+    applySlotDragRange(
+      dragSelection.lastRowIndex,
+      dragSelection.lastColumnIndex,
+      rowIndex,
+      columnIndex,
+    );
+    dragSelection.lastRowIndex = rowIndex;
+    dragSelection.lastColumnIndex = columnIndex;
   }
 
   async function saveAvailability() {
@@ -532,35 +747,30 @@ export function MvpAvailabilityPage() {
     );
   }
 
+  function selectWorkDate(date: string) {
+    if (isPageLoading) {
+      return;
+    }
+
+    if (!workStartDate || (workStartDate && workEndDate) || date < workStartDate) {
+      setWorkStartDate(date);
+      setWorkEndDate("");
+      setSelectedAvailabilityDate("");
+      setSaveMessage("");
+      return;
+    }
+
+    setWorkEndDate(date);
+    setSelectedAvailabilityDate("");
+    setSaveMessage("");
+    setWorkPeriodDialogOpen(false);
+    savePlanningPeriod(workStartDate, date);
+  }
+
   return (
     <AdminPageShell
       title="가능 시간 관리"
       description="근무 기간을 정하고, 최소 인원 조건이 있는 시간대에 근무자별 가능 시간을 30분 단위로 선택한 뒤 저장합니다."
-      actions={
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!hasUnsavedChanges || replaceAvailabilityMutation.isPending}
-            onClick={() => {
-              setDraftAvailability(savedAvailability);
-              setSaveMessage("");
-            }}
-          >
-            변경 취소
-          </Button>
-          <Button
-            type="button"
-            variant="brand"
-            disabled={!canSaveAvailability || replaceAvailabilityMutation.isPending}
-            onClick={() => {
-              void saveAvailability();
-            }}
-          >
-            {replaceAvailabilityMutation.isPending ? "저장 중" : "저장"}
-          </Button>
-        </div>
-      }
       containerClassName="max-w-none"
       contentClassName="space-y-6"
     >
@@ -577,256 +787,408 @@ export function MvpAvailabilityPage() {
       ) : null}
 
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-base font-semibold text-foreground">근무 기간 설정</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               모든 근무자의 가능 시간 입력에 공통으로 적용되는 기간입니다.
             </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:w-[480px]">
-            <div className="space-y-2">
-              <Label htmlFor="availability-work-start-date">근무 시작 날짜</Label>
-              <Input
-                id="availability-work-start-date"
-                type="date"
-                disabled={isPageLoading}
-                value={workStartDate}
-                onChange={(event) => {
-                  const nextStartDate = event.target.value;
 
-                  setWorkStartDate(nextStartDate);
-                  setSelectedAvailabilityDate("");
-                  setSaveMessage("");
-                  savePlanningPeriod(nextStartDate, workEndDate);
-                }}
-              />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex min-h-10 items-center gap-2 rounded-lg border border-border bg-surface-secondary px-4 py-2 text-sm">
+              <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />
+              <span className="font-medium text-foreground">선택 기간</span>
+              <span className="tabular-nums text-muted-foreground">
+                {workStartDate && workEndDate
+                  ? `${formatDateWithWeekday(workStartDate)} - ${formatDateWithWeekday(workEndDate)}`
+                  : workStartDate
+                    ? `${formatDateWithWeekday(workStartDate)} - 종료일 선택`
+                    : "시작일 선택"}
+              </span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="availability-work-end-date">근무 종료 날짜</Label>
-              <Input
-                id="availability-work-end-date"
-                type="date"
-                disabled={isPageLoading}
-                value={workEndDate}
-                onChange={(event) => {
-                  const nextEndDate = event.target.value;
+            <Dialog open={workPeriodDialogOpen} onOpenChange={setWorkPeriodDialogOpen}>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" disabled={isPageLoading}>
+                  기간 선택
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>근무 기간 선택</DialogTitle>
+                  <DialogDescription>
+                    시작일을 먼저 선택하고 종료일을 선택하면 근무 기간이 저장됩니다.
+                  </DialogDescription>
+                </DialogHeader>
 
-                  setWorkEndDate(nextEndDate);
-                  setSelectedAvailabilityDate("");
-                  setSaveMessage("");
-                  savePlanningPeriod(workStartDate, nextEndDate);
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <div className="grid gap-5 lg:grid-cols-[minmax(240px,320px)_1fr] lg:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="worker-select">근무자 선택</Label>
-            <Select
-              value={selectedWorkerId}
-              disabled={isPageLoading || workers.length === 0}
-              onValueChange={(value) => {
-                setSelectedWorkerId(value);
-                setSelectedAvailabilityDate("");
-                setSaveMessage("");
-              }}
-            >
-              <SelectTrigger id="worker-select">
-                <SelectValue placeholder="근무자를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {workers.map((worker) => (
-                  <SelectItem key={worker.id} value={worker.id}>
-                    {worker.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="rounded-lg bg-surface-secondary px-4 py-3">
-            {selectedWorker ? (
-              <>
-                <p className="text-sm font-semibold text-foreground">{selectedWorker.name}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  주간 계약 시간: 주 {selectedWorker.weeklyContractHours}시간 · 운영 시간은 요일별
-                  조직 설정과 최소 인원 조건을 따릅니다.
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">등록된 근무자가 없습니다.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">선택된 가능 시간</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              날짜를 선택하면 해당 날짜의 가능 시간이 표시됩니다.
-            </p>
-          </div>
-          <Badge variant="neutral-weak">{selectedAvailabilityRangeCount}개 구간</Badge>
-        </div>
-
-        {selectedAvailabilityByDate.length > 0 ? (
-          <>
-            <div className="mt-4 max-w-full overflow-x-auto pb-1">
-              <div className="flex w-max min-w-max gap-2">
-                {selectedAvailabilityByDate.map((group) => {
-                  const active = group.date === activeAvailabilityDate;
-
-                  return (
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <div className="flex items-center justify-between gap-3">
                     <button
-                      key={group.date}
                       type="button"
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                        active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-surface-secondary text-foreground hover:border-primary hover:bg-accent",
-                      )}
-                      onClick={() => setSelectedAvailabilityDate(group.date)}
+                      aria-label="이전 달"
+                      disabled={isPageLoading}
+                      className="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => setCalendarMonthDate(addMonths(calendarMonthDate, -1))}
                     >
-                      {formatDateLabel(group.date)}({formatWeekday(group.date)}) ·{" "}
-                      {group.ranges.length}개
+                      <ChevronLeft className="size-4" aria-hidden="true" />
                     </button>
-                  );
-                })}
-              </div>
-            </div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {formatMonthLabel(calendarMonthDate)}
+                    </p>
+                    <button
+                      type="button"
+                      aria-label="다음 달"
+                      disabled={isPageLoading}
+                      className="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => setCalendarMonthDate(addMonths(calendarMonthDate, 1))}
+                    >
+                      <ChevronRight className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
 
-            <div className="mt-4 rounded-lg bg-surface-secondary px-4 py-3">
-              <p className="text-sm font-semibold text-foreground">
-                {formatDateLabel(activeAvailabilityDate)}({formatWeekday(activeAvailabilityDate)})
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {activeAvailabilityRanges.map((range) => (
-                  <span
-                    key={`${activeAvailabilityDate}-${range.startMinutes}`}
-                    className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground"
-                  >
-                    {formatSlotTime(range.startMinutes)}~{formatSlotTime(range.endMinutes)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="mt-4 text-sm text-muted-foreground">선택된 가능 시간이 없습니다.</p>
-        )}
-      </section>
-
-      {saveMessage ? (
-        <div className="rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground">
-          {saveMessage}
-        </div>
-      ) : null}
-
-      <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card">
-        <div className="border-b border-border px-6 py-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">가능 시간 타임테이블</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                최소 인원 조건이 있는 셀만 선택할 수 있습니다. 선택된 셀을 다시 누르면 삭제됩니다.
-              </p>
-            </div>
-            {hasUnsavedChanges ? <Badge variant="brand-weak">저장 전 변경 있음</Badge> : null}
-            {availabilityResult.isFetching ? (
-              <Badge variant="neutral-weak">불러오는 중</Badge>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="max-w-full overflow-x-auto overflow-y-hidden p-4">
-          <div className="w-max min-w-max">
-            <div
-              className="grid gap-1"
-              style={{
-                gridTemplateColumns: `${TIMETABLE_TIME_COLUMN_WIDTH}px repeat(${dateRange.length}, ${TIMETABLE_DATE_COLUMN_WIDTH}px)`,
-              }}
-            >
-              <div />
-              {dateRange.map((date) => (
-                <div key={date} className="py-2 text-center">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    {formatWeekday(date)}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-foreground">{formatDateLabel(date)}</p>
-                  {isClosedDate(businessHours, date) ? (
-                    <Badge variant="neutral-weak" size="sm" className="mt-2">
-                      휴무
-                    </Badge>
-                  ) : getSchedulableRanges(businessHours, staffingRules, date).length === 0 ? (
-                    <Badge variant="neutral-weak" size="sm" className="mt-2">
-                      조건 없음
-                    </Badge>
-                  ) : null}
-                </div>
-              ))}
-
-              {timeSlots.map((startMinutes) => {
-                const showHourLabel = startMinutes % 60 === 0;
-                const timeLabel = formatSlotTime(startMinutes);
-
-                return (
-                  <div key={startMinutes} className="contents">
-                    <div className="h-8 pr-2 text-right text-sm text-muted-foreground">
-                      {showHourLabel ? timeLabel : ""}
-                    </div>
-                    {dateRange.map((date) => {
-                      const disabled = !isSlotSchedulable(
-                        businessHours,
-                        staffingRules,
-                        date,
-                        startMinutes,
-                      );
-                      const selected = draftSlotKeys.has(
-                        getSlotKey(selectedWorkerId, date, startMinutes),
-                      );
-                      const disabledByState =
-                        disabled ||
-                        !selectedWorkerId ||
-                        !hasValidDateRange ||
-                        Boolean(queryErrorMessage) ||
-                        availabilityResult.isFetching;
+                  <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
+                    {CALENDAR_WEEKDAYS.map((weekday) => (
+                      <div key={weekday} className="py-1">
+                        {weekday}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-1 grid grid-cols-7 gap-1">
+                    {calendarDates.map((date) => {
+                      const inCurrentMonth = date.slice(0, 7) === calendarMonthDate.slice(0, 7);
+                      const rangeStart = date === workStartDate;
+                      const rangeEnd = date === workEndDate;
+                      const inRange = Boolean(workStartDate && workEndDate)
+                        ? date > workStartDate && date < workEndDate
+                        : false;
+                      const selected = rangeStart || rangeEnd;
 
                       return (
                         <button
-                          key={`${date}-${startMinutes}`}
+                          key={date}
                           type="button"
-                          disabled={disabledByState}
-                          aria-pressed={selected}
-                          aria-label={`${date} ${timeLabel} 가능 시간 ${selected ? "해제" : "선택"}`}
+                          aria-pressed={selected || inRange}
+                          aria-label={`${formatDateWithWeekday(date)} 선택`}
+                          disabled={isPageLoading}
                           className={cn(
-                            "flex h-8 items-center justify-center rounded-md border text-[10px] transition-colors",
-                            disabledByState
-                              ? "cursor-not-allowed border-border bg-muted/60 text-muted-foreground opacity-60"
-                              : selected
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
+                            "flex size-10 items-center justify-center rounded-md text-sm font-medium tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                            inCurrentMonth ? "text-foreground" : "text-muted-foreground/50",
+                            inRange ? "bg-primary/10 text-primary" : "hover:bg-accent",
+                            selected ? "bg-primary text-primary-foreground hover:bg-primary" : "",
                           )}
-                          onClick={() => toggleSlot(date, startMinutes)}
+                          onClick={() => selectWorkDate(date)}
                         >
-                          {selected ? <Check className="size-3" aria-hidden="true" /> : null}
+                          {Number(date.slice(8, 10))}
                         </button>
                       );
                     })}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">
+                      닫기
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
+
+        {hasValidDateRange ? (
+          <div className="mt-4 rounded-lg border border-border bg-surface-secondary px-4 py-3">
+            <p className="text-sm font-semibold text-foreground">입력 제외 날짜</p>
+            <div className="mt-3 space-y-3 text-sm">
+              <div>
+                <span className="font-medium text-foreground">휴무일</span>
+                {closedDates.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {closedDates.map((date) => (
+                      <span
+                        key={date}
+                        className="rounded-full border border-border bg-card px-2 py-1 text-xs font-medium tabular-nums text-muted-foreground"
+                      >
+                        {formatDateWithWeekday(date)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="ml-2 text-muted-foreground">없음</span>
+                )}
+              </div>
+
+              <div>
+                <span className="font-medium text-foreground">최소 인원 조건 미설정일</span>
+                {datesWithoutStaffingRules.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {datesWithoutStaffingRules.map((date) => (
+                      <span
+                        key={date}
+                        className="rounded-full border border-border bg-card px-2 py-1 text-xs font-medium tabular-nums text-muted-foreground"
+                      >
+                        {formatDateWithWeekday(date)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="ml-2 text-muted-foreground">없음</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
+
+      {hasSavedPlanningPeriod ? (
+        <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card">
+          <div className="border-b border-border px-6 py-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">가능 시간 입력</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    근무자를 선택한 뒤 최소 인원 조건이 있는 셀만 가능 시간으로 지정합니다.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {availabilityResult.isFetching ? (
+                    <Badge variant="neutral-weak">불러오는 중</Badge>
+                  ) : null}
+                  {hasUnsavedChanges ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={replaceAvailabilityMutation.isPending}
+                        onClick={() => {
+                          setDraftAvailability(savedAvailability);
+                          setSaveMessage("");
+                        }}
+                      >
+                        변경 취소
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="brand"
+                        disabled={!canSaveAvailability || replaceAvailabilityMutation.isPending}
+                        onClick={() => {
+                          void saveAvailability();
+                        }}
+                      >
+                        {replaceAvailabilityMutation.isPending ? "저장 중" : "저장"}
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>근무자</Label>
+                {workers.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {workers.map((worker) => {
+                      const selected = worker.id === selectedWorkerId;
+
+                      return (
+                        <button
+                          key={worker.id}
+                          type="button"
+                          aria-pressed={selected}
+                          disabled={isPageLoading}
+                          className={cn(
+                            "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                              : "border-border bg-surface-secondary text-foreground hover:border-primary hover:bg-accent",
+                          )}
+                          onClick={() => {
+                            setSelectedWorkerId(worker.id);
+                            setSelectedAvailabilityDate("");
+                            setSaveMessage("");
+                          }}
+                        >
+                          {selected ? <Check className="size-4" aria-hidden="true" /> : null}
+                          <span>{worker.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">등록된 근무자가 없습니다.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {saveMessage ? (
+            <div className="border-b border-border bg-surface-secondary px-6 py-3 text-sm text-muted-foreground">
+              {saveMessage}
+            </div>
+          ) : null}
+
+          <div className="border-b border-border px-6 py-4">
+            <h3 className="text-base font-semibold text-foreground">선택된 가능 시간</h3>
+
+            {selectedAvailabilityByDate.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                <div className="max-w-full overflow-x-auto pb-1">
+                  <div className="flex w-max min-w-max gap-2">
+                    {selectedAvailabilityByDate.map((group) => {
+                      const selected = group.date === activeAvailabilityDate;
+
+                      return (
+                        <button
+                          key={group.date}
+                          type="button"
+                          aria-pressed={selected}
+                          className={cn(
+                            "rounded-full border px-3 py-1.5 text-sm font-semibold tabular-nums transition-colors",
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-surface-secondary text-foreground hover:border-primary hover:bg-accent",
+                          )}
+                          onClick={() => setSelectedAvailabilityDate(group.date)}
+                        >
+                          {formatDateWithWeekday(group.date)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-surface-secondary px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    {activeAvailabilityRanges.map((range) => (
+                      <Badge
+                        key={`${activeAvailabilityDate}-${range.startMinutes}`}
+                        variant="neutral-weak"
+                        className="rounded-md px-2.5 py-1 text-sm font-medium tabular-nums text-foreground"
+                      >
+                        {formatSlotTime(range.startMinutes)}~{formatSlotTime(range.endMinutes)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">선택된 가능 시간이 없습니다.</p>
+            )}
+          </div>
+
+          <div className="border-b border-border px-6 py-4">
+            <h3 className="text-base font-semibold text-foreground">가능 시간 타임테이블</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              최소 인원 조건이 있는 셀만 선택할 수 있습니다. 선택된 셀을 다시 누르면 삭제됩니다.
+            </p>
+          </div>
+
+          {visibleTimetableDates.length > 0 ? (
+            <div className="max-w-full overflow-x-auto overflow-y-hidden p-4">
+              <div className="w-max min-w-max">
+                <div
+                  className="grid gap-1"
+                  style={{
+                    gridTemplateColumns: `${TIMETABLE_TIME_COLUMN_WIDTH}px repeat(${visibleTimetableDates.length}, ${TIMETABLE_DATE_COLUMN_WIDTH}px)`,
+                  }}
+                  onPointerMove={(event) => moveSlotDrag(event.clientX, event.clientY)}
+                >
+                  <div />
+                  {visibleTimetableDates.map((date) => (
+                    <div key={date} className="py-2 text-center">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        {formatWeekday(date)}
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-foreground">
+                        {formatDateLabel(date)}
+                      </p>
+                    </div>
+                  ))}
+
+                  {timeSlots.map((startMinutes, rowIndex) => {
+                    const showHourLabel = startMinutes % 60 === 0;
+                    const timeLabel = formatSlotTime(startMinutes);
+
+                    return (
+                      <div key={startMinutes} className="contents">
+                        <div className="h-8 pr-2 text-right text-sm text-muted-foreground">
+                          {showHourLabel ? timeLabel : ""}
+                        </div>
+                        {visibleTimetableDates.map((date, columnIndex) => {
+                          const disabled = !isSlotSchedulable(
+                            businessHours,
+                            staffingRules,
+                            date,
+                            startMinutes,
+                          );
+                          const selected = draftSlotKeys.has(
+                            getSlotKey(selectedWorkerId, date, startMinutes),
+                          );
+                          const disabledByState =
+                            disabled ||
+                            !selectedWorkerId ||
+                            !hasValidDateRange ||
+                            Boolean(queryErrorMessage) ||
+                            availabilityResult.isFetching;
+
+                          return (
+                            <button
+                              key={`${date}-${startMinutes}`}
+                              type="button"
+                              data-availability-cell="true"
+                              data-column-index={columnIndex}
+                              data-row-index={rowIndex}
+                              disabled={disabledByState}
+                              aria-pressed={selected}
+                              aria-label={`${date} ${timeLabel} 가능 시간 ${
+                                selected ? "해제" : "선택"
+                              }`}
+                              className={cn(
+                                "flex h-8 touch-none select-none items-center justify-center rounded-md border transition-colors",
+                                disabledByState
+                                  ? "cursor-not-allowed border-border/40 bg-surface-secondary/40 opacity-45"
+                                  : selected
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
+                              )}
+                              onClick={() => {
+                                if (suppressNextCellClickRef.current) {
+                                  suppressNextCellClickRef.current = false;
+                                  return;
+                                }
+
+                                toggleSlot(date, startMinutes);
+                              }}
+                              onPointerDown={(event) => {
+                                if (event.pointerType === "mouse" && event.button !== 0) {
+                                  return;
+                                }
+
+                                event.preventDefault();
+                                startSlotDrag(date, startMinutes, rowIndex, columnIndex);
+                              }}
+                            >
+                              {selected ? <Check className="size-3" aria-hidden="true" /> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="px-6 py-12 text-center">
+              <p className="text-sm font-medium text-foreground">입력 가능한 날짜가 없습니다.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                근무 기간 설정에서 휴무일과 최소 인원 조건 미설정일을 확인해 주세요.
+              </p>
+            </div>
+          )}
+        </section>
+      ) : null}
     </AdminPageShell>
   );
 }
