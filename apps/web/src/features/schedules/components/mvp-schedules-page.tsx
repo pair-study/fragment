@@ -11,7 +11,7 @@ import type {
 } from "@fragment/shared";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
-import { CalendarDays, Check, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { CalendarDays, CircleAlert, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Controller, type FieldErrors, type Resolver, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -69,6 +69,13 @@ type ScheduleCandidateItem = {
   workerName: string;
 };
 
+type ScheduleTimeGroup = {
+  endTime: string;
+  id: string;
+  items: ScheduleItem[];
+  startTime: string;
+};
+
 type ScheduleDraft = {
   date: string;
   endTime: string;
@@ -87,6 +94,12 @@ type UnfilledCondition = {
   timeRange: string;
 };
 
+type UnfilledConditionGroup = {
+  conditions: UnfilledCondition[];
+  date: string;
+  dayLabel: string;
+};
+
 type WorkerOption = {
   id: string;
   name: string;
@@ -99,6 +112,10 @@ type OperationMessage = {
 
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const EMPTY_WORKERS: Worker[] = [];
+const DEFAULT_VISIBLE_UNFILLED_GROUPS = 5;
+const DEFAULT_VISIBLE_SCHEDULE_GROUPS = 3;
+const MAX_VISIBLE_WORKER_NAMES = 2;
+const MAX_PREVIEW_UNFILLED_CONDITIONS = 3;
 
 const EMPTY_DRAFT: ScheduleDraft = {
   date: "",
@@ -316,6 +333,12 @@ function formatDateTitle(date: string) {
   return `${date} ${getDayLabel(date)}`;
 }
 
+function formatShortDateTitle(date: string) {
+  const [, month, day] = date.split("-");
+
+  return `${Number(month)}월 ${Number(day)}일`;
+}
+
 function formatShortageTimeRange(shortage: ScheduleWorkerShortage) {
   return `${shortage.startTime}-${shortage.endTime}${shortage.endsNextDay ? "+1" : ""}`;
 }
@@ -344,6 +367,53 @@ function candidateToScheduleCandidateItem(candidate: ScheduleCandidate): Schedul
   };
 }
 
+function getTimeRangeLabel(group: Pick<ScheduleTimeGroup, "endTime" | "startTime">) {
+  return `${group.startTime}-${group.endTime}`;
+}
+
+function getWorkerNamesPreview(workerNames: string[]) {
+  const visibleWorkerNames = workerNames.slice(0, MAX_VISIBLE_WORKER_NAMES);
+  const hiddenWorkerCount = workerNames.length - visibleWorkerNames.length;
+  const visibleLabel = visibleWorkerNames.join(", ");
+
+  if (hiddenWorkerCount <= 0) {
+    return visibleLabel;
+  }
+
+  return `${visibleLabel} 외 ${hiddenWorkerCount}명`;
+}
+
+function groupSchedulesByTime(schedules: ScheduleItem[]): ScheduleTimeGroup[] {
+  const groupsByTime = new Map<string, ScheduleTimeGroup>();
+
+  schedules.forEach((schedule) => {
+    const key = `${schedule.startTime}-${schedule.endTime}`;
+    const group = groupsByTime.get(key);
+
+    if (group) {
+      group.items.push(schedule);
+      return;
+    }
+
+    groupsByTime.set(key, {
+      endTime: schedule.endTime,
+      id: key,
+      items: [schedule],
+      startTime: schedule.startTime,
+    });
+  });
+
+  return [...groupsByTime.values()].sort((left, right) => {
+    const startCompare = left.startTime.localeCompare(right.startTime);
+
+    if (startCompare !== 0) {
+      return startCompare;
+    }
+
+    return left.endTime.localeCompare(right.endTime);
+  });
+}
+
 function shortageToUnfilledCondition(shortage: ScheduleWorkerShortage): UnfilledCondition {
   return {
     assignedWorkers: shortage.assignedCount,
@@ -353,6 +423,54 @@ function shortageToUnfilledCondition(shortage: ScheduleWorkerShortage): Unfilled
     requiredWorkers: shortage.requiredCount,
     timeRange: formatShortageTimeRange(shortage),
   };
+}
+
+function groupUnfilledConditionsByDate(conditions: UnfilledCondition[]): UnfilledConditionGroup[] {
+  const groupsByDate = new Map<string, UnfilledConditionGroup>();
+
+  conditions.forEach((condition) => {
+    const group = groupsByDate.get(condition.date);
+
+    if (group) {
+      group.conditions.push(condition);
+      return;
+    }
+
+    groupsByDate.set(condition.date, {
+      conditions: [condition],
+      date: condition.date,
+      dayLabel: condition.dayLabel,
+    });
+  });
+
+  return [...groupsByDate.values()]
+    .map((group) => ({
+      ...group,
+      conditions: [...group.conditions].sort((left, right) =>
+        left.timeRange.localeCompare(right.timeRange),
+      ),
+    }))
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
+function getShortageCount(condition: UnfilledCondition) {
+  return Math.max(condition.requiredWorkers - condition.assignedWorkers, 0);
+}
+
+function getUnfilledConditionLabel(condition: UnfilledCondition) {
+  return `${condition.timeRange} ${getShortageCount(condition)}명 부족`;
+}
+
+function getUnfilledConditionPreview(conditions: UnfilledCondition[]) {
+  const visibleConditions = conditions.slice(0, MAX_PREVIEW_UNFILLED_CONDITIONS);
+  const hiddenConditionCount = conditions.length - visibleConditions.length;
+  const visibleLabel = visibleConditions.map(getUnfilledConditionLabel).join(" · ");
+
+  if (hiddenConditionCount <= 0) {
+    return visibleLabel;
+  }
+
+  return `${visibleLabel} · +${hiddenConditionCount}개`;
 }
 
 function createWorkerOptions(workers: Worker[], editingSchedule: ScheduleItem | null) {
@@ -411,6 +529,10 @@ export function MvpSchedulesPage() {
     () => schedule?.workerShortages.map(shortageToUnfilledCondition) ?? [],
     [schedule],
   );
+  const unfilledConditionGroups = useMemo(
+    () => groupUnfilledConditionsByDate(unfilledConditions),
+    [unfilledConditions],
+  );
   const scheduleTargetDates = useMemo(
     () =>
       new Set([
@@ -442,6 +564,7 @@ export function MvpSchedulesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [dateDetailDismissed, setDateDetailDismissed] = useState(false);
+  const [showUnfilledDetails, setShowUnfilledDetails] = useState(false);
   const [operationMessage, setOperationMessage] = useState<OperationMessage | null>(null);
   const scheduleFormDate = watch("date");
   const scheduleFormStartTime = watch("startTime");
@@ -486,10 +609,18 @@ export function MvpSchedulesPage() {
     !queryErrorMessage;
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
   const selectedDateSchedules = schedules.filter((item) => item.date === selectedDate);
-  const selectedDateCandidates = candidates.filter((item) => item.date === selectedDate);
+  const selectedDateCandidates = candidates.filter(
+    (item) => item.date === selectedDate && !item.isRecommended,
+  );
   const selectedDateUnfilledConditions = unfilledConditions.filter(
     (condition) => condition.date === selectedDate,
   );
+  const visibleUnfilledConditionGroups = unfilledConditionGroups.slice(
+    0,
+    DEFAULT_VISIBLE_UNFILLED_GROUPS,
+  );
+  const hiddenUnfilledGroupCount =
+    unfilledConditionGroups.length - visibleUnfilledConditionGroups.length;
   const isSelectedDateScheduleTarget = scheduleTargetDates.has(selectedDate);
   const scheduleEndTimeOptions = useMemo(
     () => createScheduleEndTimeOptions(scheduleFormStartTime),
@@ -520,7 +651,14 @@ export function MvpSchedulesPage() {
     }
 
     setSelectedDate(firstScheduleTargetDate);
-  }, [dateDetailDismissed, firstScheduleTargetDate, schedule, scheduleTargetDates, selectedDate]);
+  }, [
+    dateDetailDismissed,
+    firstScheduleTargetDate,
+    reset,
+    schedule,
+    scheduleTargetDates,
+    selectedDate,
+  ]);
 
   function openCreateForm(date: string) {
     if (!isDraft) {
@@ -781,36 +919,85 @@ export function MvpSchedulesPage() {
       ) : null}
 
       {unfilledConditions.length > 0 && isDraft ? (
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-          <div className="border-b border-border px-6 py-4">
-            <h2 className="text-base font-semibold text-foreground">미충족 조건</h2>
+        <section className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 shadow-card">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="neutral-weak"
+                  className="border-destructive/30 bg-destructive/10 text-destructive"
+                >
+                  미충족
+                </Badge>
+                <h2 className="text-base font-semibold text-foreground">미충족 조건</h2>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {unfilledConditions.length}개 조건이 {unfilledConditionGroups.length}일에 걸쳐
+                부족합니다.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowUnfilledDetails((currentValue) => !currentValue)}
+            >
+              {showUnfilledDetails ? "상세 접기" : "상세 보기"}
+            </Button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-2xl border-collapse text-left text-sm">
-              <thead className="bg-surface-secondary text-xs font-semibold uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-3">요일</th>
-                  <th className="px-6 py-3">시간대</th>
-                  <th className="px-6 py-3">필요 인원</th>
-                  <th className="px-6 py-3">추천 배정</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {unfilledConditions.map((condition) => (
-                  <tr key={condition.id} className="bg-card">
-                    <td className="px-6 py-4 font-medium text-foreground">{condition.dayLabel}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{condition.timeRange}</td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {condition.requiredWorkers}명
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {condition.assignedWorkers}명
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {visibleUnfilledConditionGroups.map((group) => (
+              <button
+                key={group.date}
+                type="button"
+                className="rounded-md border border-destructive/20 bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                onClick={() => {
+                  setDateDetailDismissed(false);
+                  setSelectedDate(group.date);
+                  closeForm();
+                }}
+              >
+                <span className="font-semibold text-foreground">
+                  {formatShortDateTitle(group.date)}
+                </span>
+                <span className="ml-2 text-muted-foreground">{group.conditions.length}개</span>
+              </button>
+            ))}
+            {hiddenUnfilledGroupCount > 0 ? (
+              <span className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground">
+                +{hiddenUnfilledGroupCount}일
+              </span>
+            ) : null}
           </div>
+
+          {showUnfilledDetails ? (
+            <div className="mt-4 space-y-2 border-t border-destructive/20 pt-4">
+              {unfilledConditionGroups.map((group) => (
+                <button
+                  key={group.date}
+                  type="button"
+                  className="grid w-full gap-2 rounded-lg border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring sm:grid-cols-[10rem_1fr]"
+                  onClick={() => {
+                    setDateDetailDismissed(false);
+                    setSelectedDate(group.date);
+                    closeForm();
+                  }}
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-foreground">
+                      {formatShortDateTitle(group.date)}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {group.conditions.length}개 조건
+                    </span>
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {getUnfilledConditionPreview(group.conditions)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -846,11 +1033,16 @@ export function MvpSchedulesPage() {
                 {calendarDates.map((date) => {
                   const inWorkRange = date >= workStartDate && date <= workEndDate;
                   const dateSchedules = schedules.filter((item) => item.date === date);
+                  const dateScheduleGroups = groupSchedulesByTime(dateSchedules);
+                  const visibleScheduleGroups = dateScheduleGroups.slice(
+                    0,
+                    DEFAULT_VISIBLE_SCHEDULE_GROUPS,
+                  );
+                  const hiddenScheduleGroupCount =
+                    dateScheduleGroups.length - visibleScheduleGroups.length;
                   const unfilled = unfilledConditions.some((condition) => condition.date === date);
                   const hasScheduleTarget = scheduleTargetDates.has(date);
                   const selected = selectedDate === date;
-                  const visibleSchedules = dateSchedules.slice(0, 3);
-                  const hiddenScheduleCount = dateSchedules.length - visibleSchedules.length;
 
                   return (
                     <button
@@ -890,27 +1082,23 @@ export function MvpSchedulesPage() {
                         ) : null}
                       </div>
 
-                      {inWorkRange && hasScheduleTarget ? (
-                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>추천 {dateSchedules.length}건</span>
-                        </div>
-                      ) : null}
+                      <div className="mt-3 space-y-1.5">
+                        {visibleScheduleGroups.map((group) => (
+                          <div
+                            key={group.id}
+                            className="block w-full rounded-md bg-surface-secondary px-2 py-1.5 text-left"
+                          >
+                            <span className="block truncate text-xs font-semibold text-foreground">
+                              {getTimeRangeLabel(group)}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[11px] leading-4 text-muted-foreground">
+                              {getWorkerNamesPreview(group.items.map((item) => item.workerName))}
+                            </span>
+                          </div>
+                        ))}
 
-                      <div className="mt-3 space-y-1">
-                        {visibleSchedules.length > 0
-                          ? visibleSchedules.map((item) => (
-                              <p
-                                key={item.id}
-                                className="truncate text-xs font-medium text-foreground"
-                              >
-                                {item.startTime}-{item.endTime} {item.workerName}
-                              </p>
-                            ))
-                          : null}
-                        {hiddenScheduleCount > 0 ? (
-                          <p className="text-xs font-medium text-muted-foreground">
-                            +{hiddenScheduleCount}개 더보기
-                          </p>
+                        {hiddenScheduleGroupCount > 0 ? (
+                          <p className="text-xs font-semibold text-primary">+ 더보기</p>
                         ) : null}
                       </div>
                     </button>
@@ -959,14 +1147,37 @@ export function MvpSchedulesPage() {
 
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {selectedDateUnfilledConditions.length > 0 ? (
-              <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
-                <p className="text-sm font-semibold text-destructive">미충족 조건</p>
-                <div className="mt-2 space-y-1">
-                  {selectedDateUnfilledConditions.map((condition) => (
-                    <p key={condition.id} className="text-sm text-foreground">
-                      {condition.timeRange} · 필요 {condition.requiredWorkers}명 / 추천{" "}
-                      {condition.assignedWorkers}명
+              <div className="mb-5 rounded-xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                    <CircleAlert className="size-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">최소 인원 미달</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      시간대별 기준에 미달한 항목만 표시합니다.
                     </p>
+                  </div>
+                </div>
+                <div className="mt-4 overflow-hidden rounded-lg border border-border">
+                  {selectedDateUnfilledConditions.map((condition) => (
+                    <div
+                      key={condition.id}
+                      className="grid gap-2 border-b border-border px-3 py-3 last:border-b-0 sm:grid-cols-[7rem_1fr_auto] sm:items-center"
+                    >
+                      <span className="text-sm font-medium text-foreground">
+                        {condition.timeRange}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        배정 {condition.assignedWorkers}명 · 최소 {condition.requiredWorkers}명
+                      </span>
+                      <Badge
+                        variant="neutral-weak"
+                        className="w-fit border-destructive/20 bg-destructive/10 text-destructive"
+                      >
+                        {getShortageCount(condition)}명 부족
+                      </Badge>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -991,11 +1202,7 @@ export function MvpSchedulesPage() {
                 selectedDateCandidates.map((candidate) => (
                   <div
                     key={candidate.id}
-                    className={
-                      candidate.isRecommended
-                        ? "flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2"
-                        : "flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-3 py-2"
-                    }
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">
@@ -1005,16 +1212,9 @@ export function MvpSchedulesPage() {
                         {candidate.workerName}
                       </p>
                     </div>
-                    {candidate.isRecommended ? (
-                      <Badge variant="brand-weak" className="shrink-0">
-                        <Check className="size-3" aria-hidden="true" />
-                        추천
-                      </Badge>
-                    ) : (
-                      <Badge variant="neutral-weak" className="shrink-0">
-                        후보
-                      </Badge>
-                    )}
+                    <Badge variant="neutral-weak" className="shrink-0">
+                      후보
+                    </Badge>
                   </div>
                 ))
               ) : (

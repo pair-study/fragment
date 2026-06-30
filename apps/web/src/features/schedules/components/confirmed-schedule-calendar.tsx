@@ -197,7 +197,7 @@ export function ConfirmedScheduleCalendar({
                       <span className="block truncate text-xs font-semibold text-foreground">
                         {getTimeRangeLabel(group)}
                       </span>
-                      <span className="mt-0.5 block truncate text-[11px] leading-4 text-muted-foreground">
+                      <span className="mt-0.5 block truncate text-xs leading-4 text-muted-foreground">
                         {getWorkerNamesPreview(group.workerNames)}
                       </span>
                     </div>

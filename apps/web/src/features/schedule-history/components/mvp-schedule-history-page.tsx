@@ -254,6 +254,7 @@ export function MvpScheduleHistoryPage() {
             </div>
           </div>
           <ConfirmedScheduleCalendar
+            key={selectedHistory.id}
             startDate={selectedHistory.startDate}
             endDate={selectedHistory.endDate}
             schedules={selectedHistory.schedules}
