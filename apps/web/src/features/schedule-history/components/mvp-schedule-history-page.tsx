@@ -18,42 +18,13 @@ import {
   useScheduleHistoryDetailQuery,
   useScheduleHistoryQuery,
 } from "@/features/schedule-history/queries/schedule-history-queries";
+import {
+  ConfirmedScheduleCalendar,
+  type ConfirmedScheduleCalendarItem,
+} from "@/features/schedules/components/confirmed-schedule-calendar";
 import { getApiErrorMessage } from "@/lib/api-error-message";
-import { formatScheduleAssignmentTimeRange } from "@/lib/schedule-display";
 
-const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const INITIAL_HISTORY_YEAR = new Date().getFullYear();
-
-function addDays(date: string, days: number) {
-  const [year, month, day] = date.split("-").map(Number);
-  const nextDate = new Date(Date.UTC(year, month - 1, day + days));
-  return nextDate.toISOString().slice(0, 10);
-}
-
-function createDateRange(startDate: string, endDate: string) {
-  const dates: string[] = [];
-  let currentDate = startDate;
-
-  while (currentDate <= endDate) {
-    dates.push(currentDate);
-    currentDate = addDays(currentDate, 1);
-  }
-
-  return dates;
-}
-
-function getMonday(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const targetDate = new Date(Date.UTC(year, month - 1, day));
-  const dayIndex = targetDate.getUTCDay();
-  const diff = dayIndex === 0 ? -6 : 1 - dayIndex;
-
-  return addDays(date, diff);
-}
-
-function createCalendarDates(startDate: string, endDate: string) {
-  return createDateRange(getMonday(startDate), addDays(getMonday(endDate), 6));
-}
 
 function formatScheduleRange(startDate: string, endDate: string) {
   return `${startDate} ~ ${endDate}`;
@@ -77,6 +48,24 @@ function downloadBlob(blob: Blob, fileName: string) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function formatAssignmentTime(workDate: string, dateTime: string) {
+  const time = dateTime.slice(11, 16);
+
+  return dateTime.slice(0, 10) > workDate ? `${time}+1` : time;
+}
+
+function scheduleAssignmentToCalendarItem(
+  assignment: ScheduleAssignment,
+): ConfirmedScheduleCalendarItem {
+  return {
+    date: assignment.workDate,
+    endTime: formatAssignmentTime(assignment.workDate, assignment.endsAt),
+    id: assignment.id,
+    startTime: formatAssignmentTime(assignment.workDate, assignment.startsAt),
+    workerName: assignment.workerNameSnapshot,
+  };
 }
 
 function findSelectedHistory(items: ScheduleHistoryItem[], selectedHistoryId: string) {
@@ -159,15 +148,12 @@ export function MvpScheduleHistoryPage() {
   );
   const exportScheduleHistoryCsvMutation = useExportScheduleHistoryCsvMutation();
   const selectedHistory = scheduleHistoryDetailQuery.data ?? null;
-  const isScheduleDetailLoading = selectedScheduleId !== "" && scheduleHistoryDetailQuery.isPending;
-  const isScheduleHistoryLoading = scheduleHistoryQuery.isPending || isScheduleDetailLoading;
-  const calendarDates = useMemo(
-    () =>
-      selectedHistory
-        ? createCalendarDates(selectedHistory.startDate, selectedHistory.endDate)
-        : [],
+  const selectedHistorySchedules = useMemo(
+    () => selectedHistory?.assignments.map(scheduleAssignmentToCalendarItem) ?? [],
     [selectedHistory],
   );
+  const isScheduleDetailLoading = selectedScheduleId !== "" && scheduleHistoryDetailQuery.isPending;
+  const isScheduleHistoryLoading = scheduleHistoryQuery.isPending || isScheduleDetailLoading;
   const canExportSchedule = selectedHistory !== null && !exportScheduleHistoryCsvMutation.isPending;
 
   const handleExportSchedule = async () => {
@@ -205,7 +191,7 @@ export function MvpScheduleHistoryPage() {
           <div className="flex flex-col gap-4 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-base font-semibold text-foreground">읽기 모드 달력</h2>
+                <h2 className="text-base font-semibold text-foreground">확정 스케줄 기록</h2>
               </div>
               {isScheduleHistoryLoading ? (
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -319,58 +305,12 @@ export function MvpScheduleHistoryPage() {
               <p className="mt-2 text-sm text-muted-foreground">잠시 후 다시 시도해 주세요.</p>
             </div>
           ) : selectedHistory ? (
-            <div className="overflow-x-auto p-6">
-              <div className="grid min-w-3xl grid-cols-7 border-l border-t border-border">
-                {WEEKDAY_LABELS.map((weekday) => (
-                  <div
-                    key={weekday}
-                    className="border-b border-r border-border bg-surface-secondary px-3 py-2 text-center text-xs font-semibold text-muted-foreground"
-                  >
-                    {weekday}
-                  </div>
-                ))}
-
-                {calendarDates.map((date) => {
-                  const inRange =
-                    date >= selectedHistory.startDate && date <= selectedHistory.endDate;
-                  const dateSchedules = selectedHistory.assignments.filter(
-                    (assignment) => assignment.workDate === date,
-                  );
-
-                  return (
-                    <div
-                      key={date}
-                      className={
-                        inRange
-                          ? "min-h-36 border-b border-r border-border bg-card p-3"
-                          : "min-h-36 border-b border-r border-border bg-surface-secondary p-3 opacity-45"
-                      }
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-bold text-foreground">{date.slice(8, 10)}</p>
-                        {inRange ? (
-                          <span className="text-xs text-muted-foreground">
-                            {dateSchedules.length}명
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-3 space-y-1">
-                        {dateSchedules.map((assignment: ScheduleAssignment) => (
-                          <p
-                            key={assignment.id}
-                            className="truncate text-xs font-medium text-foreground"
-                          >
-                            {formatScheduleAssignmentTimeRange(assignment)}{" "}
-                            {assignment.workerNameSnapshot}
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ConfirmedScheduleCalendar
+              key={selectedHistory.id}
+              startDate={selectedHistory.startDate}
+              endDate={selectedHistory.endDate}
+              schedules={selectedHistorySchedules}
+            />
           ) : (
             <div className="px-6 py-16 text-center">
               <p className="text-sm font-medium text-foreground">확정된 스케줄이 없습니다.</p>
