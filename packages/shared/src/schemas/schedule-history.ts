@@ -2,10 +2,14 @@ import { z } from "zod";
 import { dateSchema, dateTimeSchema, idSchema } from "./common";
 import { scheduleDetailSchema } from "./schedules";
 
-export const scheduleHistoryQuerySchema = z.object({
-  year: z.coerce.number().int().min(1900),
-  month: z.coerce.number().int().min(1).max(12).optional(),
-});
+export const scheduleHistoryQuerySchema = z
+  .object({
+    year: z.coerce.number().int().min(1900).optional(),
+    month: z.coerce.number().int().min(1).max(12).optional(),
+  })
+  .refine((query) => query.year !== undefined || query.month === undefined, {
+    path: ["month"],
+  });
 
 export const scheduleHistoryItemSchema = z.object({
   id: idSchema,
