@@ -612,9 +612,8 @@ export function MvpSchedulesPage() {
   const selectedDateCandidates = candidates.filter(
     (item) => item.date === selectedDate && !item.isRecommended,
   );
-  const selectedDateUnfilledConditions = unfilledConditions.filter(
-    (condition) => condition.date === selectedDate,
-  );
+  const selectedDateUnfilledConditions =
+    unfilledConditionGroups.find((group) => group.date === selectedDate)?.conditions ?? [];
   const visibleUnfilledConditionGroups = unfilledConditionGroups.slice(
     0,
     DEFAULT_VISIBLE_UNFILLED_GROUPS,
@@ -1091,7 +1090,7 @@ export function MvpSchedulesPage() {
                             <span className="block truncate text-xs font-semibold text-foreground">
                               {getTimeRangeLabel(group)}
                             </span>
-                            <span className="mt-0.5 block truncate text-[11px] leading-4 text-muted-foreground">
+                            <span className="mt-0.5 block truncate text-xs leading-4 text-muted-foreground">
                               {getWorkerNamesPreview(group.items.map((item) => item.workerName))}
                             </span>
                           </div>
