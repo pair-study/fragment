@@ -17,6 +17,10 @@ const createScheduleNotFoundError = () =>
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 const createDateRangeFilter = ({ year, month }: ScheduleHistoryQuery) => {
+  if (year === undefined) {
+    return {};
+  }
+
   const startDate = dateStringToDate(`${year}-${String(month ?? 1).padStart(2, "0")}-01`);
   const endDate =
     month === undefined ? dateStringToDate(`${year}-12-31`) : new Date(Date.UTC(year, month, 0));
@@ -76,12 +80,16 @@ export async function getScheduleHistoryDetail(
   return toScheduleDetail(schedule) as ScheduleHistoryDetailResponse;
 }
 
+const FORMULA_INJECTION_PREFIX_PATTERN = /^\s*[=+\-@]/;
+
 const escapeCsvCell = (value: string) => {
-  if (!/[",\n\r]/.test(value)) {
-    return value;
+  const safeValue = FORMULA_INJECTION_PREFIX_PATTERN.test(value) ? `'${value}` : value;
+
+  if (!/[",\n\r]/.test(safeValue)) {
+    return safeValue;
   }
 
-  return `"${value.replace(/"/g, '""')}"`;
+  return `"${safeValue.replace(/"/g, '""')}"`;
 };
 
 const createCsvRow = (values: string[]) => values.map(escapeCsvCell).join(",");

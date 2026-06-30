@@ -58,8 +58,13 @@ function formatScheduleRange(startDate: string, endDate: string) {
   return `${startDate} ~ ${endDate}`;
 }
 
-function formatDateTimeToTime(dateTime: string) {
-  return dateTime.slice(11, 16);
+function formatScheduleAssignmentTimeRange(assignment: ScheduleAssignment) {
+  const startTime = assignment.startsAt.slice(11, 16);
+  const endTime = assignment.endsAt.slice(11, 16);
+  const endPrefix =
+    assignment.endsAt.slice(0, 10) > assignment.startsAt.slice(0, 10) ? "익일 " : "";
+
+  return `${startTime}-${endPrefix}${endTime}`;
 }
 
 function createCsvFileName(startDate: string, endDate: string) {
@@ -347,8 +352,8 @@ export function MvpDashboardPage() {
                           key={assignment.id}
                           className="truncate text-xs font-medium text-foreground"
                         >
-                          {formatDateTimeToTime(assignment.startsAt)}-
-                          {formatDateTimeToTime(assignment.endsAt)} {assignment.workerNameSnapshot}
+                          {formatScheduleAssignmentTimeRange(assignment)}{" "}
+                          {assignment.workerNameSnapshot}
                         </p>
                       ))}
                     </div>

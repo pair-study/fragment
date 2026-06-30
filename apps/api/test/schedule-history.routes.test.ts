@@ -8,10 +8,18 @@ import { createFakePrisma } from "./helpers/fake-prisma";
 const timestamp = new Date("2026-06-25T00:00:00.000Z");
 const dateOnly = (date: string) => new Date(`${date}T00:00:00.000Z`);
 
-const createOrganization = () => ({
-  id: BigInt(1),
-  userId: BigInt(1),
-  name: "프래그먼트 카페",
+const createOrganization = ({
+  id = BigInt(1),
+  name = "프래그먼트 카페",
+  userId = BigInt(1),
+}: {
+  id?: bigint;
+  name?: string;
+  userId?: bigint;
+} = {}) => ({
+  id,
+  userId,
+  name,
   businessHours: [],
 });
 
@@ -19,17 +27,19 @@ const createSchedule = ({
   confirmedAt,
   endDate,
   id,
+  organizationId = BigInt(1),
   startDate,
   status = "CONFIRMED",
 }: {
   confirmedAt: Date | null;
   endDate: string;
   id: bigint;
+  organizationId?: bigint;
   startDate: string;
   status?: "DRAFT" | "CONFIRMED";
 }) => ({
   id,
-  organizationId: BigInt(1),
+  organizationId,
   status,
   inputHash: `hash-${id.toString()}`,
   startDate: dateOnly(startDate),
@@ -44,6 +54,7 @@ const createAssignment = ({
   employeeCodeSnapshot = "W-0001",
   endsAt = "2026-07-01T14:00:00.000Z",
   id = BigInt(10),
+  scheduleId = BigInt(1),
   startsAt = "2026-07-01T10:00:00.000Z",
   workerId = BigInt(1),
   workerNameSnapshot = "김민수",
@@ -52,13 +63,14 @@ const createAssignment = ({
   employeeCodeSnapshot?: string;
   endsAt?: string;
   id?: bigint;
+  scheduleId?: bigint;
   startsAt?: string;
   workerId?: bigint;
   workerNameSnapshot?: string;
   workDate?: string;
 } = {}) => ({
   id,
-  scheduleId: BigInt(1),
+  scheduleId,
   workerId,
   workDate: dateOnly(workDate),
   startsAt: new Date(startsAt),
@@ -106,9 +118,78 @@ describe("schedule history routes", () => {
     });
   });
 
-  it("lists confirmed schedules overlapping the requested month", async () => {
+  it("rejects invalid history query", async () => {
     const { prisma } = createFakePrisma({
       organizations: [createOrganization()],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/schedule-history?year=2026&month=13")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+      statusCode: 400,
+    });
+  });
+
+  it("rejects invalid history detail id", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [createOrganization()],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/schedule-history/not-a-number")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+      statusCode: 400,
+    });
+  });
+
+  it("lists all confirmed schedules when year is omitted", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [createOrganization()],
+      schedules: [
+        createSchedule({
+          id: BigInt(1),
+          startDate: "2025-12-20",
+          endDate: "2026-01-05",
+          confirmedAt: new Date("2025-12-15T00:00:00.000Z"),
+        }),
+        createSchedule({
+          id: BigInt(2),
+          startDate: "2026-07-01",
+          endDate: "2026-07-31",
+          confirmedAt: new Date("2026-06-20T00:00:00.000Z"),
+        }),
+      ],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/schedule-history")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(200);
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(["2", "1"]);
+  });
+
+  it("lists confirmed schedules overlapping the requested month", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [
+        createOrganization(),
+        createOrganization({
+          id: BigInt(2),
+          name: "다른 매장",
+          userId: BigInt(2),
+        }),
+      ],
       schedules: [
         createSchedule({
           id: BigInt(1),
@@ -134,6 +215,13 @@ describe("schedule history routes", () => {
           endDate: "2026-07-01",
           confirmedAt: null,
           status: "DRAFT",
+        }),
+        createSchedule({
+          id: BigInt(5),
+          organizationId: BigInt(2),
+          startDate: "2026-07-01",
+          endDate: "2026-07-31",
+          confirmedAt: new Date("2026-06-30T00:00:00.000Z"),
         }),
       ],
     });
@@ -186,14 +274,35 @@ describe("schedule history routes", () => {
 
   it("returns confirmed schedule detail", async () => {
     const { prisma } = createFakePrisma({
-      organizations: [createOrganization()],
-      scheduleAssignments: [createAssignment()],
+      organizations: [
+        createOrganization(),
+        createOrganization({
+          id: BigInt(2),
+          name: "다른 매장",
+          userId: BigInt(2),
+        }),
+      ],
+      scheduleAssignments: [
+        createAssignment(),
+        createAssignment({
+          id: BigInt(11),
+          scheduleId: BigInt(2),
+          workerNameSnapshot: "외부 근무자",
+        }),
+      ],
       schedules: [
         createSchedule({
           id: BigInt(1),
           startDate: "2026-07-01",
           endDate: "2026-07-31",
           confirmedAt: new Date("2026-06-25T00:00:00.000Z"),
+        }),
+        createSchedule({
+          id: BigInt(2),
+          organizationId: BigInt(2),
+          startDate: "2026-07-01",
+          endDate: "2026-07-31",
+          confirmedAt: new Date("2026-06-30T00:00:00.000Z"),
         }),
       ],
     });
@@ -218,6 +327,39 @@ describe("schedule history routes", () => {
     });
   });
 
+  it("returns 404 when requesting another organization's schedule detail", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [
+        createOrganization(),
+        createOrganization({
+          id: BigInt(2),
+          name: "다른 매장",
+          userId: BigInt(2),
+        }),
+      ],
+      schedules: [
+        createSchedule({
+          id: BigInt(2),
+          organizationId: BigInt(2),
+          startDate: "2026-07-01",
+          endDate: "2026-07-31",
+          confirmedAt: new Date("2026-06-30T00:00:00.000Z"),
+        }),
+      ],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/schedule-history/2")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({
+      errorCode: "SCHEDULE_NOT_FOUND",
+      statusCode: 404,
+    });
+  });
+
   it("exports confirmed schedule assignments as csv", async () => {
     const { prisma } = createFakePrisma({
       organizations: [createOrganization()],
@@ -235,6 +377,14 @@ describe("schedule history routes", () => {
           workerId: BigInt(3),
           workerNameSnapshot: "박준호",
           workDate: "2026-07-02",
+        }),
+        createAssignment({
+          id: BigInt(13),
+          startsAt: "2026-07-03T07:00:00.000Z",
+          endsAt: "2026-07-03T09:00:00.000Z",
+          workerId: BigInt(4),
+          workerNameSnapshot: '=HYPERLINK("https://example.com")',
+          workDate: "2026-07-03",
         }),
       ],
       schedules: [
@@ -256,10 +406,10 @@ describe("schedule history routes", () => {
     expect(response.headers["content-type"]).toContain("text/csv");
     expect(response.text).toBe(
       `\uFEFF${[
-        "날짜,요일,10:00-14:00,15:00-18:00",
-        "2026-07-01,수,김민수 / 이서연,",
-        "2026-07-02,목,,박준호",
-        "2026-07-03,금,,",
+        "날짜,요일,07:00-09:00,10:00-14:00,15:00-18:00",
+        "2026-07-01,수,,김민수 / 이서연,",
+        "2026-07-02,목,,,박준호",
+        '2026-07-03,금,"\'=HYPERLINK(""https://example.com"")",,',
       ].join("\n")}`,
     );
   });
@@ -281,6 +431,39 @@ describe("schedule history routes", () => {
 
     const response = await request(app)
       .get("/api/schedule-history/1/export.csv")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({
+      errorCode: "SCHEDULE_NOT_FOUND",
+      statusCode: 404,
+    });
+  });
+
+  it("returns 404 when exporting another organization's schedule", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [
+        createOrganization(),
+        createOrganization({
+          id: BigInt(2),
+          name: "다른 매장",
+          userId: BigInt(2),
+        }),
+      ],
+      schedules: [
+        createSchedule({
+          id: BigInt(2),
+          organizationId: BigInt(2),
+          startDate: "2026-07-01",
+          endDate: "2026-07-31",
+          confirmedAt: new Date("2026-06-30T00:00:00.000Z"),
+        }),
+      ],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/schedule-history/2/export.csv")
       .set("Authorization", authHeader());
 
     expect(response.status).toBe(404);

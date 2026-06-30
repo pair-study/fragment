@@ -17,13 +17,11 @@ import {
   useExportScheduleHistoryCsvMutation,
   useScheduleHistoryDetailQuery,
   useScheduleHistoryQuery,
-  useScheduleHistoryYearQueries,
 } from "@/features/schedule-history/queries/schedule-history-queries";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const INITIAL_HISTORY_YEAR = new Date().getFullYear();
-const HISTORY_YEAR_OPTIONS = Array.from({ length: 6 }, (_, index) => INITIAL_HISTORY_YEAR - index);
 
 function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
@@ -64,8 +62,13 @@ function formatConfirmedAt(confirmedAt: string) {
   return confirmedAt.slice(0, 10);
 }
 
-function formatDateTimeToTime(dateTime: string) {
-  return dateTime.slice(11, 16);
+function formatScheduleAssignmentTimeRange(assignment: ScheduleAssignment) {
+  const startTime = assignment.startsAt.slice(11, 16);
+  const endTime = assignment.endsAt.slice(11, 16);
+  const endPrefix =
+    assignment.endsAt.slice(0, 10) > assignment.startsAt.slice(0, 10) ? "익일 " : "";
+
+  return `${startTime}-${endPrefix}${endTime}`;
 }
 
 function createCsvFileName(startDate: string, endDate: string) {
@@ -102,6 +105,28 @@ function isHistoryInMonth(history: ScheduleHistoryItem, year: string, month: str
   return history.startDate <= monthEnd && history.endDate >= monthStart;
 }
 
+function isHistoryInYear(history: ScheduleHistoryItem, year: string) {
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
+
+  return history.startDate <= yearEnd && history.endDate >= yearStart;
+}
+
+function getHistoryYearOptions(items: ScheduleHistoryItem[]) {
+  const years = new Set<string>();
+
+  items.forEach((history) => {
+    const startYear = Number(history.startDate.slice(0, 4));
+    const endYear = Number(history.endDate.slice(0, 4));
+
+    for (let year = startYear; year <= endYear; year += 1) {
+      years.add(String(year));
+    }
+  });
+
+  return [...years].sort((first, second) => Number(second) - Number(first));
+}
+
 function getHistoryMonthOptions(items: ScheduleHistoryItem[], year: string) {
   return Array.from({ length: 12 }, (_, index) => String(index + 1)).filter((month) =>
     items.some((history) => isHistoryInMonth(history, year, month)),
@@ -113,30 +138,26 @@ export function MvpScheduleHistoryPage() {
   const [selectedYear, setSelectedYear] = useState(String(INITIAL_HISTORY_YEAR));
   const [selectedMonth, setSelectedMonth] = useState("");
   const [exportMessage, setExportMessage] = useState("");
-  const scheduleHistoryYearQueries = useScheduleHistoryYearQueries(HISTORY_YEAR_OPTIONS);
-  const historyYearItems = scheduleHistoryYearQueries.map((query, index) => ({
-    items: query.data?.items ?? [],
-    year: String(HISTORY_YEAR_OPTIONS[index]),
-  }));
-  const availableYears = historyYearItems
-    .filter((historyYearItem) => historyYearItem.items.length > 0)
-    .map((historyYearItem) => historyYearItem.year);
+  const scheduleHistoryQuery = useScheduleHistoryQuery({});
+  const allHistoryItems = scheduleHistoryQuery.data?.items ?? [];
+  const availableYears = getHistoryYearOptions(allHistoryItems);
   const hasAvailableYears = availableYears.length > 0;
   const effectiveSelectedYear = availableYears.includes(selectedYear)
     ? selectedYear
     : (availableYears[0] ?? selectedYear);
-  const selectedYearItems =
-    historyYearItems.find((historyYearItem) => historyYearItem.year === effectiveSelectedYear)
-      ?.items ?? [];
+  const selectedYearItems = allHistoryItems.filter((history) =>
+    isHistoryInYear(history, effectiveSelectedYear),
+  );
   const availableMonths = getHistoryMonthOptions(selectedYearItems, effectiveSelectedYear);
   const effectiveSelectedMonth = availableMonths.includes(selectedMonth)
     ? selectedMonth
     : (availableMonths[0] ?? "");
-  const scheduleHistoryQuery = useScheduleHistoryQuery({
-    year: Number(effectiveSelectedYear),
-    ...(effectiveSelectedMonth === "" ? {} : { month: Number(effectiveSelectedMonth) }),
-  });
-  const historyItems = scheduleHistoryQuery.data?.items ?? [];
+  const historyItems =
+    effectiveSelectedMonth === ""
+      ? selectedYearItems
+      : selectedYearItems.filter((history) =>
+          isHistoryInMonth(history, effectiveSelectedYear, effectiveSelectedMonth),
+        );
   const hasHistoryItems = historyItems.length > 0;
   const selectedHistoryItem = findSelectedHistory(historyItems, selectedHistoryId);
   const selectedScheduleId = selectedHistoryItem?.id ?? "";
@@ -146,6 +167,8 @@ export function MvpScheduleHistoryPage() {
   );
   const exportScheduleHistoryCsvMutation = useExportScheduleHistoryCsvMutation();
   const selectedHistory = scheduleHistoryDetailQuery.data ?? null;
+  const isScheduleDetailLoading = selectedScheduleId !== "" && scheduleHistoryDetailQuery.isPending;
+  const isScheduleHistoryLoading = scheduleHistoryQuery.isPending || isScheduleDetailLoading;
   const calendarDates = useMemo(
     () =>
       selectedHistory
@@ -192,7 +215,7 @@ export function MvpScheduleHistoryPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-base font-semibold text-foreground">읽기 모드 달력</h2>
               </div>
-              {scheduleHistoryQuery.isPending ? (
+              {isScheduleHistoryLoading ? (
                 <p className="mt-2 text-sm text-muted-foreground">
                   확정 스케줄 보관함을 불러오는 중입니다.
                 </p>
@@ -290,7 +313,7 @@ export function MvpScheduleHistoryPage() {
             ) : null}
           </div>
 
-          {scheduleHistoryQuery.isPending || scheduleHistoryDetailQuery.isPending ? (
+          {isScheduleHistoryLoading ? (
             <div className="px-6 py-16 text-center">
               <p className="text-sm font-medium text-foreground">
                 확정 스케줄을 불러오는 중입니다.
@@ -346,8 +369,7 @@ export function MvpScheduleHistoryPage() {
                             key={assignment.id}
                             className="truncate text-xs font-medium text-foreground"
                           >
-                            {formatDateTimeToTime(assignment.startsAt)}-
-                            {formatDateTimeToTime(assignment.endsAt)}{" "}
+                            {formatScheduleAssignmentTimeRange(assignment)}{" "}
                             {assignment.workerNameSnapshot}
                           </p>
                         ))}

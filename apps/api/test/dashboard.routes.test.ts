@@ -8,14 +8,22 @@ import { createFakePrisma, createTimeDate } from "./helpers/fake-prisma";
 const timestamp = new Date("2026-06-25T00:00:00.000Z");
 const dateOnly = (date: string) => new Date(`${date}T00:00:00.000Z`);
 
-const createOrganization = () => ({
-  id: BigInt(1),
-  userId: BigInt(1),
-  name: "프래그먼트 카페",
+const createOrganization = ({
+  id = BigInt(1),
+  name = "프래그먼트 카페",
+  userId = BigInt(1),
+}: {
+  id?: bigint;
+  name?: string;
+  userId?: bigint;
+} = {}) => ({
+  id,
+  userId,
+  name,
   businessHours: [
     {
       id: BigInt(1),
-      organizationId: BigInt(1),
+      organizationId: id,
       dayOfWeek: "MON" as const,
       isClosed: false,
       openTime: createTimeDate("09:00"),
@@ -28,14 +36,16 @@ const createOrganization = () => ({
 const createSchedule = ({
   confirmedAt,
   id,
+  organizationId = BigInt(1),
   status = "CONFIRMED",
 }: {
   confirmedAt: Date | null;
   id: bigint;
+  organizationId?: bigint;
   status?: "DRAFT" | "CONFIRMED";
 }) => ({
   id,
-  organizationId: BigInt(1),
+  organizationId,
   status,
   inputHash: `hash-${id.toString()}`,
   startDate: dateOnly("2026-07-01"),
@@ -83,7 +93,14 @@ describe("dashboard routes", () => {
 
   it("returns organization detail and the latest confirmed schedule", async () => {
     const { prisma } = createFakePrisma({
-      organizations: [createOrganization()],
+      organizations: [
+        createOrganization(),
+        createOrganization({
+          id: BigInt(2),
+          name: "다른 매장",
+          userId: BigInt(2),
+        }),
+      ],
       schedules: [
         createSchedule({
           id: BigInt(1),
@@ -101,6 +118,11 @@ describe("dashboard routes", () => {
           id: BigInt(4),
           confirmedAt: null,
           status: "DRAFT",
+        }),
+        createSchedule({
+          id: BigInt(5),
+          organizationId: BigInt(2),
+          confirmedAt: new Date("2026-06-30T00:00:00.000Z"),
         }),
       ],
     });
