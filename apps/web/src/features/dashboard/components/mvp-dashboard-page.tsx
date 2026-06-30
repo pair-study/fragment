@@ -1,27 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import type { OrganizationDetail } from "@fragment/shared";
+import { useMemo, useState } from "react";
+import type { OrganizationDetail, ScheduleAssignment } from "@fragment/shared";
 import { Button } from "@moyeorak/design-system";
 import { Building2, CalendarX, Clock, Download, Pencil } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
 import { Badge } from "@/components/ui/badge";
-import { useOrganizationQuery } from "@/features/organization/queries/organization-queries";
-import { ConfirmedScheduleCalendar } from "@/features/schedules/components/confirmed-schedule-calendar";
-
-type ConfirmedSchedule = {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  workerName: string;
-};
-
-const scheduleSummary = {
-  scheduleRange: "2026-06-20 ~ 2026-07-05",
-};
+import { useDashboardQuery } from "@/features/dashboard/queries/dashboard-queries";
+import { useExportScheduleHistoryCsvMutation } from "@/features/schedule-history/queries/schedule-history-queries";
+import {
+  ConfirmedScheduleCalendar,
+  type ConfirmedScheduleCalendarItem,
+} from "@/features/schedules/components/confirmed-schedule-calendar";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 
 const DAY_LABELS = {
   MON: "월",
@@ -32,57 +25,44 @@ const DAY_LABELS = {
   SAT: "토",
   SUN: "일",
 } as const;
-const CONFIRMED_START_DATE = "2026-06-20";
-const CONFIRMED_END_DATE = "2026-07-05";
-const CONFIRMED_WORKER_NAMES = [
-  "김민지",
-  "박준호",
-  "이서연",
-  "최유나",
-  "정도윤",
-  "한서준",
-  "오하린",
-  "강지우",
-  "윤태오",
-  "임서아",
-  "조민규",
-  "배수빈",
-  "문지훈",
-  "신예린",
-  "남현우",
-  "서다은",
-  "권도현",
-  "백지민",
-  "유시우",
-  "홍나연",
-];
-const CONFIRMED_TIME_RANGES = [
-  ["09:00", "13:00"],
-  ["10:00", "14:00"],
-  ["13:00", "17:00"],
-  ["14:00", "18:00"],
-  ["18:00", "22:00"],
-];
-const CONFIRMED_SCHEDULE_DATES = [
-  "2026-06-26",
-  "2026-06-27",
-  "2026-06-29",
-  "2026-07-01",
-  "2026-07-03",
-];
-const CONFIRMED_SCHEDULES: ConfirmedSchedule[] = CONFIRMED_WORKER_NAMES.map((workerName, index) => {
-  const [startTime, endTime] = CONFIRMED_TIME_RANGES[index % CONFIRMED_TIME_RANGES.length];
-  const date =
-    index < 17 ? "2026-06-26" : CONFIRMED_SCHEDULE_DATES[index % CONFIRMED_SCHEDULE_DATES.length];
 
+function formatScheduleRange(startDate: string, endDate: string) {
+  return `${startDate} ~ ${endDate}`;
+}
+
+function createCsvFileName(startDate: string, endDate: string) {
+  return `schedule-${startDate}-${endDate}.csv`;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function formatAssignmentTime(workDate: string, dateTime: string) {
+  const time = dateTime.slice(11, 16);
+
+  return dateTime.slice(0, 10) > workDate ? `${time}+1` : time;
+}
+
+function scheduleAssignmentToCalendarItem(
+  assignment: ScheduleAssignment,
+): ConfirmedScheduleCalendarItem {
   return {
-    id: `confirmed-${index + 1}`,
-    date,
-    startTime,
-    endTime,
-    workerName,
+    date: assignment.workDate,
+    endTime: formatAssignmentTime(assignment.workDate, assignment.endsAt),
+    id: assignment.id,
+    startTime: formatAssignmentTime(assignment.workDate, assignment.startsAt),
+    workerName: assignment.workerNameSnapshot,
   };
-});
+}
 
 function formatBusinessHourRange(businessHour: OrganizationDetail["businessHours"][number]) {
   if (!businessHour.openTime || !businessHour.closeTime) {
@@ -131,24 +111,52 @@ function getClosedDayLabels(organization: OrganizationDetail) {
 }
 
 export function MvpDashboardPage() {
-  const organizationQuery = useOrganizationQuery();
+  const dashboardQuery = useDashboardQuery();
+  const exportScheduleHistoryCsvMutation = useExportScheduleHistoryCsvMutation();
   const [exportMessage, setExportMessage] = useState("");
-  const organization = organizationQuery.data;
-  const organizationName = organizationQuery.isPending
+  const organization = dashboardQuery.data?.organization;
+  const latestConfirmedSchedule = dashboardQuery.data?.latestConfirmedSchedule ?? null;
+  const latestConfirmedSchedules = useMemo(
+    () => latestConfirmedSchedule?.assignments.map(scheduleAssignmentToCalendarItem) ?? [],
+    [latestConfirmedSchedule],
+  );
+  const organizationName = dashboardQuery.isPending
     ? "조직 정보를 불러오는 중입니다"
-    : organizationQuery.isError
+    : dashboardQuery.isError
       ? "조직 정보를 불러오지 못했습니다"
       : (organization?.name ?? "-");
-  const organizationStatus = organizationQuery.isPending
+  const organizationStatus = dashboardQuery.isPending
     ? "조회 중"
-    : organizationQuery.isError
+    : dashboardQuery.isError
       ? "확인 필요"
       : "운영 정보";
-  const fallbackLabel = organizationQuery.isPending ? "조회 중" : "-";
+  const fallbackLabel = dashboardQuery.isPending ? "조회 중" : "-";
   const operationHourGroups = organization
     ? getOperationHourGroups(organization)
     : [{ dayLabels: fallbackLabel, range: "-" }];
   const closedDayLabels = organization ? getClosedDayLabels(organization) : [fallbackLabel];
+  const canExportSchedule =
+    latestConfirmedSchedule !== null && !exportScheduleHistoryCsvMutation.isPending;
+
+  const handleExportSchedule = async () => {
+    if (!latestConfirmedSchedule) {
+      return;
+    }
+
+    setExportMessage("");
+
+    try {
+      const blob = await exportScheduleHistoryCsvMutation.mutateAsync(latestConfirmedSchedule.id);
+
+      downloadBlob(
+        blob,
+        createCsvFileName(latestConfirmedSchedule.startDate, latestConfirmedSchedule.endDate),
+      );
+      setExportMessage("CSV 파일을 다운로드했습니다.");
+    } catch (error) {
+      setExportMessage(getApiErrorMessage(error, "CSV 다운로드에 실패했습니다."));
+    }
+  };
 
   return (
     <AdminPageShell
@@ -168,7 +176,7 @@ export function MvpDashboardPage() {
                 <h2 className="min-w-0 truncate text-2xl font-semibold text-foreground">
                   {organizationName}
                 </h2>
-                <Badge variant={organizationQuery.isError ? "destructive" : "secondary"}>
+                <Badge variant={dashboardQuery.isError ? "destructive" : "secondary"}>
                   {organizationStatus}
                 </Badge>
               </div>
@@ -239,22 +247,68 @@ export function MvpDashboardPage() {
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-base font-semibold text-foreground">최근 확정 스케줄</h2>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">{scheduleSummary.scheduleRange}</p>
+            {dashboardQuery.isPending ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                확정 스케줄 정보를 불러오는 중입니다.
+              </p>
+            ) : dashboardQuery.isError ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                확정 스케줄 정보를 불러오지 못했습니다.
+              </p>
+            ) : latestConfirmedSchedule ? (
+              <>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {formatScheduleRange(
+                    latestConfirmedSchedule.startDate,
+                    latestConfirmedSchedule.endDate,
+                  )}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  총 {latestConfirmedSchedule.assignments.length}개 배정이 확정되었습니다.
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">아직 확정된 스케줄이 없습니다.</p>
+            )}
           </div>
           <Button
             type="button"
             variant="brand"
-            onClick={() => setExportMessage("확정 스케줄 CSV export가 준비되었습니다.")}
+            onClick={handleExportSchedule}
+            disabled={!canExportSchedule}
             leadingIcon={<Download className="size-4" aria-hidden="true" />}
           >
-            CSV export
+            {exportScheduleHistoryCsvMutation.isPending ? "내보내는 중" : "CSV export"}
           </Button>
         </div>
-        <ConfirmedScheduleCalendar
-          startDate={CONFIRMED_START_DATE}
-          endDate={CONFIRMED_END_DATE}
-          schedules={CONFIRMED_SCHEDULES}
-        />
+        {dashboardQuery.isPending ? (
+          <div className="px-6 py-16 text-center">
+            <p className="text-sm font-medium text-foreground">확정 스케줄을 불러오는 중입니다.</p>
+          </div>
+        ) : dashboardQuery.isError ? (
+          <div className="px-6 py-16 text-center">
+            <p className="text-sm font-medium text-foreground">
+              확정 스케줄 정보를 불러오지 못했습니다.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">잠시 후 다시 시도해 주세요.</p>
+          </div>
+        ) : latestConfirmedSchedule ? (
+          <ConfirmedScheduleCalendar
+            startDate={latestConfirmedSchedule.startDate}
+            endDate={latestConfirmedSchedule.endDate}
+            schedules={latestConfirmedSchedules}
+          />
+        ) : (
+          <div className="px-6 py-16 text-center">
+            <p className="text-sm font-medium text-foreground">확정된 스케줄이 없습니다.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              스케줄을 확정하면 이곳에서 확인할 수 있습니다.
+            </p>
+            <Button asChild variant="outline" className="mt-5">
+              <Link href="/schedules">스케줄로 이동</Link>
+            </Button>
+          </div>
+        )}
       </section>
     </AdminPageShell>
   );

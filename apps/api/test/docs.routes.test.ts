@@ -91,7 +91,16 @@ describe("docs routes", () => {
       url: "https://api.example.com/api",
       description: "Configured deployment",
     });
+    expect(response.body.paths["/dashboard"]).toBeDefined();
+    expect(response.body.paths["/schedule-history"]).toBeDefined();
+    expect(response.body.paths["/schedule-history/{scheduleId}"]).toBeDefined();
+    expect(response.body.paths["/schedule-history/{scheduleId}/export.csv"]).toBeDefined();
     expect(response.body.paths["/staffing-rules"]).toBeDefined();
+    expect(
+      response.body.paths["/schedule-history/{scheduleId}/export.csv"].get.responses["200"].content[
+        "text/csv; charset=utf-8"
+      ],
+    ).toBeDefined();
     expect(
       response.body.components.responses.MinimumStaffingRuleBadRequest.content["application/json"]
         .examples.closedDay.value.errorCode,

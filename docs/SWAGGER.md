@@ -54,6 +54,12 @@
   - `PATCH /schedules/{scheduleId}/assignments/{assignmentId}`
   - `DELETE /schedules/{scheduleId}/assignments/{assignmentId}`
   - `POST /schedules/{scheduleId}/confirm`
+- Schedule History endpoint
+  - `GET /schedule-history`
+  - `GET /schedule-history/{scheduleId}`
+  - `GET /schedule-history/{scheduleId}/export.csv`
+- Dashboard endpoint
+  - `GET /dashboard`
 
 ## 변경 기준
 
