@@ -435,14 +435,25 @@ export function MvpAvailabilityPage() {
     () => createDateRange(workStartDate, workEndDate),
     [workEndDate, workStartDate],
   );
-  const closedDates = dateRange.filter((date) => isClosedDate(businessHours, date));
-  const datesWithoutStaffingRules = dateRange.filter(
-    (date) =>
-      !isClosedDate(businessHours, date) &&
-      getSchedulableRanges(businessHours, staffingRules, date).length === 0,
+  const closedDates = useMemo(
+    () => dateRange.filter((date) => isClosedDate(businessHours, date)),
+    [businessHours, dateRange],
   );
-  const visibleTimetableDates = dateRange.filter(
-    (date) => getSchedulableRanges(businessHours, staffingRules, date).length > 0,
+  const datesWithoutStaffingRules = useMemo(
+    () =>
+      dateRange.filter(
+        (date) =>
+          !isClosedDate(businessHours, date) &&
+          getSchedulableRanges(businessHours, staffingRules, date).length === 0,
+      ),
+    [businessHours, dateRange, staffingRules],
+  );
+  const visibleTimetableDates = useMemo(
+    () =>
+      dateRange.filter(
+        (date) => getSchedulableRanges(businessHours, staffingRules, date).length > 0,
+      ),
+    [businessHours, dateRange, staffingRules],
   );
   const timetableRange = useMemo(
     () => getTimetableRange(businessHours, staffingRules, dateRange),
@@ -802,7 +813,7 @@ export function MvpAvailabilityPage() {
                   기간 선택
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-[420px]">
+              <DialogContent>
                 <DialogHeader>
                   <DialogTitle>근무 기간 선택</DialogTitle>
                   <DialogDescription>
@@ -1134,7 +1145,7 @@ export function MvpAvailabilityPage() {
                                 selected ? "해제" : "선택"
                               }`}
                               className={cn(
-                                "flex h-8 touch-none select-none items-center justify-center rounded-md border text-[10px] transition-colors",
+                                "flex h-8 touch-none select-none items-center justify-center rounded-md border transition-colors",
                                 disabledByState
                                   ? "cursor-not-allowed border-border/40 bg-surface-secondary/40 opacity-45"
                                   : selected
