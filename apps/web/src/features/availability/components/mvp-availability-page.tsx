@@ -9,7 +9,7 @@ import {
   ReplaceAvailabilityRequest,
   Worker,
 } from "@fragment/shared";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button } from "@moyeorak/design-system";
 import { CalendarDays, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -398,6 +398,13 @@ export function MvpAvailabilityPage() {
   const [savedAvailability, setSavedAvailability] = useState<AvailabilitySlot[]>([]);
   const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
   const [saveMessage, setSaveMessage] = useState("");
+  const dragSelectionRef = useRef<{
+    lastColumnIndex: number;
+    lastRowIndex: number;
+    shouldSelect: boolean;
+    visitedKeys: Set<string>;
+  } | null>(null);
+  const suppressNextCellClickRef = useRef(false);
   const availabilityQuery: AvailabilityQuery = useMemo(
     () => ({
       endDate: workEndDate,
@@ -488,6 +495,23 @@ export function MvpAvailabilityPage() {
     setSaveMessage("");
   }, [availabilityResult.data]);
 
+  useEffect(() => {
+    function stopDragSelection() {
+      dragSelectionRef.current = null;
+      window.setTimeout(() => {
+        suppressNextCellClickRef.current = false;
+      }, 0);
+    }
+
+    window.addEventListener("pointerup", stopDragSelection);
+    window.addEventListener("pointercancel", stopDragSelection);
+
+    return () => {
+      window.removeEventListener("pointerup", stopDragSelection);
+      window.removeEventListener("pointercancel", stopDragSelection);
+    };
+  }, []);
+
   const selectedDraftAvailability = draftAvailability.filter(
     (slot) =>
       slot.workerId === selectedWorkerId &&
@@ -516,33 +540,151 @@ export function MvpAvailabilityPage() {
     !availabilityResult.isFetching &&
     !queryErrorMessage;
 
-  function toggleSlot(date: string, startMinutes: number) {
+  function updateSlotSelections(
+    slots: { date: string; startMinutes: number }[],
+    shouldSelect: boolean,
+  ) {
     if (!selectedWorkerId || queryErrorMessage || availabilityResult.isFetching) {
       return;
     }
 
-    if (!isSlotSchedulable(businessHours, staffingRules, date, startMinutes)) {
+    const schedulableSlots = slots.filter((slot) =>
+      isSlotSchedulable(businessHours, staffingRules, slot.date, slot.startMinutes),
+    );
+
+    if (schedulableSlots.length === 0) {
       return;
     }
 
-    const key = getSlotKey(selectedWorkerId, date, startMinutes);
-    const selected = draftSlotKeys.has(key);
-
-    setDraftAvailability((currentAvailability) =>
-      selected
-        ? currentAvailability.filter(
-            (slot) => getSlotKey(slot.workerId, slot.date, slot.startMinutes) !== key,
-          )
-        : [
-            ...currentAvailability,
-            {
-              workerId: selectedWorkerId,
-              date,
-              startMinutes,
-            },
-          ],
+    const targetKeys = new Set(
+      schedulableSlots.map((slot) => getSlotKey(selectedWorkerId, slot.date, slot.startMinutes)),
     );
+
+    setDraftAvailability((currentAvailability) => {
+      const currentKeys = new Set(
+        currentAvailability.map((slot) => getSlotKey(slot.workerId, slot.date, slot.startMinutes)),
+      );
+
+      return shouldSelect
+        ? [
+            ...currentAvailability,
+            ...schedulableSlots
+              .filter(
+                (slot) =>
+                  !currentKeys.has(getSlotKey(selectedWorkerId, slot.date, slot.startMinutes)),
+              )
+              .map((slot) => ({
+                date: slot.date,
+                startMinutes: slot.startMinutes,
+                workerId: selectedWorkerId,
+              })),
+          ]
+        : currentAvailability.filter(
+            (slot) => !targetKeys.has(getSlotKey(slot.workerId, slot.date, slot.startMinutes)),
+          );
+    });
     setSaveMessage("");
+  }
+
+  function toggleSlot(date: string, startMinutes: number) {
+    const key = getSlotKey(selectedWorkerId, date, startMinutes);
+    updateSlotSelections([{ date, startMinutes }], !draftSlotKeys.has(key));
+  }
+
+  function applySlotDragRange(
+    fromRowIndex: number,
+    fromColumnIndex: number,
+    toRowIndex: number,
+    toColumnIndex: number,
+  ) {
+    const dragSelection = dragSelectionRef.current;
+
+    if (!dragSelection) {
+      return;
+    }
+
+    const rowStart = Math.min(fromRowIndex, toRowIndex);
+    const rowEnd = Math.max(fromRowIndex, toRowIndex);
+    const columnStart = Math.min(fromColumnIndex, toColumnIndex);
+    const columnEnd = Math.max(fromColumnIndex, toColumnIndex);
+    const slots: { date: string; startMinutes: number }[] = [];
+
+    for (let rowIndex = rowStart; rowIndex <= rowEnd; rowIndex += 1) {
+      const startMinutes = timeSlots[rowIndex];
+
+      if (startMinutes === undefined) {
+        continue;
+      }
+
+      for (let columnIndex = columnStart; columnIndex <= columnEnd; columnIndex += 1) {
+        const date = visibleTimetableDates[columnIndex];
+
+        if (!date) {
+          continue;
+        }
+
+        const key = getSlotKey(selectedWorkerId, date, startMinutes);
+
+        if (dragSelection.visitedKeys.has(key)) {
+          continue;
+        }
+
+        dragSelection.visitedKeys.add(key);
+        slots.push({ date, startMinutes });
+      }
+    }
+
+    updateSlotSelections(slots, dragSelection.shouldSelect);
+  }
+
+  function startSlotDrag(
+    date: string,
+    startMinutes: number,
+    rowIndex: number,
+    columnIndex: number,
+  ) {
+    const key = getSlotKey(selectedWorkerId, date, startMinutes);
+    const shouldSelect = !draftSlotKeys.has(key);
+
+    dragSelectionRef.current = {
+      lastColumnIndex: columnIndex,
+      lastRowIndex: rowIndex,
+      shouldSelect,
+      visitedKeys: new Set(),
+    };
+    suppressNextCellClickRef.current = true;
+    applySlotDragRange(rowIndex, columnIndex, rowIndex, columnIndex);
+  }
+
+  function moveSlotDrag(clientX: number, clientY: number) {
+    const dragSelection = dragSelectionRef.current;
+
+    if (!dragSelection) {
+      return;
+    }
+
+    const element = document.elementFromPoint(clientX, clientY);
+    const cell = element?.closest<HTMLElement>("[data-availability-cell='true']");
+
+    if (!cell) {
+      return;
+    }
+
+    const rowIndex = Number(cell.dataset.rowIndex);
+    const columnIndex = Number(cell.dataset.columnIndex);
+
+    if (!Number.isInteger(rowIndex) || !Number.isInteger(columnIndex)) {
+      return;
+    }
+
+    applySlotDragRange(
+      dragSelection.lastRowIndex,
+      dragSelection.lastColumnIndex,
+      rowIndex,
+      columnIndex,
+    );
+    dragSelection.lastRowIndex = rowIndex;
+    dragSelection.lastColumnIndex = columnIndex;
   }
 
   async function saveAvailability() {
@@ -939,6 +1081,7 @@ export function MvpAvailabilityPage() {
                   style={{
                     gridTemplateColumns: `${TIMETABLE_TIME_COLUMN_WIDTH}px repeat(${visibleTimetableDates.length}, ${TIMETABLE_DATE_COLUMN_WIDTH}px)`,
                   }}
+                  onPointerMove={(event) => moveSlotDrag(event.clientX, event.clientY)}
                 >
                   <div />
                   {visibleTimetableDates.map((date) => (
@@ -952,7 +1095,7 @@ export function MvpAvailabilityPage() {
                     </div>
                   ))}
 
-                  {timeSlots.map((startMinutes) => {
+                  {timeSlots.map((startMinutes, rowIndex) => {
                     const showHourLabel = startMinutes % 60 === 0;
                     const timeLabel = formatSlotTime(startMinutes);
 
@@ -961,7 +1104,7 @@ export function MvpAvailabilityPage() {
                         <div className="h-8 pr-2 text-right text-sm text-muted-foreground">
                           {showHourLabel ? timeLabel : ""}
                         </div>
-                        {visibleTimetableDates.map((date) => {
+                        {visibleTimetableDates.map((date, columnIndex) => {
                           const disabled = !isSlotSchedulable(
                             businessHours,
                             staffingRules,
@@ -982,20 +1125,38 @@ export function MvpAvailabilityPage() {
                             <button
                               key={`${date}-${startMinutes}`}
                               type="button"
+                              data-availability-cell="true"
+                              data-column-index={columnIndex}
+                              data-row-index={rowIndex}
                               disabled={disabledByState}
                               aria-pressed={selected}
                               aria-label={`${date} ${timeLabel} 가능 시간 ${
                                 selected ? "해제" : "선택"
                               }`}
                               className={cn(
-                                "flex h-8 items-center justify-center rounded-md border text-[10px] transition-colors",
+                                "flex h-8 touch-none select-none items-center justify-center rounded-md border text-[10px] transition-colors",
                                 disabledByState
                                   ? "cursor-not-allowed border-border/40 bg-surface-secondary/40 opacity-45"
                                   : selected
                                     ? "border-primary bg-primary text-primary-foreground"
                                     : "border-border bg-surface-secondary hover:border-primary hover:bg-accent",
                               )}
-                              onClick={() => toggleSlot(date, startMinutes)}
+                              onClick={() => {
+                                if (suppressNextCellClickRef.current) {
+                                  suppressNextCellClickRef.current = false;
+                                  return;
+                                }
+
+                                toggleSlot(date, startMinutes);
+                              }}
+                              onPointerDown={(event) => {
+                                if (event.pointerType === "mouse" && event.button !== 0) {
+                                  return;
+                                }
+
+                                event.preventDefault();
+                                startSlotDrag(date, startMinutes, rowIndex, columnIndex);
+                              }}
                             >
                               {selected ? <Check className="size-3" aria-hidden="true" /> : null}
                             </button>
