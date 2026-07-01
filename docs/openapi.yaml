@@ -777,7 +777,7 @@ paths:
         "403":
           $ref: "#/components/responses/OrganizationRequired"
         "404":
-          $ref: "#/components/responses/NotFound"
+          $ref: "#/components/responses/ScheduleNotFound"
 
   /schedule-history/{scheduleId}/export.csv:
     get:
@@ -808,7 +808,7 @@ paths:
         "403":
           $ref: "#/components/responses/OrganizationRequired"
         "404":
-          $ref: "#/components/responses/NotFound"
+          $ref: "#/components/responses/ScheduleNotFound"
 
   /dashboard:
     get:
@@ -934,6 +934,16 @@ components:
                 statusCode: 404
                 errorCode: SCHEDULE_NOT_FOUND
                 message: 스케줄을 찾을 수 없습니다.
+    ScheduleNotFound:
+      description: 스케줄을 찾을 수 없음
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            statusCode: 404
+            errorCode: SCHEDULE_NOT_FOUND
+            message: 스케줄을 찾을 수 없습니다.
     OrganizationRequired:
       description: 조직 생성 필요
       content:
@@ -1521,6 +1531,7 @@ components:
 
     CreateMinimumStaffingRuleRequest:
       type: object
+      additionalProperties: false
       required:
         - dayOfWeek
         - startTime
@@ -1548,6 +1559,7 @@ components:
 
     UpdateMinimumStaffingRuleRequest:
       type: object
+      additionalProperties: false
       minProperties: 1
       properties:
         dayOfWeek:

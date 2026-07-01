@@ -419,8 +419,13 @@ export function MvpAvailabilityPage() {
     staffingRulesQuery.isLoading ||
     workersQuery.isLoading;
   const hasValidDateRange = Boolean(workStartDate && workEndDate) && workStartDate <= workEndDate;
-  const hasSavedPlanningPeriod = Boolean(activePlanningPeriod && hasValidDateRange);
-  const canFetchAvailability = hasSavedPlanningPeriod && Boolean(selectedWorkerId);
+  const hasMatchingPlanningPeriod = Boolean(
+    activePlanningPeriod &&
+    hasValidDateRange &&
+    activePlanningPeriod.startDate === workStartDate &&
+    activePlanningPeriod.endDate === workEndDate,
+  );
+  const canFetchAvailability = hasMatchingPlanningPeriod && Boolean(selectedWorkerId);
   const availabilityResult = useAvailabilityQuery(availabilityQuery, canFetchAvailability);
   const queryError =
     organizationQuery.error ??
@@ -545,7 +550,7 @@ export function MvpAvailabilityPage() {
   const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
   const canSaveAvailability =
     hasUnsavedChanges &&
-    hasSavedPlanningPeriod &&
+    hasMatchingPlanningPeriod &&
     hasValidDateRange &&
     Boolean(selectedWorkerId) &&
     !availabilityResult.isFetching &&
@@ -941,7 +946,7 @@ export function MvpAvailabilityPage() {
         ) : null}
       </section>
 
-      {hasSavedPlanningPeriod ? (
+      {hasMatchingPlanningPeriod ? (
         <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-4">
             <div className="flex flex-col gap-4">

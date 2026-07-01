@@ -10,6 +10,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  getScheduleTimeRangeLabel,
+  getWorkerNamesPreview,
+  groupSchedulesByTime,
+} from "@/lib/schedule-display";
 
 export type ConfirmedScheduleCalendarItem = {
   id: string;
@@ -25,16 +30,8 @@ type ConfirmedScheduleCalendarProps = {
   startDate: string;
 };
 
-type ScheduleTimeGroup = {
-  endTime: string;
-  id: string;
-  startTime: string;
-  workerNames: string[];
-};
-
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const MAX_VISIBLE_GROUPS = 3;
-const MAX_VISIBLE_WORKER_NAMES = 2;
 
 function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
@@ -71,53 +68,6 @@ function formatDateTitle(date: string) {
   const [, month, day] = date.split("-");
 
   return `${Number(month)}월 ${Number(day)}일`;
-}
-
-function getTimeRangeLabel(group: ScheduleTimeGroup) {
-  return `${group.startTime}-${group.endTime}`;
-}
-
-function getWorkerNamesPreview(workerNames: string[]) {
-  const visibleWorkerNames = workerNames.slice(0, MAX_VISIBLE_WORKER_NAMES);
-  const hiddenWorkerCount = workerNames.length - visibleWorkerNames.length;
-  const visibleLabel = visibleWorkerNames.join(", ");
-
-  if (hiddenWorkerCount <= 0) {
-    return visibleLabel;
-  }
-
-  return `${visibleLabel} 외 ${hiddenWorkerCount}명`;
-}
-
-function groupSchedulesByTime(schedules: ConfirmedScheduleCalendarItem[]) {
-  const groupsByTime = new Map<string, ScheduleTimeGroup>();
-
-  schedules.forEach((schedule) => {
-    const key = `${schedule.startTime}-${schedule.endTime}`;
-    const group = groupsByTime.get(key);
-
-    if (group) {
-      group.workerNames.push(schedule.workerName);
-      return;
-    }
-
-    groupsByTime.set(key, {
-      endTime: schedule.endTime,
-      id: key,
-      startTime: schedule.startTime,
-      workerNames: [schedule.workerName],
-    });
-  });
-
-  return [...groupsByTime.values()].sort((left, right) => {
-    const startCompare = left.startTime.localeCompare(right.startTime);
-
-    if (startCompare !== 0) {
-      return startCompare;
-    }
-
-    return left.endTime.localeCompare(right.endTime);
-  });
 }
 
 export function ConfirmedScheduleCalendar({
@@ -195,7 +145,7 @@ export function ConfirmedScheduleCalendar({
                       className="block w-full rounded-md bg-surface-secondary px-2 py-1.5 text-left"
                     >
                       <span className="block truncate text-xs font-semibold text-foreground">
-                        {getTimeRangeLabel(group)}
+                        {getScheduleTimeRangeLabel(group)}
                       </span>
                       <span className="mt-0.5 block truncate text-xs leading-4 text-muted-foreground">
                         {getWorkerNamesPreview(group.workerNames)}
@@ -232,7 +182,7 @@ export function ConfirmedScheduleCalendar({
               <div key={group.id} className="rounded-lg border border-border p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-foreground">
-                    {getTimeRangeLabel(group)}
+                    {getScheduleTimeRangeLabel(group)}
                   </p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">

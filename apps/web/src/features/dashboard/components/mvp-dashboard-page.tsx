@@ -15,6 +15,7 @@ import {
   type ConfirmedScheduleCalendarItem,
 } from "@/features/schedules/components/confirmed-schedule-calendar";
 import { getApiErrorMessage } from "@/lib/api-error-message";
+import { formatScheduleAssignmentTime } from "@/lib/schedule-display";
 
 const DAY_LABELS = {
   MON: "월",
@@ -46,20 +47,14 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-function formatAssignmentTime(workDate: string, dateTime: string) {
-  const time = dateTime.slice(11, 16);
-
-  return dateTime.slice(0, 10) > workDate ? `${time}+1` : time;
-}
-
 function scheduleAssignmentToCalendarItem(
   assignment: ScheduleAssignment,
 ): ConfirmedScheduleCalendarItem {
   return {
     date: assignment.workDate,
-    endTime: formatAssignmentTime(assignment.workDate, assignment.endsAt),
+    endTime: formatScheduleAssignmentTime(assignment.workDate, assignment.endsAt),
     id: assignment.id,
-    startTime: formatAssignmentTime(assignment.workDate, assignment.startsAt),
+    startTime: formatScheduleAssignmentTime(assignment.workDate, assignment.startsAt),
     workerName: assignment.workerNameSnapshot,
   };
 }

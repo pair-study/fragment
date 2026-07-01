@@ -43,9 +43,22 @@ import {
   useRecommendScheduleMutation,
   useUpdateScheduleAssignmentMutation,
 } from "@/features/schedules/queries/schedules-queries";
+import {
+  getShortageCount,
+  getUnfilledConditionPreview,
+  groupUnfilledConditionsByDate,
+  type UnfilledCondition,
+} from "@/features/schedules/utils/unfilled-conditions";
 import { useMinimumStaffingRulesQuery } from "@/features/staffing-rules/queries/staffing-rules-queries";
 import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
 import { getApiErrorMessage } from "@/lib/api-error-message";
+import {
+  getScheduleDateTimeParts,
+  getScheduleTimeRangeLabel,
+  getWorkerNamesPreview,
+  groupSchedulesByTime,
+  type ScheduleTimeGroup,
+} from "@/lib/schedule-display";
 
 type ScheduleStatus = ScheduleDetail["status"];
 
@@ -69,13 +82,6 @@ type ScheduleCandidateItem = {
   workerName: string;
 };
 
-type ScheduleTimeGroup = {
-  endTime: string;
-  id: string;
-  items: ScheduleItem[];
-  startTime: string;
-};
-
 type ScheduleDraft = {
   date: string;
   endTime: string;
@@ -84,21 +90,6 @@ type ScheduleDraft = {
 };
 
 type ScheduleFormMode = "create" | "edit";
-
-type UnfilledCondition = {
-  id: string;
-  assignedWorkers: number;
-  date: string;
-  dayLabel: string;
-  requiredWorkers: number;
-  timeRange: string;
-};
-
-type UnfilledConditionGroup = {
-  conditions: UnfilledCondition[];
-  date: string;
-  dayLabel: string;
-};
 
 type WorkerOption = {
   id: string;
@@ -114,8 +105,6 @@ const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const EMPTY_WORKERS: Worker[] = [];
 const DEFAULT_VISIBLE_UNFILLED_GROUPS = 5;
 const DEFAULT_VISIBLE_SCHEDULE_GROUPS = 3;
-const MAX_VISIBLE_WORKER_NAMES = 2;
-const MAX_PREVIEW_UNFILLED_CONDITIONS = 3;
 
 const EMPTY_DRAFT: ScheduleDraft = {
   date: "",
@@ -205,15 +194,8 @@ function createTimeOptions() {
 
 const SCHEDULE_TIME_OPTIONS = createTimeOptions();
 
-function dateTimeToMinutes(date: string, dateTime: string) {
-  const baseDate = new Date(`${date}T00:00:00.000Z`);
-  const targetDate = new Date(dateTime);
-
-  return Math.round((targetDate.getTime() - baseDate.getTime()) / 60000);
-}
-
 function dateTimeToTime(date: string, dateTime: string) {
-  return minutesToTime(dateTimeToMinutes(date, dateTime));
+  return getScheduleDateTimeParts(date, dateTime).time;
 }
 
 function createDateTime(date: string, time: string, addDay = false) {
@@ -367,53 +349,6 @@ function candidateToScheduleCandidateItem(candidate: ScheduleCandidate): Schedul
   };
 }
 
-function getTimeRangeLabel(group: Pick<ScheduleTimeGroup, "endTime" | "startTime">) {
-  return `${group.startTime}-${group.endTime}`;
-}
-
-function getWorkerNamesPreview(workerNames: string[]) {
-  const visibleWorkerNames = workerNames.slice(0, MAX_VISIBLE_WORKER_NAMES);
-  const hiddenWorkerCount = workerNames.length - visibleWorkerNames.length;
-  const visibleLabel = visibleWorkerNames.join(", ");
-
-  if (hiddenWorkerCount <= 0) {
-    return visibleLabel;
-  }
-
-  return `${visibleLabel} 외 ${hiddenWorkerCount}명`;
-}
-
-function groupSchedulesByTime(schedules: ScheduleItem[]): ScheduleTimeGroup[] {
-  const groupsByTime = new Map<string, ScheduleTimeGroup>();
-
-  schedules.forEach((schedule) => {
-    const key = `${schedule.startTime}-${schedule.endTime}`;
-    const group = groupsByTime.get(key);
-
-    if (group) {
-      group.items.push(schedule);
-      return;
-    }
-
-    groupsByTime.set(key, {
-      endTime: schedule.endTime,
-      id: key,
-      items: [schedule],
-      startTime: schedule.startTime,
-    });
-  });
-
-  return [...groupsByTime.values()].sort((left, right) => {
-    const startCompare = left.startTime.localeCompare(right.startTime);
-
-    if (startCompare !== 0) {
-      return startCompare;
-    }
-
-    return left.endTime.localeCompare(right.endTime);
-  });
-}
-
 function shortageToUnfilledCondition(shortage: ScheduleWorkerShortage): UnfilledCondition {
   return {
     assignedWorkers: shortage.assignedCount,
@@ -423,54 +358,6 @@ function shortageToUnfilledCondition(shortage: ScheduleWorkerShortage): Unfilled
     requiredWorkers: shortage.requiredCount,
     timeRange: formatShortageTimeRange(shortage),
   };
-}
-
-function groupUnfilledConditionsByDate(conditions: UnfilledCondition[]): UnfilledConditionGroup[] {
-  const groupsByDate = new Map<string, UnfilledConditionGroup>();
-
-  conditions.forEach((condition) => {
-    const group = groupsByDate.get(condition.date);
-
-    if (group) {
-      group.conditions.push(condition);
-      return;
-    }
-
-    groupsByDate.set(condition.date, {
-      conditions: [condition],
-      date: condition.date,
-      dayLabel: condition.dayLabel,
-    });
-  });
-
-  return [...groupsByDate.values()]
-    .map((group) => ({
-      ...group,
-      conditions: [...group.conditions].sort((left, right) =>
-        left.timeRange.localeCompare(right.timeRange),
-      ),
-    }))
-    .sort((left, right) => left.date.localeCompare(right.date));
-}
-
-function getShortageCount(condition: UnfilledCondition) {
-  return Math.max(condition.requiredWorkers - condition.assignedWorkers, 0);
-}
-
-function getUnfilledConditionLabel(condition: UnfilledCondition) {
-  return `${condition.timeRange} ${getShortageCount(condition)}명 부족`;
-}
-
-function getUnfilledConditionPreview(conditions: UnfilledCondition[]) {
-  const visibleConditions = conditions.slice(0, MAX_PREVIEW_UNFILLED_CONDITIONS);
-  const hiddenConditionCount = conditions.length - visibleConditions.length;
-  const visibleLabel = visibleConditions.map(getUnfilledConditionLabel).join(" · ");
-
-  if (hiddenConditionCount <= 0) {
-    return visibleLabel;
-  }
-
-  return `${visibleLabel} · +${hiddenConditionCount}개`;
 }
 
 function createWorkerOptions(workers: Worker[], editingSchedule: ScheduleItem | null) {
@@ -521,6 +408,25 @@ export function MvpSchedulesPage() {
     () => schedule?.assignments.map(assignmentToScheduleItem) ?? [],
     [schedule],
   );
+  const schedulesByDate = useMemo(() => {
+    const nextSchedulesByDate = new Map<string, ScheduleItem[]>();
+
+    schedules.forEach((item) => {
+      const dateSchedules = nextSchedulesByDate.get(item.date) ?? [];
+      nextSchedulesByDate.set(item.date, [...dateSchedules, item]);
+    });
+
+    return nextSchedulesByDate;
+  }, [schedules]);
+  const scheduleGroupsByDate = useMemo(() => {
+    const nextScheduleGroupsByDate = new Map<string, ScheduleTimeGroup<ScheduleItem>[]>();
+
+    schedulesByDate.forEach((dateSchedules, date) => {
+      nextScheduleGroupsByDate.set(date, groupSchedulesByTime(dateSchedules));
+    });
+
+    return nextScheduleGroupsByDate;
+  }, [schedulesByDate]);
   const candidates = useMemo(
     () => schedule?.candidates.map(candidateToScheduleCandidateItem) ?? [],
     [schedule],
@@ -608,7 +514,7 @@ export function MvpSchedulesPage() {
     !confirmScheduleMutation.isPending &&
     !queryErrorMessage;
   const formTitle = formMode === "create" ? "스케줄 추가" : "스케줄 수정";
-  const selectedDateSchedules = schedules.filter((item) => item.date === selectedDate);
+  const selectedDateSchedules = schedulesByDate.get(selectedDate) ?? [];
   const selectedDateCandidates = candidates.filter(
     (item) => item.date === selectedDate && !item.isRecommended,
   );
@@ -1031,8 +937,7 @@ export function MvpSchedulesPage() {
 
                 {calendarDates.map((date) => {
                   const inWorkRange = date >= workStartDate && date <= workEndDate;
-                  const dateSchedules = schedules.filter((item) => item.date === date);
-                  const dateScheduleGroups = groupSchedulesByTime(dateSchedules);
+                  const dateScheduleGroups = scheduleGroupsByDate.get(date) ?? [];
                   const visibleScheduleGroups = dateScheduleGroups.slice(
                     0,
                     DEFAULT_VISIBLE_SCHEDULE_GROUPS,
@@ -1088,10 +993,10 @@ export function MvpSchedulesPage() {
                             className="block w-full rounded-md bg-surface-secondary px-2 py-1.5 text-left"
                           >
                             <span className="block truncate text-xs font-semibold text-foreground">
-                              {getTimeRangeLabel(group)}
+                              {getScheduleTimeRangeLabel(group)}
                             </span>
                             <span className="mt-0.5 block truncate text-xs leading-4 text-muted-foreground">
-                              {getWorkerNamesPreview(group.items.map((item) => item.workerName))}
+                              {getWorkerNamesPreview(group.workerNames)}
                             </span>
                           </div>
                         ))}

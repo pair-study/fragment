@@ -135,6 +135,23 @@ describe("schedule history routes", () => {
     });
   });
 
+  it("rejects month without year", async () => {
+    const { prisma } = createFakePrisma({
+      organizations: [createOrganization()],
+    });
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .get("/api/schedule-history?month=7")
+      .set("Authorization", authHeader());
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+      statusCode: 400,
+    });
+  });
+
   it("rejects invalid history detail id", async () => {
     const { prisma } = createFakePrisma({
       organizations: [createOrganization()],
@@ -403,7 +420,7 @@ describe("schedule history routes", () => {
       .set("Authorization", authHeader());
 
     expect(response.status).toBe(200);
-    expect(response.headers["content-type"]).toContain("text/csv");
+    expect(response.headers["content-type"]).toBe("text/csv; charset=utf-8");
     expect(response.text).toBe(
       `\uFEFF${[
         "날짜,요일,07:00-09:00,10:00-14:00,15:00-18:00",

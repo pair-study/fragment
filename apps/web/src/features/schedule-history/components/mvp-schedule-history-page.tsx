@@ -23,8 +23,10 @@ import {
   type ConfirmedScheduleCalendarItem,
 } from "@/features/schedules/components/confirmed-schedule-calendar";
 import { getApiErrorMessage } from "@/lib/api-error-message";
+import { formatScheduleAssignmentTime } from "@/lib/schedule-display";
 
 const INITIAL_HISTORY_YEAR = new Date().getFullYear();
+const ALL_MONTH_VALUE = "all";
 
 function formatScheduleRange(startDate: string, endDate: string) {
   return `${startDate} ~ ${endDate}`;
@@ -50,20 +52,14 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-function formatAssignmentTime(workDate: string, dateTime: string) {
-  const time = dateTime.slice(11, 16);
-
-  return dateTime.slice(0, 10) > workDate ? `${time}+1` : time;
-}
-
 function scheduleAssignmentToCalendarItem(
   assignment: ScheduleAssignment,
 ): ConfirmedScheduleCalendarItem {
   return {
     date: assignment.workDate,
-    endTime: formatAssignmentTime(assignment.workDate, assignment.endsAt),
+    endTime: formatScheduleAssignmentTime(assignment.workDate, assignment.endsAt),
     id: assignment.id,
-    startTime: formatAssignmentTime(assignment.workDate, assignment.startsAt),
+    startTime: formatScheduleAssignmentTime(assignment.workDate, assignment.startsAt),
     workerName: assignment.workerNameSnapshot,
   };
 }
@@ -130,9 +126,8 @@ export function MvpScheduleHistoryPage() {
     isHistoryInYear(history, effectiveSelectedYear),
   );
   const availableMonths = getHistoryMonthOptions(selectedYearItems, effectiveSelectedYear);
-  const effectiveSelectedMonth = availableMonths.includes(selectedMonth)
-    ? selectedMonth
-    : (availableMonths[0] ?? "");
+  const effectiveSelectedMonth =
+    selectedMonth === "" ? "" : availableMonths.includes(selectedMonth) ? selectedMonth : "";
   const historyItems =
     effectiveSelectedMonth === ""
       ? selectedYearItems
@@ -236,9 +231,9 @@ export function MvpScheduleHistoryPage() {
                 </Select>
 
                 <Select
-                  value={effectiveSelectedMonth}
+                  value={effectiveSelectedMonth === "" ? ALL_MONTH_VALUE : effectiveSelectedMonth}
                   onValueChange={(value) => {
-                    setSelectedMonth(value);
+                    setSelectedMonth(value === ALL_MONTH_VALUE ? "" : value);
                     setSelectedHistoryId("");
                     setExportMessage("");
                   }}
@@ -247,6 +242,7 @@ export function MvpScheduleHistoryPage() {
                     <SelectValue placeholder="월 선택" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={ALL_MONTH_VALUE}>전체 월</SelectItem>
                     {availableMonths.map((month) => (
                       <SelectItem key={month} value={String(month)}>
                         {month}월
