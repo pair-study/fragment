@@ -5,7 +5,7 @@ import {
   getUnfilledConditionPreview,
   groupUnfilledConditionsByDate,
   type UnfilledCondition,
-} from "../utils/unfilled-conditions";
+} from "./unfilled-conditions";
 
 const createCondition = (overrides: Partial<UnfilledCondition> = {}): UnfilledCondition => ({
   assignedWorkers: 0,

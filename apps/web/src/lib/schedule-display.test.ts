@@ -49,6 +49,20 @@ describe("schedule display helpers", () => {
     expect(groups[1]?.workerNames).toEqual(["김민수", "박준호"]);
   });
 
+  it("uses display times for schedule group labels when present", () => {
+    const [group] = groupSchedulesByTime([
+      {
+        displayEndTime: "익일 02:00",
+        displayStartTime: "22:00",
+        endTime: "02:00",
+        startTime: "22:00",
+        workerName: "김민수",
+      },
+    ]);
+
+    expect(group ? getScheduleTimeRangeLabel(group) : "").toBe("22:00-익일 02:00");
+  });
+
   it("truncates worker name previews with hidden counts", () => {
     expect(getWorkerNamesPreview(["김민수", "이서연", "박준호"])).toBe("김민수, 이서연 외 1명");
   });

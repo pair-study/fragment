@@ -4,12 +4,16 @@ const MINUTES_IN_DAY = 24 * 60;
 const DEFAULT_MAX_VISIBLE_WORKER_NAMES = 2;
 
 export type ScheduleTimeGroupingItem = {
+  displayEndTime?: string;
+  displayStartTime?: string;
   endTime: string;
   startTime: string;
   workerName: string;
 };
 
 export type ScheduleTimeGroup<TItem extends ScheduleTimeGroupingItem> = {
+  displayEndTime: string;
+  displayStartTime: string;
   endTime: string;
   id: string;
   items: TItem[];
@@ -48,7 +52,7 @@ export function formatScheduleAssignmentTime(workDate: string, dateTime: string)
   return dayOffset > 0 ? `${time}+${dayOffset}` : time;
 }
 
-function formatScheduleAssignmentTimeWithDayPrefix(workDate: string, dateTime: string) {
+export function formatScheduleAssignmentTimeWithDayPrefix(workDate: string, dateTime: string) {
   const { dayOffset, time } = getScheduleDateTimeParts(workDate, dateTime);
 
   return dayOffset > 0 ? `익일 ${time}` : time;
@@ -65,9 +69,10 @@ export function formatScheduleAssignmentTimeRange(assignment: ScheduleAssignment
 }
 
 export function getScheduleTimeRangeLabel(
-  group: Pick<ScheduleTimeGroupingItem, "endTime" | "startTime">,
+  group: Pick<ScheduleTimeGroupingItem, "endTime" | "startTime"> &
+    Partial<Pick<ScheduleTimeGroupingItem, "displayEndTime" | "displayStartTime">>,
 ) {
-  return `${group.startTime}-${group.endTime}`;
+  return `${group.displayStartTime ?? group.startTime}-${group.displayEndTime ?? group.endTime}`;
 }
 
 export function getWorkerNamesPreview(
@@ -91,7 +96,9 @@ export function groupSchedulesByTime<TItem extends ScheduleTimeGroupingItem>(
   const groupsByTime = new Map<string, ScheduleTimeGroup<TItem>>();
 
   schedules.forEach((schedule) => {
-    const key = getScheduleTimeRangeLabel(schedule);
+    const key = `${schedule.startTime}-${schedule.endTime}-${schedule.displayStartTime ?? ""}-${
+      schedule.displayEndTime ?? ""
+    }`;
     const group = groupsByTime.get(key);
 
     if (group) {
@@ -101,6 +108,8 @@ export function groupSchedulesByTime<TItem extends ScheduleTimeGroupingItem>(
     }
 
     groupsByTime.set(key, {
+      displayEndTime: schedule.displayEndTime ?? schedule.endTime,
+      displayStartTime: schedule.displayStartTime ?? schedule.startTime,
       endTime: schedule.endTime,
       id: key,
       items: [schedule],

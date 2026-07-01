@@ -53,6 +53,7 @@ import { useMinimumStaffingRulesQuery } from "@/features/staffing-rules/queries/
 import { useWorkersQuery } from "@/features/workers/queries/workers-queries";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import {
+  formatScheduleAssignmentTimeWithDayPrefix,
   getScheduleDateTimeParts,
   getScheduleTimeRangeLabel,
   getWorkerNamesPreview,
@@ -66,6 +67,8 @@ type ScheduleItem = {
   id: string;
   date: string;
   dayLabel: string;
+  displayEndTime: string;
+  displayStartTime: string;
   endTime: string;
   startTime: string;
   workerId: string | null;
@@ -75,6 +78,8 @@ type ScheduleItem = {
 type ScheduleCandidateItem = {
   id: string;
   date: string;
+  displayEndTime: string;
+  displayStartTime: string;
   endTime: string;
   isRecommended: boolean;
   startTime: string;
@@ -196,6 +201,10 @@ const SCHEDULE_TIME_OPTIONS = createTimeOptions();
 
 function dateTimeToTime(date: string, dateTime: string) {
   return getScheduleDateTimeParts(date, dateTime).time;
+}
+
+function dateTimeToDisplayTime(date: string, dateTime: string) {
+  return formatScheduleAssignmentTimeWithDayPrefix(date, dateTime);
 }
 
 function createDateTime(date: string, time: string, addDay = false) {
@@ -329,6 +338,8 @@ function assignmentToScheduleItem(assignment: ScheduleAssignment): ScheduleItem 
   return {
     date: assignment.workDate,
     dayLabel: getDayLabel(assignment.workDate),
+    displayEndTime: dateTimeToDisplayTime(assignment.workDate, assignment.endsAt),
+    displayStartTime: dateTimeToDisplayTime(assignment.workDate, assignment.startsAt),
     endTime: dateTimeToTime(assignment.workDate, assignment.endsAt),
     id: assignment.id,
     startTime: dateTimeToTime(assignment.workDate, assignment.startsAt),
@@ -340,6 +351,8 @@ function assignmentToScheduleItem(assignment: ScheduleAssignment): ScheduleItem 
 function candidateToScheduleCandidateItem(candidate: ScheduleCandidate): ScheduleCandidateItem {
   return {
     date: candidate.workDate,
+    displayEndTime: dateTimeToDisplayTime(candidate.workDate, candidate.endsAt),
+    displayStartTime: dateTimeToDisplayTime(candidate.workDate, candidate.startsAt),
     endTime: dateTimeToTime(candidate.workDate, candidate.endsAt),
     id: candidate.id,
     isRecommended: candidate.isRecommended,
@@ -1110,7 +1123,7 @@ export function MvpSchedulesPage() {
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">
-                        {candidate.startTime}-{candidate.endTime}
+                        {candidate.displayStartTime}-{candidate.displayEndTime}
                       </p>
                       <p className="mt-0.5 truncate text-sm text-muted-foreground">
                         {candidate.workerName}
@@ -1279,7 +1292,7 @@ export function MvpSchedulesPage() {
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground">
-                          {item.startTime}-{item.endTime}
+                          {item.displayStartTime}-{item.displayEndTime}
                         </p>
                         <p className="mt-0.5 truncate text-sm text-muted-foreground">
                           {item.workerName}

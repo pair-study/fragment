@@ -405,6 +405,7 @@ export function MvpAvailabilityPage() {
     visitedKeys: Set<string>;
   } | null>(null);
   const suppressNextCellClickRef = useRef(false);
+  const hasUnsavedChangesRef = useRef(false);
   const availabilityQuery: AvailabilityQuery = useMemo(
     () => ({
       endDate: workEndDate,
@@ -484,10 +485,19 @@ export function MvpAvailabilityPage() {
       return;
     }
 
+    if (
+      hasUnsavedChangesRef.current &&
+      (activePlanningPeriod.startDate !== workStartDate ||
+        activePlanningPeriod.endDate !== workEndDate)
+    ) {
+      setSaveMessage("가능 시간을 저장하거나 변경 취소한 뒤 근무 기간 변경을 반영해 주세요.");
+      return;
+    }
+
     setWorkStartDate(activePlanningPeriod.startDate);
     setWorkEndDate(activePlanningPeriod.endDate);
     setCalendarMonthDate(getMonthStartDate(activePlanningPeriod.startDate));
-  }, [activePlanningPeriod, planningPeriodQuery.data]);
+  }, [activePlanningPeriod, planningPeriodQuery.data, workEndDate, workStartDate]);
 
   useEffect(() => {
     if (workers.length === 0) {
@@ -496,6 +506,11 @@ export function MvpAvailabilityPage() {
     }
 
     if (!workers.some((worker) => worker.id === selectedWorkerId)) {
+      if (hasUnsavedChangesRef.current && selectedWorkerId) {
+        setSaveMessage("가능 시간을 저장하거나 변경 취소한 뒤 근무자 변경을 반영해 주세요.");
+        return;
+      }
+
       setSelectedWorkerId(workers[0].id);
       setSelectedAvailabilityDate("");
       setSaveMessage("");
@@ -504,6 +519,13 @@ export function MvpAvailabilityPage() {
 
   useEffect(() => {
     const slots = availabilityToSlots(availabilityResult.data?.items ?? []);
+
+    if (hasUnsavedChangesRef.current) {
+      setSaveMessage(
+        "가능 시간을 저장하거나 변경 취소한 뒤 새 가능 시간 데이터를 불러올 수 있습니다.",
+      );
+      return;
+    }
 
     setSavedAvailability(slots);
     setDraftAvailability(slots);
@@ -555,6 +577,10 @@ export function MvpAvailabilityPage() {
     Boolean(selectedWorkerId) &&
     !availabilityResult.isFetching &&
     !queryErrorMessage;
+
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
 
   function updateSlotSelections(
     slots: { date: string; startMinutes: number }[],
@@ -754,6 +780,12 @@ export function MvpAvailabilityPage() {
 
   function selectWorkDate(date: string) {
     if (isPageLoading) {
+      return;
+    }
+
+    if (hasUnsavedChanges) {
+      setSaveMessage("가능 시간을 저장하거나 변경 취소한 뒤 근무 기간을 변경해 주세요.");
+      setWorkPeriodDialogOpen(false);
       return;
     }
 
@@ -1009,6 +1041,17 @@ export function MvpAvailabilityPage() {
                               : "border-border bg-surface-secondary text-foreground hover:border-primary hover:bg-accent",
                           )}
                           onClick={() => {
+                            if (worker.id === selectedWorkerId) {
+                              return;
+                            }
+
+                            if (hasUnsavedChanges) {
+                              setSaveMessage(
+                                "가능 시간을 저장하거나 변경 취소한 뒤 다른 근무자를 선택해 주세요.",
+                              );
+                              return;
+                            }
+
                             setSelectedWorkerId(worker.id);
                             setSelectedAvailabilityDate("");
                             setSaveMessage("");
