@@ -5,7 +5,7 @@
 조직의 영업시간, 근무자별 가능 시간, 주간 계약 시간, 시간대별 최소 필요 인원을 모아 스케줄 초안을 만듭니다. 운영자는 추천 결과와 부족한 인원을 확인하고, 배정을 수정한 뒤 최종 근무표를 확정하고 CSV로 내보낼 수 있습니다.
 
 - 저장소: [pair-study/fragment](https://github.com/pair-study/fragment)
-- 서비스 주소: 웹 [fragment.io.kr](https://fragment.io.kr), API `https://api.fragment.io.kr/api` — 2026-11-17에 두 주소가 응답하고 `main` 코드가 배포되어 있음을 확인했습니다.
+- 서비스 주소: 웹 [fragment.io.kr](https://fragment.io.kr), API `https://api.fragment.io.kr/api`
 - 문서 기준: **2026-11-17**, `develop`의 `4d75704` 소스와 설정. 아래 구현 범위는 코드 확인과 로컬 실행으로 확인한 결과이며 운영 환경의 동작 검증 결과를 뜻하지 않습니다.
 
 ## 현재 구현 범위
@@ -241,7 +241,7 @@ GitHub Actions는 `main`, `develop` 대상 PR에서 위 범위의 포맷, 타입
 API 서비스와 PostgreSQL은 같은 Railway 프로젝트에 있습니다. API 서비스 명령은 다음과 같습니다.
 
 - 빌드: `corepack pnpm --filter @fragment/database db:generate && corepack pnpm --filter "@fragment/api..." build`
-- 배포 전: `prisma migrate deploy`
+- 배포 전: `corepack pnpm --filter @fragment/database exec prisma migrate deploy`
 - 시작: `corepack pnpm --filter @fragment/api start`
 
 Railway는 Free 플랜이라 다음 제약이 있습니다.
@@ -249,6 +249,8 @@ Railway는 Free 플랜이라 다음 제약이 있습니다.
 - `main`에 머지해도 자동 배포되지 않습니다. 머지한 뒤 Railway에서 직접 다시 배포해야 합니다.
 - 새 커스텀 도메인을 추가할 수 없습니다. 기존 `api.fragment.io.kr`은 유지됩니다.
 - 자동 백업이 없고, 월 $1 크레딧을 넘기면 서비스가 멈출 수 있습니다.
+
+헬스체크 엔드포인트가 아직 없으므로 수동 배포 뒤에는 `curl https://api.fragment.io.kr/api/auth/me`로 확인합니다. `401` JSON(`UNAUTHORIZED`)이 오면 API와 라우팅이 정상이고, 서비스가 꺼져 있으면 Railway의 `Application not found` 404가 옵니다.
 
 ## 개발을 다시 시작할 때
 
