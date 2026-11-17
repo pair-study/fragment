@@ -6,7 +6,7 @@
 
 - 저장소: [pair-study/fragment](https://github.com/pair-study/fragment)
 - 서비스 주소: [fragment.io.kr](https://fragment.io.kr) — 저장소에 등록된 주소이며, 현재 배포 상태는 별도 확인이 필요합니다.
-- 문서 기준: **2026-10-23**, `develop`의 `99d30a3` 소스와 설정. 아래 구현 범위는 코드 확인 결과이며 운영 환경의 동작 검증 결과를 뜻하지 않습니다.
+- 문서 기준: **2026-11-17**, `develop`의 `4d75704` 소스와 설정. 아래 구현 범위는 코드 확인과 로컬 실행으로 확인한 결과이며 운영 환경의 동작 검증 결과를 뜻하지 않습니다.
 
 ## 현재 구현 범위
 
@@ -114,7 +114,6 @@ flowchart LR
 - Node.js **22.x** (`.nvmrc` 기준)
 - pnpm **10.34.1** (`package.json` 기준)
 - 실행 중인 PostgreSQL과 개발용 데이터베이스
-- 비공개 저장소에 접근할 수 있는 GitHub 계정
 
 아래 명령은 저장소 루트에서 실행합니다. `.npmrc`의 `engine-strict=true` 때문에 다른 Node.js 메이저 버전에서는 의존성 설치가 거절될 수 있습니다.
 
