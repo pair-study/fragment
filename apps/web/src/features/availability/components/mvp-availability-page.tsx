@@ -14,6 +14,7 @@ import { Badge, Button } from "@moyeorak/design-system";
 import { CalendarDays, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import { usePlanningPeriodSelection } from "@/features/availability/hooks/use-planning-period-selection";
 import {
   useAvailabilityQuery,
   useReplaceAvailabilityMutation,
@@ -393,11 +394,23 @@ export function MvpAvailabilityPage() {
   const [calendarMonthDate, setCalendarMonthDate] = useState(() =>
     getMonthStartDate(getTodayDate()),
   );
-  const [workStartDate, setWorkStartDate] = useState("");
-  const [workEndDate, setWorkEndDate] = useState("");
   const [savedAvailability, setSavedAvailability] = useState<AvailabilitySlot[]>([]);
   const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
   const [saveMessage, setSaveMessage] = useState("");
+  const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
+  const { resetToAppliedPeriod, setWorkEndDate, setWorkStartDate, workEndDate, workStartDate } =
+    usePlanningPeriodSelection({
+      activePlanningPeriod: planningPeriodQuery.data ? activePlanningPeriod : undefined,
+      hasUnsavedChanges,
+      onApplyBlocked: () => {
+        setSaveMessage("가능 시간을 저장하거나 변경 취소한 뒤 근무 기간 변경을 반영해 주세요.");
+      },
+      onPeriodApplied: (period) => {
+        if (period) {
+          setCalendarMonthDate(getMonthStartDate(period.startDate));
+        }
+      },
+    });
   const dragSelectionRef = useRef<{
     lastColumnIndex: number;
     lastRowIndex: number;
@@ -475,31 +488,6 @@ export function MvpAvailabilityPage() {
   );
 
   useEffect(() => {
-    if (!planningPeriodQuery.data) {
-      return;
-    }
-
-    if (!activePlanningPeriod) {
-      setWorkStartDate("");
-      setWorkEndDate("");
-      return;
-    }
-
-    if (
-      hasUnsavedChangesRef.current &&
-      (activePlanningPeriod.startDate !== workStartDate ||
-        activePlanningPeriod.endDate !== workEndDate)
-    ) {
-      setSaveMessage("가능 시간을 저장하거나 변경 취소한 뒤 근무 기간 변경을 반영해 주세요.");
-      return;
-    }
-
-    setWorkStartDate(activePlanningPeriod.startDate);
-    setWorkEndDate(activePlanningPeriod.endDate);
-    setCalendarMonthDate(getMonthStartDate(activePlanningPeriod.startDate));
-  }, [activePlanningPeriod, planningPeriodQuery.data, workEndDate, workStartDate]);
-
-  useEffect(() => {
     if (workers.length === 0) {
       setSelectedWorkerId("");
       return;
@@ -569,7 +557,6 @@ export function MvpAvailabilityPage() {
       getSlotKey(slot.workerId, slot.date, slot.startMinutes),
     ),
   );
-  const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
   const canSaveAvailability =
     hasUnsavedChanges &&
     hasMatchingPlanningPeriod &&
@@ -772,10 +759,19 @@ export function MvpAvailabilityPage() {
       },
       {
         onError: (error) => {
+          resetToAppliedPeriod();
           setSaveMessage(getApiErrorMessage(error, "근무 기간 저장에 실패했습니다."));
         },
       },
     );
+  }
+
+  function handleWorkPeriodDialogOpenChange(open: boolean) {
+    setWorkPeriodDialogOpen(open);
+
+    if (!open && !hasMatchingPlanningPeriod) {
+      resetToAppliedPeriod();
+    }
   }
 
   function selectWorkDate(date: string) {
@@ -844,7 +840,7 @@ export function MvpAvailabilityPage() {
                     : "시작일 선택"}
               </span>
             </div>
-            <Dialog open={workPeriodDialogOpen} onOpenChange={setWorkPeriodDialogOpen}>
+            <Dialog open={workPeriodDialogOpen} onOpenChange={handleWorkPeriodDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button type="button" variant="outline" disabled={isPageLoading}>
                   기간 선택
@@ -975,6 +971,15 @@ export function MvpAvailabilityPage() {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {saveMessage && !hasMatchingPlanningPeriod ? (
+          <p
+            role="status"
+            className="mt-4 rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground"
+          >
+            {saveMessage}
+          </p>
         ) : null}
       </section>
 
