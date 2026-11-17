@@ -5,7 +5,7 @@
 조직의 영업시간, 근무자별 가능 시간, 주간 계약 시간, 시간대별 최소 필요 인원을 모아 스케줄 초안을 만듭니다. 운영자는 추천 결과와 부족한 인원을 확인하고, 배정을 수정한 뒤 최종 근무표를 확정하고 CSV로 내보낼 수 있습니다.
 
 - 저장소: [pair-study/fragment](https://github.com/pair-study/fragment)
-- 서비스 주소: [fragment.io.kr](https://fragment.io.kr) — 저장소에 등록된 주소이며, 현재 배포 상태는 별도 확인이 필요합니다.
+- 서비스 주소: 웹 [fragment.io.kr](https://fragment.io.kr), API `https://api.fragment.io.kr/api` — 2026-11-17에 두 주소가 응답하고 `main` 코드가 배포되어 있음을 확인했습니다.
 - 문서 기준: **2026-11-17**, `develop`의 `4d75704` 소스와 설정. 아래 구현 범위는 코드 확인과 로컬 실행으로 확인한 결과이며 운영 환경의 동작 검증 결과를 뜻하지 않습니다.
 
 ## 현재 구현 범위
@@ -68,7 +68,7 @@ Next.js 운영 웹과 Express API, PostgreSQL로 구성된 **단일 조직 관�
 | DB           | PostgreSQL 17.x 기준, Prisma 6.8.x                                      |
 | 테스트       | 웹: Vitest·React Testing Library / API: Jest·Supertest                  |
 | 품질 관리    | ESLint, Prettier, Husky, commitlint, GitHub Actions                     |
-| 배포 구성    | 웹: Vercel / API·PostgreSQL: Railway — 프로젝트 문서 기준               |
+| 배포 구성    | 웹: Vercel / API: Railway / PostgreSQL: Railway(프로젝트 문서 기준)     |
 
 Zustand는 기술 스택 문서에 도입 기준이 정의되어 있지만 현재 웹 패키지 의존성에는 없습니다. 도입 기준은 [기술 스택 정의서](docs/stack.md), 실제 설치 버전은 `pnpm-lock.yaml`을 확인합니다.
 
@@ -97,15 +97,15 @@ fragment/
 
 ```mermaid
 flowchart LR
-    Browser[운영자 브라우저] --> Web[Next.js 운영 웹]
-    Web -->|/api 프록시| API[Express API]
+    Browser[운영자 브라우저] -->|화면| Web[Next.js 운영 웹]
+    Browser -->|API 요청 · 로컬은 /api 프록시 경유| API[Express API]
     API --> Prisma[Prisma]
     Prisma --> DB[(PostgreSQL)]
     Shared[공유 타입 · Zod 스키마] -.-> Web
     Shared -.-> API
 ```
 
-개발 환경에서는 Next.js가 `/api/*` 요청을 기본적으로 `http://localhost:3001/api/*`로 전달합니다. Access token은 웹 메모리에서 관리하고 refresh token은 HttpOnly cookie로 전달합니다. API는 인증 사용자와 소유 조직을 기준으로 데이터에 접근합니다.
+개발 환경에서는 Next.js가 `/api/*` 요청을 기본적으로 `http://localhost:3001/api/*`로 전달합니다. 운영에서는 브라우저가 `https://api.fragment.io.kr/api`를 직접 호출합니다. Access token은 웹 메모리에서 관리하고 refresh token은 HttpOnly cookie로 전달합니다. API는 인증 사용자와 소유 조직을 기준으로 데이터에 접근합니다.
 
 ## 로컬 실행
 
@@ -168,7 +168,15 @@ pnpm dev:all
 
 Next.js의 환경변수는 `apps/web/.env.local` 또는 배포 플랫폼의 웹 환경변수에 설정합니다. 루트 `.env`만 바꿔서는 Next.js 설정에 반영되지 않습니다. API 포트를 바꾸면 프록시와 OpenAPI 주소도 맞춰 주세요.
 
-운영 웹은 `/api`를 API 서버로 전달할 프록시 구성이 필요합니다. Vercel에서는 `API_PROXY_ORIGIN`을 Railway API origin으로 설정하고, API에는 실제 웹 origin과 공개 API 주소를 설정합니다. 운영 refresh cookie는 `Secure`를 사용하므로 HTTPS 환경을 전제로 합니다.
+운영 웹은 프록시를 거치지 않고 API 도메인을 직접 호출합니다. 운영 환경변수는 다음과 같이 맞춥니다.
+
+| 위치          | 변수                       | 운영 값                          |
+| ------------- | -------------------------- | -------------------------------- |
+| Vercel (웹)   | `NEXT_PUBLIC_API_BASE_URL` | `https://api.fragment.io.kr/api` |
+| Railway (API) | `WEB_APP_ORIGIN`           | `https://fragment.io.kr`         |
+| Railway (API) | `API_PUBLIC_BASE_URL`      | `https://api.fragment.io.kr/api` |
+
+이 구성에서는 Vercel의 `API_PROXY_ORIGIN`이 필요하지 않습니다. `NEXT_PUBLIC_API_BASE_URL`은 빌드할 때 번들에 들어가므로 값을 바꾸면 웹을 다시 배포해야 합니다. 운영 refresh cookie는 `SameSite=None; Secure`이므로 HTTPS 환경을 전제로 합니다.
 
 ### 선택: 개발용 샘플 데이터
 
