@@ -3,10 +3,17 @@
 import Link from "next/link";
 import { createOrganizationRequestSchema } from "@fragment/shared";
 import { Button } from "@moyeorak/design-system";
-import { type FieldErrors, type Resolver, useForm } from "react-hook-form";
+import { Controller, type FieldErrors, type Resolver, useForm } from "react-hook-form";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   createOrganizationRequestFromForm,
@@ -23,6 +30,21 @@ type OrganizationFormProps = {
   submitLabel: string;
   submittingLabel: string;
 };
+
+const TIME_OPTION_STEP_MINUTES = 30;
+const MINUTES_IN_DAY = 24 * 60;
+
+const TIME_OPTIONS = Array.from(
+  { length: MINUTES_IN_DAY / TIME_OPTION_STEP_MINUTES },
+  (_, index) => {
+    const minutes = index * TIME_OPTION_STEP_MINUTES;
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+
+    return { label: value, value };
+  },
+);
 
 const organizationFormResolver: Resolver<OrganizationFormValues> = (values) => {
   const request = createOrganizationRequestFromForm(values);
@@ -85,6 +107,7 @@ export function OrganizationForm({
   submittingLabel,
 }: OrganizationFormProps) {
   const {
+    control,
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
@@ -124,13 +147,6 @@ export function OrganizationForm({
       className="rounded-xl border border-border bg-card p-6 shadow-card"
       onSubmit={handleSubmit(submitForm)}
     >
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">조직 정보</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          휴무일로 지정한 요일은 운영 시간 입력이 비활성화됩니다.
-        </p>
-      </div>
-
       <div className="mt-8 space-y-8">
         <div className="space-y-2">
           <Label htmlFor="organization-name">조직명</Label>
@@ -202,19 +218,49 @@ export function OrganizationForm({
 
                   <div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Input
-                        type="time"
-                        step={1800}
-                        disabled={closed}
-                        aria-label={`${day.label} 운영 시작 시간`}
-                        {...register(`businessHours.${day.value}.openTime`)}
+                      <Controller
+                        control={control}
+                        name={`businessHours.${day.value}.openTime`}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={closed}
+                          >
+                            <SelectTrigger aria-label={`${day.label} 운영 시작 시간`}>
+                              <SelectValue placeholder="시작 시간" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TIME_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       />
-                      <Input
-                        type="time"
-                        step={1800}
-                        disabled={closed}
-                        aria-label={`${day.label} 운영 종료 시간`}
-                        {...register(`businessHours.${day.value}.closeTime`)}
+                      <Controller
+                        control={control}
+                        name={`businessHours.${day.value}.closeTime`}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={closed}
+                          >
+                            <SelectTrigger aria-label={`${day.label} 운영 종료 시간`}>
+                              <SelectValue placeholder="종료 시간" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TIME_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       />
                     </div>
                     {dayError ? <p className="mt-2 text-sm text-destructive">{dayError}</p> : null}

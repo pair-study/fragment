@@ -50,6 +50,29 @@ describe("organization routes", () => {
     });
   });
 
+  it("rejects organization business hours outside the 30-minute boundary", async () => {
+    const { prisma } = createFakePrisma();
+    const app = createApp({ prisma });
+
+    const response = await request(app)
+      .post("/api/organization")
+      .set("Authorization", authHeader())
+      .send({
+        name: "프래그먼트 카페",
+        businessHours: createBusinessHoursInput({
+          MON: {
+            openTime: "09:15",
+          },
+        }),
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      errorCode: "VALIDATION_ERROR",
+      statusCode: 400,
+    });
+  });
+
   it("creates an organization and derives overnight business hours", async () => {
     const { prisma } = createFakePrisma();
     const app = createApp({ prisma });

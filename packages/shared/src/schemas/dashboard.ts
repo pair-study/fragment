@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { organizationSummarySchema } from "./organization";
+import { organizationDetailSchema } from "./organization";
 import { scheduleDetailSchema } from "./schedules";
 
 export const dashboardResponseSchema = z.object({
-  organization: organizationSummarySchema,
+  organization: organizationDetailSchema,
   latestConfirmedSchedule: scheduleDetailSchema.nullable(),
 });

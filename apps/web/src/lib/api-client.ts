@@ -16,6 +16,10 @@ type ApiVoidRequestOptions = ApiRequestOptions & {
   responseType: "void";
 };
 
+type ApiBlobRequestOptions = ApiRequestOptions & {
+  responseType: "blob";
+};
+
 type ApiErrorResponse = Partial<ErrorResponse>;
 
 type ApiClientAuthHandlers = {
@@ -97,6 +101,7 @@ async function parseErrorResponse(response: Response) {
 }
 
 export function apiClient(path: string, options: ApiVoidRequestOptions): Promise<void>;
+export function apiClient(path: string, options: ApiBlobRequestOptions): Promise<Blob>;
 export function apiClient<TResponse>(
   path: string,
   options?: ApiJsonRequestOptions,
@@ -110,8 +115,8 @@ export async function apiClient<TResponse>(
     redirectOnUnauthorized = true,
     responseType = "json",
     ...init
-  }: ApiJsonRequestOptions | ApiVoidRequestOptions = {},
-): Promise<TResponse | void> {
+  }: ApiBlobRequestOptions | ApiJsonRequestOptions | ApiVoidRequestOptions = {},
+): Promise<Blob | TResponse | void> {
   const hasBody = body !== undefined;
 
   async function sendRequest() {
@@ -179,6 +184,10 @@ export async function apiClient<TResponse>(
 
   if (responseType === "void") {
     return;
+  }
+
+  if (responseType === "blob") {
+    return response.blob();
   }
 
   if (response.status === 204) {

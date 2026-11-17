@@ -47,7 +47,7 @@ export function MvpOrganizationEditPage() {
           cancelHref="/dashboard"
           initialValues={formValues}
           submitError={submitError}
-          submitLabel="변경사항 저장"
+          submitLabel="저장"
           submittingLabel="저장 중"
           onSubmit={async (request) => {
             setSubmitError(null);

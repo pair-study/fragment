@@ -18,7 +18,7 @@
     "dev:api": "pnpm --filter @fragment/database build && pnpm --filter @fragment/api dev",
     "dev:all": "pnpm --filter @fragment/database build && pnpm --parallel --filter @fragment/web --filter @fragment/api dev",
     "build": "pnpm --filter @fragment/web build",
-    "build:api": "pnpm --filter @fragment/api build",
+    "build:api": "corepack pnpm --filter @fragment/api... build",
     "db:generate": "pnpm --filter @fragment/database db:generate",
     "db:migrate": "pnpm --filter @fragment/database db:migrate",
     "db:push": "pnpm --filter @fragment/database db:push",

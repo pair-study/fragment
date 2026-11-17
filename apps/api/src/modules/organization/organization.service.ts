@@ -13,7 +13,7 @@ import { toApiId, toPrismaId } from "@/utils/mapper";
 
 type OrganizationDatabaseClient = PrismaClient | Prisma.TransactionClient;
 
-type OrganizationWithBusinessHours = Prisma.OrganizationGetPayload<{
+export type OrganizationWithBusinessHours = Prisma.OrganizationGetPayload<{
   include: {
     businessHours: true;
   };
@@ -28,7 +28,9 @@ const getClosesNextDay = ({
 }: CreateOrganizationRequest["businessHours"][number]) =>
   !isClosed && openTime !== null && closeTime !== null && openTime > closeTime;
 
-const toOrganizationDetail = (organization: OrganizationWithBusinessHours): OrganizationDetail => ({
+export const toOrganizationDetail = (
+  organization: OrganizationWithBusinessHours,
+): OrganizationDetail => ({
   id: toApiId(organization.id),
   name: organization.name,
   businessHours: [...organization.businessHours]
