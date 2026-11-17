@@ -224,16 +224,16 @@ GitHub Actions는 `main`, `develop` 대상 PR에서 위 범위의 포맷, 타입
 
 운영 웹은 프록시를 거치지 않고 브라우저에서 API 도메인을 직접 호출합니다. Vercel과 Railway 모두 `main` 브랜치를 배포합니다. 아래 값은 2026-11-17에 Vercel과 Railway 대시보드, 운영 번들에서 확인했습니다.
 
-| 위치          | 변수                       | 운영 값                                    |
-| ------------- | -------------------------- | ------------------------------------------ |
-| Vercel (웹)   | `NEXT_PUBLIC_API_BASE_URL` | `https://api.fragment.io.kr/api`           |
-| Railway (API) | `WEB_APP_ORIGIN`           | `https://fragment.io.kr`                   |
-| Railway (API) | `API_PUBLIC_BASE_URL`      | `https://api.fragment.io.kr/api`           |
-| Railway (API) | `NODE_ENV`                 | 서비스 변수에 없음. `production` 추가 필요 |
+| 위치          | 변수                       | 운영 값                                               |
+| ------------- | -------------------------- | ----------------------------------------------------- |
+| Vercel (웹)   | `NEXT_PUBLIC_API_BASE_URL` | `https://api.fragment.io.kr/api`                      |
+| Railway (API) | `WEB_APP_ORIGIN`           | `https://fragment.io.kr`                              |
+| Railway (API) | `API_PUBLIC_BASE_URL`      | `https://api.fragment.io.kr/api`                      |
+| Railway (API) | `NODE_ENV`                 | 시작 명령에서 `production`으로 지정(서비스 변수 아님) |
 
 - Vercel에는 `API_PROXY_ORIGIN`을 두지 않습니다. 이 구성에서는 필요하지 않습니다.
 - `NEXT_PUBLIC_API_BASE_URL`은 빌드할 때 번들에 들어가므로 값을 바꾸면 웹을 다시 배포해야 합니다.
-- refresh cookie는 `NODE_ENV=production`일 때만 `SameSite=None; Secure`로 설정됩니다. 운영 API에 `NODE_ENV`를 명시해야 이 설정이 보장됩니다.
+- refresh cookie는 `NODE_ENV=production`일 때만 `SameSite=None; Secure`로 설정됩니다. 운영 API는 Railway 시작 명령에서 `NODE_ENV=production`을 지정합니다. 서비스 변수로 넣으면 빌드 단계에도 적용되어 devDependencies(`typescript`, `tsc-alias`, `prisma`)가 설치되지 않고 빌드와 마이그레이션이 깨질 수 있습니다. 쿠키 속성은 운영에서 로그인한 뒤 개발자 도구의 Application → Cookies에서 `refreshToken`으로 확인할 수 있습니다.
 - `www.fragment.io.kr`은 Vercel에서 `fragment.io.kr`로 308 리다이렉트합니다. API CORS가 `https://fragment.io.kr`만 허용하기 때문입니다.
 
 ### Railway
@@ -242,7 +242,7 @@ API 서비스와 PostgreSQL은 같은 Railway 프로젝트에 있습니다. API 
 
 - 빌드: `corepack pnpm --filter @fragment/database db:generate && corepack pnpm --filter "@fragment/api..." build`
 - 배포 전: `corepack pnpm --filter @fragment/database exec prisma migrate deploy`
-- 시작: `corepack pnpm --filter @fragment/api start`
+- 시작: `NODE_ENV=production corepack pnpm --filter @fragment/api start`
 
 Railway는 Free 플랜이라 다음 제약이 있습니다.
 
