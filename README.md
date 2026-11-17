@@ -68,7 +68,7 @@ Next.js 운영 웹과 Express API, PostgreSQL로 구성된 **단일 조직 관�
 | DB            | PostgreSQL 17.x 기준, Prisma 6.8.x                                       |
 | 테스트        | 웹: Vitest, React Testing Library / API: Jest, Supertest                 |
 | 품질 관리     | ESLint, Prettier, Husky, commitlint, GitHub Actions                      |
-| 배포 구성     | 웹: Vercel / API: Railway / PostgreSQL: Railway(프로젝트 문서 기준)      |
+| 배포 구성     | 웹: Vercel / API, PostgreSQL: Railway(같은 프로젝트)                     |
 
 Zustand는 기술 스택 문서에 도입 기준이 정의되어 있지만 현재 웹 패키지 의존성에는 없습니다. 도입 기준은 [기술 스택 정의서](docs/stack.md), 실제 설치 버전은 `pnpm-lock.yaml`을 확인합니다.
 
@@ -168,15 +168,7 @@ pnpm dev:all
 
 Next.js의 환경변수는 `apps/web/.env.local` 또는 배포 플랫폼의 웹 환경변수에 설정합니다. 루트 `.env`만 바꿔서는 Next.js 설정에 반영되지 않습니다. API 포트를 바꾸면 프록시와 OpenAPI 주소도 맞춰 주세요.
 
-운영 웹은 프록시를 거치지 않고 API 도메인을 직접 호출합니다. 운영 환경변수는 다음과 같이 맞춥니다.
-
-| 위치          | 변수                       | 운영 값                          |
-| ------------- | -------------------------- | -------------------------------- |
-| Vercel (웹)   | `NEXT_PUBLIC_API_BASE_URL` | `https://api.fragment.io.kr/api` |
-| Railway (API) | `WEB_APP_ORIGIN`           | `https://fragment.io.kr`         |
-| Railway (API) | `API_PUBLIC_BASE_URL`      | `https://api.fragment.io.kr/api` |
-
-이 구성에서는 Vercel의 `API_PROXY_ORIGIN`이 필요하지 않습니다. `NEXT_PUBLIC_API_BASE_URL`은 빌드할 때 번들에 들어가므로 값을 바꾸면 웹을 다시 배포해야 합니다. 운영 refresh cookie는 `SameSite=None; Secure`이므로 HTTPS 환경을 전제로 합니다.
+운영 환경변수와 배포 절차는 [운영 배포](#운영-배포)를 참고하세요.
 
 ### 선택: 개발용 샘플 데이터
 
@@ -228,12 +220,42 @@ pnpm test:api
 
 GitHub Actions는 `main`, `develop` 대상 PR에서 위 범위의 포맷, 타입, 린트, 테스트를 검사합니다. 현재 CI에는 프로덕션 빌드나 실제 DB를 사용하는 전체 사용자 흐름 검증은 포함되어 있지 않습니다.
 
+## 운영 배포
+
+운영 웹은 프록시를 거치지 않고 브라우저에서 API 도메인을 직접 호출합니다. Vercel과 Railway 모두 `main` 브랜치를 배포합니다. 아래 값은 2026-11-17에 Vercel과 Railway 대시보드, 운영 번들에서 확인했습니다.
+
+| 위치          | 변수                       | 운영 값                                    |
+| ------------- | -------------------------- | ------------------------------------------ |
+| Vercel (웹)   | `NEXT_PUBLIC_API_BASE_URL` | `https://api.fragment.io.kr/api`           |
+| Railway (API) | `WEB_APP_ORIGIN`           | `https://fragment.io.kr`                   |
+| Railway (API) | `API_PUBLIC_BASE_URL`      | `https://api.fragment.io.kr/api`           |
+| Railway (API) | `NODE_ENV`                 | 서비스 변수에 없음. `production` 추가 필요 |
+
+- Vercel에는 `API_PROXY_ORIGIN`을 두지 않습니다. 이 구성에서는 필요하지 않습니다.
+- `NEXT_PUBLIC_API_BASE_URL`은 빌드할 때 번들에 들어가므로 값을 바꾸면 웹을 다시 배포해야 합니다.
+- refresh cookie는 `NODE_ENV=production`일 때만 `SameSite=None; Secure`로 설정됩니다. 운영 API에 `NODE_ENV`를 명시해야 이 설정이 보장됩니다.
+- `www.fragment.io.kr`은 Vercel에서 `fragment.io.kr`로 308 리다이렉트합니다. API CORS가 `https://fragment.io.kr`만 허용하기 때문입니다.
+
+### Railway
+
+API 서비스와 PostgreSQL은 같은 Railway 프로젝트에 있습니다. API 서비스 명령은 다음과 같습니다.
+
+- 빌드: `corepack pnpm --filter @fragment/database db:generate && corepack pnpm --filter "@fragment/api..." build`
+- 배포 전: `prisma migrate deploy`
+- 시작: `corepack pnpm --filter @fragment/api start`
+
+Railway는 Free 플랜이라 다음 제약이 있습니다.
+
+- `main`에 머지해도 자동 배포되지 않습니다. 머지한 뒤 Railway에서 직접 다시 배포해야 합니다.
+- 새 커스텀 도메인을 추가할 수 없습니다. 기존 `api.fragment.io.kr`은 유지됩니다.
+- 자동 백업이 없고, 월 $1 크레딧을 넘기면 서비스가 멈출 수 있습니다.
+
 ## 개발을 다시 시작할 때
 
 1. [제품 요구사항](docs/PRD.md)과 [기능 명세](docs/SPEC.md)에서 MVP 흐름을 확인합니다.
 2. [추천 정책](docs/SCHEDULING_POLICY.md)을 읽고 최소 인원 조건 → 가능 시간 → 추천 순서로 로컬에서 확인합니다.
 3. [API 계약](docs/API.md), [OpenAPI](docs/openapi.yaml), [ERD](docs/ERD.md)를 실제 route, service, Prisma 스키마와 함께 확인합니다.
-4. 배포 환경변수, DB 마이그레이션 적용 상태, 저장소 이름 변경 후 Vercel과 Railway의 GitHub 연동을 확인합니다.
+4. [운영 배포](#운영-배포)에서 운영 환경변수와 Railway 수동 배포 절차를 확인합니다.
 5. [열린 이슈](https://github.com/pair-study/fragment/issues)와 [PR](https://github.com/pair-study/fragment/pulls)을 확인한 뒤 작업 이슈와 브랜치를 만듭니다.
 
 프로젝트 규칙상 `main`, `develop`에 직접 push하지 않습니다. 작업 이슈를 먼저 만들고 별도 브랜치에서 변경한 후 `develop`으로 PR을 올립니다. 커밋 형식은 `type(scope): 설명`이며, `feature → develop`은 squash merge, `develop → main`은 배포 시 merge commit과 버전 태그를 사용합니다.
