@@ -14,6 +14,7 @@ import { Badge, Button } from "@moyeorak/design-system";
 import { CalendarDays, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AdminPageShell } from "@/components/layout/admin-page-shell";
+import { usePlanningPeriodSelection } from "@/features/availability/hooks/use-planning-period-selection";
 import {
   useAvailabilityQuery,
   useReplaceAvailabilityMutation,
@@ -393,11 +394,23 @@ export function MvpAvailabilityPage() {
   const [calendarMonthDate, setCalendarMonthDate] = useState(() =>
     getMonthStartDate(getTodayDate()),
   );
-  const [workStartDate, setWorkStartDate] = useState("");
-  const [workEndDate, setWorkEndDate] = useState("");
   const [savedAvailability, setSavedAvailability] = useState<AvailabilitySlot[]>([]);
   const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
   const [saveMessage, setSaveMessage] = useState("");
+  const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
+  const { setWorkEndDate, setWorkStartDate, workEndDate, workStartDate } =
+    usePlanningPeriodSelection({
+      activePlanningPeriod: planningPeriodQuery.data ? activePlanningPeriod : undefined,
+      hasUnsavedChanges,
+      onApplyBlocked: () => {
+        setSaveMessage("가능 시간을 저장하거나 변경 취소한 뒤 근무 기간 변경을 반영해 주세요.");
+      },
+      onPeriodApplied: (period) => {
+        if (period) {
+          setCalendarMonthDate(getMonthStartDate(period.startDate));
+        }
+      },
+    });
   const dragSelectionRef = useRef<{
     lastColumnIndex: number;
     lastRowIndex: number;
@@ -475,31 +488,6 @@ export function MvpAvailabilityPage() {
   );
 
   useEffect(() => {
-    if (!planningPeriodQuery.data) {
-      return;
-    }
-
-    if (!activePlanningPeriod) {
-      setWorkStartDate("");
-      setWorkEndDate("");
-      return;
-    }
-
-    if (
-      hasUnsavedChangesRef.current &&
-      (activePlanningPeriod.startDate !== workStartDate ||
-        activePlanningPeriod.endDate !== workEndDate)
-    ) {
-      setSaveMessage("가능 시간을 저장하거나 변경 취소한 뒤 근무 기간 변경을 반영해 주세요.");
-      return;
-    }
-
-    setWorkStartDate(activePlanningPeriod.startDate);
-    setWorkEndDate(activePlanningPeriod.endDate);
-    setCalendarMonthDate(getMonthStartDate(activePlanningPeriod.startDate));
-  }, [activePlanningPeriod, planningPeriodQuery.data, workEndDate, workStartDate]);
-
-  useEffect(() => {
     if (workers.length === 0) {
       setSelectedWorkerId("");
       return;
@@ -569,7 +557,6 @@ export function MvpAvailabilityPage() {
       getSlotKey(slot.workerId, slot.date, slot.startMinutes),
     ),
   );
-  const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
   const canSaveAvailability =
     hasUnsavedChanges &&
     hasMatchingPlanningPeriod &&
