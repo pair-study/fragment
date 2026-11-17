@@ -244,20 +244,21 @@ API 서비스와 PostgreSQL은 같은 Railway 프로젝트에 있습니다. API 
 - 배포 전: `corepack pnpm --filter @fragment/database exec prisma migrate deploy`
 - 시작: `NODE_ENV=production corepack pnpm --filter @fragment/api start`
 
-Railway는 Free 플랜이라 다음 제약이 있습니다.
+Railway는 `main`에 머지하면 자동으로 배포됩니다. Railway 화면에 "Auto deploy unavailable"이 보여도 `main` 머지 뒤 자동 배포는 동작합니다(v0.1.0 머지 때 확인).
 
-- `main`에 머지해도 자동 배포되지 않습니다. 머지한 뒤 Railway에서 직접 다시 배포해야 합니다.
+Free 플랜이라 다음 제약이 있습니다.
+
 - 새 커스텀 도메인을 추가할 수 없습니다. 기존 `api.fragment.io.kr`은 유지됩니다.
 - 자동 백업이 없고, 월 $1 크레딧을 넘기면 서비스가 멈출 수 있습니다.
 
-헬스체크 엔드포인트가 아직 없으므로 수동 배포 뒤에는 `curl https://api.fragment.io.kr/api/auth/me`로 확인합니다. `401` JSON(`UNAUTHORIZED`)이 오면 API와 라우팅이 정상이고, 서비스가 꺼져 있으면 Railway의 `Application not found` 404가 옵니다.
+헬스체크 엔드포인트가 아직 없으므로 배포 뒤에는 `curl https://api.fragment.io.kr/api/auth/me`로 확인합니다. `401` JSON(`UNAUTHORIZED`)이 오면 API와 라우팅이 정상이고, 서비스가 꺼져 있으면 Railway의 `Application not found` 404가 옵니다.
 
 ## 개발을 다시 시작할 때
 
 1. [제품 요구사항](docs/PRD.md)과 [기능 명세](docs/SPEC.md)에서 MVP 흐름을 확인합니다.
 2. [추천 정책](docs/SCHEDULING_POLICY.md)을 읽고 최소 인원 조건 → 가능 시간 → 추천 순서로 로컬에서 확인합니다.
 3. [API 계약](docs/API.md), [OpenAPI](docs/openapi.yaml), [ERD](docs/ERD.md)를 실제 route, service, Prisma 스키마와 함께 확인합니다.
-4. [운영 배포](#운영-배포)에서 운영 환경변수와 Railway 수동 배포 절차를 확인합니다.
+4. [운영 배포](#운영-배포)에서 운영 환경변수와 Railway 배포 절차를 확인합니다.
 5. [열린 이슈](https://github.com/pair-study/fragment/issues)와 [PR](https://github.com/pair-study/fragment/pulls)을 확인한 뒤 작업 이슈와 브랜치를 만듭니다.
 
 프로젝트 규칙상 `main`, `develop`에 직접 push하지 않습니다. 작업 이슈를 먼저 만들고 별도 브랜치에서 변경한 후 `develop`으로 PR을 올립니다. 커밋 형식은 `type(scope): 설명`이며, `feature → develop`은 squash merge, `develop → main`은 배포 시 merge commit과 버전 태그를 사용합니다.
