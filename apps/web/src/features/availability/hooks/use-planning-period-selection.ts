@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type PlanningPeriodRange = {
   endDate: string;
@@ -26,6 +26,7 @@ function getPeriodKey(period: PlanningPeriodRange | null) {
  * 서버 기간이 마지막으로 반영한 값에서 바뀌었을 때만 선택값을 덮어씁니다.
  * 사용자가 달력에서 시작일만 고른 중간 상태는 서버 기간과 다르지만 그대로 유지해야 하므로,
  * 선택값이 바뀔 때마다 서버 기간으로 되돌리지 않습니다.
+ * 선택을 끝내지 않고 닫거나 저장에 실패했을 때는 `resetToAppliedPeriod`로 되돌립니다.
  */
 export function usePlanningPeriodSelection({
   activePlanningPeriod,
@@ -35,7 +36,7 @@ export function usePlanningPeriodSelection({
 }: UsePlanningPeriodSelectionOptions) {
   const [workStartDate, setWorkStartDate] = useState("");
   const [workEndDate, setWorkEndDate] = useState("");
-  const appliedPeriodKeyRef = useRef<string | null>(null);
+  const appliedPeriodRef = useRef<{ key: string; period: PlanningPeriodRange | null } | null>(null);
   const callbacksRef = useRef({ onApplyBlocked, onPeriodApplied });
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export function usePlanningPeriodSelection({
 
     const periodKey = getPeriodKey(activePlanningPeriod);
 
-    if (appliedPeriodKeyRef.current === periodKey) {
+    if (appliedPeriodRef.current?.key === periodKey) {
       return;
     }
 
@@ -62,11 +63,18 @@ export function usePlanningPeriodSelection({
       return;
     }
 
-    appliedPeriodKeyRef.current = periodKey;
+    appliedPeriodRef.current = { key: periodKey, period: activePlanningPeriod };
     setWorkStartDate(activePlanningPeriod?.startDate ?? "");
     setWorkEndDate(activePlanningPeriod?.endDate ?? "");
     callbacksRef.current.onPeriodApplied?.(activePlanningPeriod);
   }, [activePlanningPeriod, hasUnsavedChanges, workEndDate, workStartDate]);
 
-  return { setWorkEndDate, setWorkStartDate, workEndDate, workStartDate };
+  const resetToAppliedPeriod = useCallback(() => {
+    const appliedPeriod = appliedPeriodRef.current?.period ?? null;
+
+    setWorkStartDate(appliedPeriod?.startDate ?? "");
+    setWorkEndDate(appliedPeriod?.endDate ?? "");
+  }, []);
+
+  return { resetToAppliedPeriod, setWorkEndDate, setWorkStartDate, workEndDate, workStartDate };
 }

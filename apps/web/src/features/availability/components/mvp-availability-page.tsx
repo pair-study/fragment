@@ -398,7 +398,7 @@ export function MvpAvailabilityPage() {
   const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>([]);
   const [saveMessage, setSaveMessage] = useState("");
   const hasUnsavedChanges = !hasSameSlots(savedAvailability, draftAvailability);
-  const { setWorkEndDate, setWorkStartDate, workEndDate, workStartDate } =
+  const { resetToAppliedPeriod, setWorkEndDate, setWorkStartDate, workEndDate, workStartDate } =
     usePlanningPeriodSelection({
       activePlanningPeriod: planningPeriodQuery.data ? activePlanningPeriod : undefined,
       hasUnsavedChanges,
@@ -759,10 +759,19 @@ export function MvpAvailabilityPage() {
       },
       {
         onError: (error) => {
+          resetToAppliedPeriod();
           setSaveMessage(getApiErrorMessage(error, "근무 기간 저장에 실패했습니다."));
         },
       },
     );
+  }
+
+  function handleWorkPeriodDialogOpenChange(open: boolean) {
+    setWorkPeriodDialogOpen(open);
+
+    if (!open && !hasMatchingPlanningPeriod) {
+      resetToAppliedPeriod();
+    }
   }
 
   function selectWorkDate(date: string) {
@@ -831,7 +840,7 @@ export function MvpAvailabilityPage() {
                     : "시작일 선택"}
               </span>
             </div>
-            <Dialog open={workPeriodDialogOpen} onOpenChange={setWorkPeriodDialogOpen}>
+            <Dialog open={workPeriodDialogOpen} onOpenChange={handleWorkPeriodDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button type="button" variant="outline" disabled={isPageLoading}>
                   기간 선택
@@ -962,6 +971,15 @@ export function MvpAvailabilityPage() {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {saveMessage && !hasMatchingPlanningPeriod ? (
+          <p
+            role="status"
+            className="mt-4 rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted-foreground"
+          >
+            {saveMessage}
+          </p>
         ) : null}
       </section>
 

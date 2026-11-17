@@ -64,6 +64,38 @@ describe("usePlanningPeriodSelection", () => {
     expect(onPeriodApplied).toHaveBeenLastCalledWith(NEXT_PERIOD);
   });
 
+  it("resetToAppliedPeriod는 고르던 날짜를 마지막으로 반영한 서버 기간으로 되돌린다", () => {
+    const { result } = renderSelection({
+      activePlanningPeriod: SAVED_PERIOD,
+      hasUnsavedChanges: false,
+    });
+
+    act(() => {
+      result.current.setWorkStartDate("2026-12-01");
+      result.current.setWorkEndDate("");
+    });
+    act(() => {
+      result.current.resetToAppliedPeriod();
+    });
+
+    expect(result.current.workStartDate).toBe(SAVED_PERIOD.startDate);
+    expect(result.current.workEndDate).toBe(SAVED_PERIOD.endDate);
+  });
+
+  it("저장된 근무 기간이 없으면 resetToAppliedPeriod는 선택값을 비운다", () => {
+    const { result } = renderSelection({ activePlanningPeriod: null, hasUnsavedChanges: false });
+
+    act(() => {
+      result.current.setWorkStartDate("2026-11-23");
+    });
+    act(() => {
+      result.current.resetToAppliedPeriod();
+    });
+
+    expect(result.current.workStartDate).toBe("");
+    expect(result.current.workEndDate).toBe("");
+  });
+
   it("저장하지 않은 변경이 있으면 서버 기간 반영을 미뤘다가 변경이 정리되면 반영한다", () => {
     const onApplyBlocked = vi.fn();
     const { rerender, result } = renderSelection({
